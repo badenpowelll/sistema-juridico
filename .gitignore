@@ -1,0 +1,10 @@
+# Saídas geradas e dados de trabalhadores: nunca versionar (dados pessoais)
+calculadora/dist/
+saidas/
+*.xlsx
+*.pdf
+*.zip
+node_modules/
+.env
+.env.*
+!.env.example

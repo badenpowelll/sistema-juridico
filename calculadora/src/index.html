@@ -1,0 +1,365 @@
+<title>Calculadora de Rescisão CLT</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,650&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: barra lateral de módulos + bancada de cálculo em três etapas (dados → verbas/períodos → termo de rescisão) */
+:root {
+  --bg: #f3f5f2; --surface: #ffffff; --ink: #1b2422; --muted: #5d6b67; --line: #d9e0dc;
+  --accent: #1f5c4f; --accent-soft: #e2eee9; --warn: #9a5b00; --warn-soft: #fbf0dc; --neg: #a23b2c;
+  --display: "Newsreader", Georgia, "Times New Roman", serif;
+  --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121816; --surface: #1a2220; --ink: #e4ebe8; --muted: #9aa9a4; --line: #2c3834;
+  --accent: #6fc2ad; --accent-soft: #1f322d; --warn: #e6b45c; --warn-soft: #33291a; --neg: #ef8b7b; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #121816; --surface: #1a2220; --ink: #e4ebe8; --muted: #9aa9a4; --line: #2c3834;
+  --accent: #6fc2ad; --accent-soft: #1f322d; --warn: #e6b45c; --warn-soft: #33291a; --neg: #ef8b7b; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+#tab-ferias td:nth-child(2), #tab-13 td:nth-child(3) { white-space: nowrap; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); margin: 0; }
+.app { display: grid; grid-template-columns: 230px minmax(0, 1fr); min-height: 100vh; }
+.lateral { border-right: 1px solid var(--line); padding-block: 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px; display: flex; flex-direction: column; gap: 20px; }
+.marca { font: 650 22px/1.1 var(--display); letter-spacing: -0.01em; }
+.marca small { display: block; font: 500 11px var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+.modulos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.modulos li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; color: var(--muted); font-size: 14px; }
+.modulos li.ativo { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.modulos li span { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.lateral .nota { font-size: 12px; color: var(--muted); margin-top: auto; }
+main { padding-block: 28px 64px; padding-left: 32px; padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1080px; display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+header.topo h1 { font: 650 clamp(28px, 4vw, 40px)/1.1 var(--display); margin: 0 0 8px; text-wrap: balance; letter-spacing: -0.015em; }
+header.topo p { margin: 0; color: var(--muted); max-width: 64ch; }
+section.etapa { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 22px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.etapa > h2 { font: 650 20px/1.2 var(--display); margin: 0; display: flex; align-items: baseline; gap: 10px; }
+.etapa > h2 .n { font: 500 12px var(--mono); color: var(--accent); }
+.etapa > .sub { margin: -8px 0 0; color: var(--muted); font-size: 13px; }
+.grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px 16px; }
+.campo { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.campo.largo { grid-column: span 2; }
+.campo label, .rotulo { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.campo .ajuda { font-size: 12px; color: var(--muted); }
+input[type=date], input[type=text], input[type=number], select {
+  font: 15px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; width: 100%; min-width: 0; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; flex: none; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+details.mais { border-top: 1px dashed var(--line); padding-top: 12px; }
+details.mais summary { cursor: pointer; font-weight: 600; color: var(--accent); font-size: 14px; }
+details.mais .grade { margin-top: 14px; }
+.acoes { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button { font: 600 14px var(--body); border-radius: 6px; padding: 10px 16px; cursor: pointer; border: 1px solid var(--accent); }
+button.prim { background: var(--accent); color: var(--surface); }
+button.sec { background: transparent; color: var(--accent); }
+button.link { border: 0; background: none; color: var(--accent); padding: 4px 6px; font-size: 13px; text-decoration: underline; }
+.selo { font: 500 11px var(--mono); background: var(--warn-soft); color: var(--warn); border-radius: 4px; padding: 3px 8px; }
+#lista-verbas { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px 18px; }
+.verba { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; padding: 4px 0; }
+.verba input { margin-top: 3px; }
+.verba.na { color: var(--muted); }
+.verba em { font-style: normal; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.periodos { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 20px; }
+.periodos h3, .fgts h3, .observacoes h3 { font: 600 13px var(--body); letter-spacing: .06em; text-transform: uppercase; margin: 0; color: var(--muted); }
+.cab-periodo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.tabela-wrap { overflow-x: auto; max-height: 360px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { text-align: left; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); }
+td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+tr.on td { background: var(--accent-soft); }
+.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.proj { color: var(--accent); font-size: 11px; }
+.mini { width: 64px !important; padding: 4px 6px !important; font-size: 13px !important; }
+.pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.pill.alerta { background: var(--warn-soft); color: var(--warn); }
+.pill.neutra { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.cabecalho-trct { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 18px; padding-bottom: 14px; border-bottom: 2px solid var(--ink); }
+.cabecalho-trct div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cabecalho-trct strong { font-weight: 600; font-size: 14px; }
+.totais { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.tot { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; }
+.tot .v { font: 500 20px var(--mono); font-variant-numeric: tabular-nums; }
+.tot .v.neg { color: var(--neg); }
+.tot.destaque { background: var(--accent); border-color: var(--accent); }
+.tot.destaque .rotulo, .tot.destaque .v { color: var(--surface); }
+.trct .tabela-wrap, #resultado .tabela-wrap { max-height: none; }
+.trct td.ref { color: var(--muted); white-space: nowrap; font-size: 12px; }
+.trct .desc { font-weight: 500; }
+.trct .memo { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.trct .fund { opacity: .8; }
+.trct .valor { font-size: 14px; }
+.trct tfoot td { font-weight: 600; border-top: 1px solid var(--line); }
+.trct tr.liquido td { font-size: 15px; color: var(--accent); border-top: 2px solid var(--ink); }
+.vazio { color: var(--muted); text-align: center; }
+.fgts { border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.fgts dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; margin: 0; font-size: 14px; }
+.fgts dd.txt { font-family: var(--body); }
+.fgts dd { margin: 0; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.fgts .forte { font-weight: 700; border-top: 1px solid var(--line); padding-top: 6px; }
+.memo-lista, .observacoes ul { margin: 0; padding-left: 18px; font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.observacoes { background: var(--warn-soft); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.observacoes ul { color: var(--ink); font-size: 13px; }
+.erro { background: var(--warn-soft); color: var(--warn); padding: 12px 14px; border-radius: 8px; font-weight: 500; }
+.rodape-calc { font-size: 12px; color: var(--muted); margin: 0; }
+#resultado { display: flex; flex-direction: column; gap: 18px; }
+#texto-resumo { width: 100%; min-height: 160px; font: 12px var(--mono); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+#msg-copiar { font-size: 13px; color: var(--accent); }
+.abas { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.aba { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; color: var(--muted); padding: 10px 14px; }
+.aba.ativa { color: var(--accent); border-bottom-color: var(--accent); }
+.view { display: flex; flex-direction: column; gap: 28px; }
+.partes { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; }
+fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin: 0; min-width: 0; }
+legend { font: 600 13px var(--body); padding: 0 6px; color: var(--accent); }
+.partes-res { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.partes-res div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.partes-res .det { color: var(--muted); }
+.drop { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 2px dashed var(--line); border-radius: 10px; padding: 28px 16px; cursor: pointer; text-align: center; color: var(--muted); }
+.drop strong { color: var(--accent); font-size: 15px; }
+.drop.sobre, .drop:hover { border-color: var(--accent); background: var(--accent-soft); }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.subtitulo { font: 600 13px var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 18px 0 10px; }
+.msg { font-size: 13px; color: var(--accent); }
+.lote-wrap { max-height: 520px; }
+.lote-wrap .memo { font-size: 11px; color: var(--muted); }
+tr.falha td { background: var(--warn-soft); }
+.erro-linha { color: var(--warn); font-size: 12px; }
+.tot small { font-size: 12px; }
+.neg { color: var(--neg); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 860px) {
+  .partes { grid-template-columns: minmax(0, 1fr); }
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .lateral { border-right: 0; border-bottom: 1px solid var(--line); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px; }
+  .modulos { flex-direction: row; flex-wrap: wrap; } .modulos li span { display: none; } .lateral .nota { display: none; }
+  main { padding-left: max(16px, env(safe-area-inset-left, 0px)); }
+  .periodos { grid-template-columns: minmax(0, 1fr); }
+  .campo.largo { grid-column: auto; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+@media print {
+  :root { --bg: #fff; --surface: #fff; --ink: #000; --muted: #444; --line: #bbb; --accent: #1f5c4f; --accent-soft: #fff; }
+  .lateral, header.topo, .abas, #view-lote, #sec-qual, #sec-dados, #sec-verbas, #sec-periodos, .acoes-resultado { display: none !important; }
+  .app { display: block; } main { padding: 0; max-width: none; }
+  section.etapa { border: 0; padding: 0; }
+  .tot.destaque { background: #fff; border: 2px solid #000; } .tot.destaque .rotulo, .tot.destaque .v { color: #000; }
+  .tabela-wrap { overflow: visible; border: 0; } th { position: static; }
+  tr { break-inside: avoid; }
+}
+</style>
+
+<div class="app">
+  <aside class="lateral">
+    <div class="marca">Sistema Jurídico<small>Cálculos trabalhistas</small></div>
+    <ul class="modulos" aria-label="Módulos">
+      <li class="ativo">Rescisão CLT</li>
+      <li>Férias <span>em breve</span></li>
+      <li>Horas extras <span>em breve</span></li>
+      <li>Seguro-desemprego <span>em breve</span></li>
+      <li>Correção monetária <span>em breve</span></li>
+      <li>Petição inicial <span>em breve</span></li>
+    </ul>
+    <p class="nota">Tabelas INSS e IRRF vigentes em 2026. Atualize em <code>core/tabelas.js</code>.</p>
+  </aside>
+
+  <main>
+    <header class="topo">
+      <h1>Cálculo de rescisão do contrato de trabalho</h1>
+      <p>Informe o contrato, escolha as verbas e os períodos de 13º e férias que ainda não foram pagos. O termo de rescisão abaixo se atualiza a cada alteração, com a memória de cálculo de cada linha.</p>
+    </header>
+
+    <nav class="abas" role="tablist" aria-label="Modo de cálculo">
+      <button type="button" role="tab" id="aba-individual" class="aba ativa" aria-selected="true" data-view="individual">Cálculo individual</button>
+      <button type="button" role="tab" id="aba-lote" class="aba" aria-selected="false" data-view="lote">Lote por planilha</button>
+    </nav>
+
+    <div id="view-individual" class="view">
+    <section class="etapa" id="sec-qual">
+      <h2><span class="n">1</span>Qualificação das partes</h2>
+      <form id="form-qual" novalidate>
+        <div class="partes">
+          <fieldset>
+            <legend>Empregado</legend>
+            <div class="grade">
+              <div class="campo largo"><label for="qNome">Nome completo</label><input type="text" id="qNome" name="qNome" value="Maria Exemplo da Silva" autocomplete="off"></div>
+              <div class="campo"><label for="qCpf">CPF</label><input type="text" id="qCpf" name="qCpf" inputmode="numeric" value="000.000.000-00"></div>
+              <div class="campo"><label for="qPis">PIS/NIT</label><input type="text" id="qPis" name="qPis" inputmode="numeric"></div>
+              <div class="campo"><label for="qCtps">CTPS (nº e série)</label><input type="text" id="qCtps" name="qCtps"></div>
+              <div class="campo"><label for="qMatricula">Matrícula</label><input type="text" id="qMatricula" name="qMatricula"></div>
+              <div class="campo"><label for="qCargo">Cargo / função</label><input type="text" id="qCargo" name="qCargo" value="Auxiliar administrativo"></div>
+              <div class="campo"><label for="qNascimento">Data de nascimento</label><input type="date" id="qNascimento" name="qNascimento"></div>
+              <div class="campo largo"><label for="qEndereco">Endereço</label><input type="text" id="qEndereco" name="qEndereco"></div>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Empregador</legend>
+            <div class="grade">
+              <div class="campo largo"><label for="qEmpregador">Nome ou razão social</label><input type="text" id="qEmpregador" name="qEmpregador" value="Empresa Exemplo Ltda."></div>
+              <div class="campo"><label for="qCnpj">CNPJ / CPF</label><input type="text" id="qCnpj" name="qCnpj" inputmode="numeric" value="00.000.000/0001-00"></div>
+              <div class="campo largo"><label for="qEndEmpregador">Endereço</label><input type="text" id="qEndEmpregador" name="qEndEmpregador"></div>
+            </div>
+          </fieldset>
+        </div>
+      </form>
+    </section>
+
+    <section class="etapa" id="sec-dados">
+      <h2><span class="n">2</span>Dados do contrato <span class="selo" id="selo-exemplo">exemplo preenchido</span></h2>
+      <form id="form-dados" novalidate>
+        <div class="grade">
+          <div class="campo"><label for="admissao">Data de admissão</label><input type="date" id="admissao" name="admissao" value="2019-03-11"></div>
+          <div class="campo"><label for="demissao">Data de demissão</label><input type="date" id="demissao" name="demissao" value="2026-11-06"><span class="ajuda">Último dia trabalhado</span></div>
+          <div class="campo"><label for="salario">Último salário bruto (R$)</label><input type="text" inputmode="decimal" id="salario" name="salario" value="3.200,00"><span class="ajuda">Fixo + adicionais habituais</span></div>
+          <div class="campo"><label for="motivo">Motivo da rescisão</label>
+            <select id="motivo" name="motivo">
+              <option value="sem_justa">Dispensa sem justa causa</option>
+              <option value="pedido">Pedido de demissão</option>
+              <option value="justa_causa">Dispensa por justa causa</option>
+              <option value="fim_experiencia">Término do contrato de experiência</option>
+              <option value="antecipada_empregador">Experiência: rescisão antecipada pelo empregador</option>
+              <option value="antecipada_empregado">Experiência: rescisão antecipada pelo empregado</option>
+              <option value="indireta">Rescisão indireta (art. 483)</option>
+              <option value="culpa_reciproca">Culpa recíproca</option>
+              <option value="acordo">Acordo entre as partes (art. 484-A)</option>
+              <option value="falecimento">Falecimento do empregado</option>
+              <option value="aposentadoria">Aposentadoria</option>
+            </select></div>
+          <div class="campo"><label for="avisoTipo">Aviso prévio</label><select id="avisoTipo" name="avisoTipo"></select></div>
+          <div class="campo" id="campo-experiencia" hidden><label for="fimExperiencia">Fim previsto da experiência</label><input type="date" id="fimExperiencia" name="fimExperiencia"></div>
+          <div class="campo"><label for="dependentes">Dependentes para IRRF</label><input type="number" min="0" id="dependentes" name="dependentes" value="1"></div>
+          <div class="campo"><label for="saldoFgts">Saldo do FGTS para fins rescisórios (R$)</label><input type="text" inputmode="decimal" id="saldoFgts" name="saldoFgts" value="18.450,00"><span class="ajuda">Extrato da Caixa, base da multa</span></div>
+        </div>
+        <p class="ajuda" id="dica-motivo" style="font-size:13px;color:var(--muted);margin:12px 0 0"></p>
+        <details class="mais">
+          <summary>Mais opções: faltas, data-base, pagamento em atraso, salário-família</summary>
+          <div class="grade">
+            <div class="campo"><label for="faltasMes">Faltas no mês da rescisão</label><input type="number" min="0" id="faltasMes" name="faltasMes" value="0"></div>
+            <div class="campo"><label for="mesDataBase">Mês da data-base da categoria</label>
+              <select id="mesDataBase" name="mesDataBase"><option value="">Não informar</option>
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select>
+              <span class="ajuda">Para a indenização da Lei 7.238/84</span></div>
+            <div class="campo"><label for="dataPagamento">Data do pagamento da rescisão</label><input type="date" id="dataPagamento" name="dataPagamento"><span class="ajuda">Para a multa do art. 477</span></div>
+            <div class="campo"><label for="filhos">Filhos até 14 anos</label><input type="number" min="0" id="filhos" name="filhos" value="0"><span class="ajuda">Para o salário-família</span></div>
+            <div class="campo"><label for="outrosDescontos">Adiantamentos e outros descontos (R$)</label><input type="text" inputmode="decimal" id="outrosDescontos" name="outrosDescontos"></div>
+            <div class="campo largo">
+              <label class="check"><input type="checkbox" id="estimarFgts" name="estimarFgts"> Estimar FGTS de todo o contrato (empregador não depositou)</label>
+              <label class="check"><input type="checkbox" id="inssSobreAviso" name="inssSobreAviso"> Cobrar INSS sobre o aviso prévio indenizado</label>
+              <span class="ajuda">O STJ afasta o INSS sobre o aviso indenizado (Tema 478). Marque só se o sindicato ou a empresa adotar a incidência.</span>
+            </div>
+          </div>
+        </details>
+        <div class="acoes" style="margin-top:16px">
+          <button type="submit" class="prim">Calcular rescisão</button>
+          <button type="button" class="sec" id="btn-limpar-exemplo">Limpar exemplo</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="etapa" id="sec-verbas">
+      <h2><span class="n">3</span>Verbas a calcular</h2>
+      <p class="sub">O motivo da rescisão já marca o que é devido. Desmarque o que foi pago ou não se aplica ao caso.</p>
+      <div id="lista-verbas"></div>
+    </section>
+
+    <section class="etapa" id="sec-periodos">
+      <h2><span class="n">4</span>Períodos de 13º e férias</h2>
+      <p class="sub" id="resumo-periodos"></p>
+      <div class="periodos">
+        <div>
+          <div class="cab-periodo"><h3>13º salário</h3><span><button type="button" class="link" data-marcar="dec:todos">marcar todos</button><button type="button" class="link" data-marcar="dec:nenhum">nenhum</button></span></div>
+          <div class="tabela-wrap"><table><thead><tr><th></th><th>Ano</th><th>Período</th><th class="num">Avos</th></tr></thead><tbody id="tab-13"></tbody></table></div>
+        </div>
+        <div>
+          <div class="cab-periodo"><h3>Férias (períodos aquisitivos)</h3><span><button type="button" class="link" data-marcar="fer:todos">marcar todos</button><button type="button" class="link" data-marcar="fer:nenhum">nenhum</button></span></div>
+          <div class="tabela-wrap"><table><thead><tr><th></th><th>Período</th><th>Situação</th><th class="num">Avos</th><th>Faltas</th><th>Dobro</th></tr></thead><tbody id="tab-ferias"></tbody></table></div>
+        </div>
+      </div>
+      <p class="sub" style="margin:0">Marque apenas os períodos não pagos. Férias com período concessivo vencido entram em dobro (art. 137 CLT); as faltas reduzem os dias conforme o art. 130.</p>
+    </section>
+
+    <section class="etapa" id="sec-resultado">
+      <h2><span class="n">5</span>Termo de rescisão</h2>
+      <div class="acoes acoes-resultado">
+        <button type="button" class="prim" id="btn-pdf">Exportar PDF</button>
+        <button type="button" class="sec" id="btn-copiar">Copiar resumo</button>
+        <button type="button" class="sec" id="btn-imprimir">Imprimir</button>
+        <span id="msg-copiar" role="status"></span>
+      </div>
+      <textarea id="texto-resumo" hidden aria-label="Resumo do cálculo"></textarea>
+      <div id="resultado"></div>
+    </section>
+    </div>
+
+    <div id="view-lote" class="view" hidden>
+      <section class="etapa">
+        <h2><span class="n">1</span>Planilha de trabalhadores</h2>
+        <p class="sub">Envie um Excel ou CSV com uma linha por trabalhador. O sistema acha o cabeçalho sozinho e aceita colunas como Matrícula, Nome, Função, Admissão, Salário Base, Periculosidade, Remuneração e Saldo FGTS.</p>
+        <form id="form-lote" novalidate>
+          <label class="drop" id="lote-drop" for="lote-arquivo">
+            <strong>Escolha a planilha ou arraste para cá</strong>
+            <span>.xlsx, .xls ou .csv</span>
+            <input type="file" id="lote-arquivo" accept=".xlsx,.xls,.csv,.ods">
+          </label>
+          <div class="acoes" style="margin-top:10px">
+            <button type="button" class="link" id="btn-modelo">Baixar planilha-modelo</button>
+            <span id="lote-msg" class="msg" role="status"></span>
+          </div>
+          <div class="campo" id="campo-aba" hidden style="max-width:360px;margin-top:10px"><label for="lote-aba">Aba da planilha</label><select id="lote-aba"></select></div>
+          <h3 class="subtitulo">Valores usados quando a planilha não informa</h3>
+          <div class="grade">
+            <div class="campo"><label for="loteDemissao">Data do desligamento</label><input type="date" id="loteDemissao" name="loteDemissao"></div>
+            <div class="campo"><label for="loteMotivo">Motivo</label>
+              <select id="loteMotivo" name="loteMotivo">
+                <option value="sem_justa">Dispensa sem justa causa</option><option value="pedido">Pedido de demissão</option><option value="justa_causa">Dispensa por justa causa</option>
+                <option value="fim_experiencia">Término da experiência</option><option value="antecipada_empregador">Experiência: antecipada pelo empregador</option>
+                <option value="antecipada_empregado">Experiência: antecipada pelo empregado</option><option value="indireta">Rescisão indireta</option>
+                <option value="culpa_reciproca">Culpa recíproca</option><option value="acordo">Acordo (art. 484-A)</option><option value="falecimento">Falecimento</option><option value="aposentadoria">Aposentadoria</option>
+              </select></div>
+            <div class="campo"><label for="loteAviso">Aviso prévio</label><select id="loteAviso" name="loteAviso"><option value="indenizado">Indenizado</option><option value="trabalhado">Trabalhado</option><option value="descontado">Não cumprido (descontar)</option><option value="dispensado">Dispensado</option></select></div>
+            <div class="campo"><label for="loteDataBase">Mês da data-base</label><select id="loteDataBase" name="loteDataBase"><option value="">Não informar</option><option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option><option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option><option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option><option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option></select></div>
+            <div class="campo largo"><label for="loteEmpregador">Empregador</label><input type="text" id="loteEmpregador" name="loteEmpregador" placeholder="Razão social"></div>
+            <div class="campo"><label for="loteCnpj">CNPJ</label><input type="text" id="loteCnpj" name="loteCnpj"></div>
+            <div class="campo largo"><label for="loteEndEmpregador">Endereço do empregador</label><input type="text" id="loteEndEmpregador" name="loteEndEmpregador"></div>
+            <div class="campo largo">
+              <label class="check"><input type="checkbox" id="loteMulta477" name="loteMulta477"> Incluir multa do art. 477 (pagamento em atraso)</label>
+              <label class="check"><input type="checkbox" id="loteLei7238" name="loteLei7238"> Incluir indenização da Lei 7.238/84 quando cabível</label>
+              <label class="check"><input type="checkbox" id="loteInssAviso" name="loteInssAviso"> Cobrar INSS sobre o aviso indenizado</label>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <section class="etapa" id="lote-resultado" hidden>
+        <h2><span class="n">2</span>Conferência e exportação</h2>
+        <div id="lote-resumo"></div>
+        <div class="acoes">
+          <button type="button" class="prim" id="btn-lote-pdf">PDF único com todos</button>
+          <button type="button" class="sec" id="btn-lote-zip">ZIP com um PDF por pessoa</button>
+          <button type="button" class="sec" id="btn-lote-xlsx">Planilha consolidada</button>
+          <span id="lote-acao-msg" class="msg" role="status"></span>
+        </div>
+        <div class="tabela-wrap lote-wrap"><table>
+          <thead><tr><th class="num">Linha</th><th>Trabalhador</th><th>Admissão</th><th>Demissão</th><th class="num">Salário</th><th class="num">Proventos</th><th class="num">Descontos</th><th class="num">Líquido</th><th class="num">FGTS a depositar</th><th></th></tr></thead>
+          <tbody id="lote-tabela"></tbody>
+        </table></div>
+        <p class="sub" style="margin:0">Cada termo usa o 13º do ano da rescisão, a última férias vencida (se não estiver em dobro) e as férias proporcionais. Para casos especiais, refaça o cálculo no modo individual.</p>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!--INLINE:core/tabelas.js-->
+<!--INLINE:core/arquivos.js-->
+<!--INLINE:modulos/rescisao/motor.js-->
+<!--INLINE:modulos/rescisao/pdf.js-->
+<!--INLINE:modulos/rescisao/ui.js-->
+<!--INLINE:modulos/rescisao/lote.js-->
