@@ -1,0 +1,11 @@
+@import 'tailwindcss';
+
+/* Sóbrio: azul-marinho e cinza, como no protótipo */
+@theme {
+  --color-marinho: #14243d;
+  --color-marinho-claro: #23395d;
+}
+
+body {
+  @apply bg-slate-100 text-slate-800 antialiased;
+}
