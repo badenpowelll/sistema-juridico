@@ -9,6 +9,7 @@ Regras de segurança da informação:
   cliente existente (ou que se repita no arquivo) vai para a fila de conferência (homônimos).
 """
 import hashlib
+import logging
 import re
 import time
 import uuid
@@ -18,7 +19,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from sqlalchemy import delete, func, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.modelos import (
@@ -31,6 +32,7 @@ from app.servicos.identificadores import (
 from app.servicos.leitura_arquivos import ler
 
 TAMANHO_LOTE = 500
+log = logging.getLogger("ejmf.importacao")
 
 # campo de destino -> (rótulo, obrigatório, sinônimos de cabeçalho)
 CAMPOS: dict[str, tuple[str, bool, tuple[str, ...]]] = {
@@ -360,16 +362,26 @@ def executar(db: Session, ator: auditoria.Ator, imp_id: uuid.UUID, max_lotes: in
             db.rollback()
             break
         feitos = 0
-        for ln in pendentes:
-            ponto = db.begin_nested()
-            try:
-                _aplicar_linha(db, ator, imp, ln, tribunais)
-                ponto.commit()
-                feitos += 1
-            except Exception as e:  # noqa: BLE001 — a linha vira inconsistência, nunca some
-                ponto.rollback()
-                ln.situacao = "invalida"
-                ln.mensagens = [*ln.mensagens, _msg("erro", "execucao", f"falha ao gravar: {e}")]
+        ponto = db.begin_nested()
+        try:  # caminho rápido: o lote inteiro com consultas agrupadas e um único flush
+            _aplicar_lote(db, imp, pendentes, tribunais)
+            ponto.commit()
+            feitos = len(pendentes)
+        except Exception as erro_lote:  # noqa: BLE001 — algo no lote falhou: refaz linha a linha para isolar o problema
+            log.warning("importacao.lote_linha_a_linha", extra={"importacao_id": str(imp_id), "erro": repr(erro_lote)[:300]})
+            ponto.rollback()
+            pendentes = db.execute(select(ImportacaoLinha).where(
+                ImportacaoLinha.id.in_([ln.id for ln in pendentes])).order_by(ImportacaoLinha.linha)).scalars().all()
+            for ln in pendentes:
+                ponto = db.begin_nested()
+                try:
+                    _aplicar_linha(db, ator, imp, ln, tribunais)
+                    ponto.commit()
+                    feitos += 1
+                except Exception as e:  # noqa: BLE001 — a linha vira inconsistência, nunca some
+                    ponto.rollback()
+                    ln.situacao = "invalida"
+                    ln.mensagens = [*ln.mensagens, _msg("erro", "execucao", f"falha ao gravar: {e}")]
         auditoria.registrar(db, ator, "importacao.executar.lote", entidade="importacao", entidade_id=imp.id,
                             alteracoes={"linhas": [pendentes[0].linha, pendentes[-1].linha], "gravadas": feitos})
         db.commit()
@@ -386,6 +398,105 @@ def executar(db: Session, ator: auditoria.Ator, imp_id: uuid.UUID, max_lotes: in
                             alteracoes={"totais": imp.totais})
         db.commit()
     return {"status": imp.status, "restantes": restantes, "totais": totais(db, imp)}
+
+
+def _aplicar_lote(db: Session, imp: Importacao, pendentes: list[ImportacaoLinha], tribunais) -> None:
+    """Mesmo resultado de _aplicar_linha para cada linha, com consultas agrupadas (≈4 por lote em vez de ≈15 por linha)."""
+    esc = imp.escritorio_id
+    agora = datetime.now(timezone.utc)
+    numeros = {ln.normalizado["numero"] for ln in pendentes}
+    procs = {p.numero: p for p in db.execute(select(Processo).where(
+        Processo.escritorio_id == esc, Processo.numero.in_(numeros)).options(selectinload(Processo.partes))).scalars()}
+    docs = {ln.normalizado["cliente_documento"] for ln in pendentes if ln.normalizado.get("cliente_documento")}
+    hashes = {d: svc_clientes.hash_documento(d) for d in docs}
+    por_hash = {c.documento_hash: c for c in db.execute(select(Cliente).where(
+        Cliente.escritorio_id == esc, Cliente.documento_hash.in_(hashes.values()))).scalars()} if hashes else {}
+    nomes = {normalizar_texto(ln.normalizado["cliente_nome"]) for ln in pendentes
+             if ln.normalizado.get("cliente_nome") and not ln.normalizado.get("cliente_documento")}
+    por_nome = {c.nome_normalizado: c for c in db.execute(select(Cliente).where(
+        Cliente.importacao_id == imp.id, Cliente.documento_hash.is_(None),
+        Cliente.nome_normalizado.in_(nomes))).scalars()} if nomes else {}
+    associar = {uuid.UUID(ln.normalizado["cliente_id"]) for ln in pendentes
+                if ln.normalizado.get("decisao") == "associar"}
+    por_id = {c.id: c for c in db.execute(select(Cliente).where(Cliente.id.in_(associar))).scalars()} if associar else {}
+
+    # sem relationship entre todas as tabelas, a ordem dos INSERTs é garantida por etapas de flush
+    novos_clientes: list[Cliente] = []
+    novos_processos: list[Processo] = []
+    movimentacoes: list[Movimentacao] = []
+    vinculos: list[tuple[Processo, Parte]] = []
+    resultado: list[tuple[ImportacaoLinha, Processo, Cliente | None]] = []
+    for ln in pendentes:
+        n = ln.normalizado
+        p = procs.get(n["numero"])
+        novo = p is None
+        if novo:
+            trib = tribunais.get(f"{n['numero'][13]}.{n['numero'][14:16]}")
+            p = Processo(
+                id=uuid.uuid4(), escritorio_id=esc, numero=n["numero"], numero_formatado=n["numero_formatado"],
+                tribunal_codigo=trib.codigo if trib else None,
+                departamento_id=uuid.UUID(n["departamento_id"]) if n.get("departamento_id") else None,
+                classe=n.get("classe"), assuntos=n.get("assuntos") or [], unidade=n.get("unidade"),
+                status=n.get("status", "ativo"),
+                valor_causa=Decimal(n["valor_causa"]) if n.get("valor_causa") else None,
+                data_distribuicao=date.fromisoformat(n["data_distribuicao"]) if n.get("data_distribuicao") else None,
+                observacoes=n.get("observacoes"), origem="importacao", importacao_id=imp.id)
+            if n.get("parte_contraria"):
+                p.partes.append(Parte(escritorio_id=esc, nome=n["parte_contraria"],
+                                      polo="passivo" if n.get("cliente_polo") == "ativo" else "ativo", importacao_id=imp.id))
+            novos_processos.append(p)
+            movimentacoes.append(Movimentacao(escritorio_id=esc, processo_id=p.id, tipo="sistema", ocorrido_em=agora,
+                                origem="importacao", importacao_id=imp.id,
+                                descricao=f"Processo importado do arquivo “{imp.arquivo_nome}”, linha {ln.linha}"))
+            procs[n["numero"]] = p
+        cliente = None
+        decisao = n.get("decisao")
+        if ln.situacao != "conferencia" and decisao != "sem_cliente":
+            if decisao == "associar":
+                cliente = por_id[uuid.UUID(n["cliente_id"])]
+            elif n.get("cliente_documento") and hashes[n["cliente_documento"]] in por_hash:
+                cliente = por_hash[hashes[n["cliente_documento"]]]
+            elif n.get("cliente_acao") == "criar" or decisao == "novo_cliente":
+                chave_nome = normalizar_texto(n["cliente_nome"])
+                if not n.get("cliente_documento") and decisao != "novo_cliente" and chave_nome in por_nome:
+                    cliente = por_nome[chave_nome]
+                else:
+                    cliente = svc_clientes.novo_objeto(esc, nome=n["cliente_nome"], tipo=n.get("cliente_tipo") or "PF",
+                                                       documento=n.get("cliente_documento"), email=n.get("cliente_email"),
+                                                       telefone=n.get("cliente_telefone"), origem="importacao",
+                                                       importacao_id=imp.id)
+                    novos_clientes.append(cliente)
+                    if cliente.documento_hash:
+                        por_hash[cliente.documento_hash] = cliente
+                    else:
+                        por_nome[chave_nome] = cliente
+        ja_vinculado = any(pt.cliente_id == cliente.id for pt in p.partes) or \
+            any(pp is p and pt.cliente_id == cliente.id for pp, pt in vinculos) if cliente is not None else True
+        if not ja_vinculado:
+            vinculos.append((p, Parte(escritorio_id=esc, processo_id=p.id, nome=cliente.nome, polo=n.get("cliente_polo", "ativo"),
+                                      cliente_id=cliente.id, representado=True, importacao_id=imp.id)))
+            if not novo:
+                movimentacoes.append(Movimentacao(escritorio_id=esc, processo_id=p.id, tipo="sistema", ocorrido_em=agora,
+                                    origem="importacao", importacao_id=imp.id,
+                                    descricao=f"Cliente {cliente.nome} vinculado pela importação “{imp.arquivo_nome}”, linha {ln.linha}"))
+        resultado.append((ln, p, cliente))
+
+    db.add_all(novos_clientes)
+    db.flush()
+    db.add_all(novos_processos)
+    db.flush()
+    for p, parte in vinculos:
+        p.partes.append(parte)
+    db.add_all(movimentacoes)
+    for p in {id(p): p for _l, p, _c in resultado}.values():
+        svc_processos.atualizar_texto_busca(p)
+    db.flush()
+    for ln, p, cliente in resultado:
+        ln.processo_id = p.id
+        ln.cliente_id = cliente.id if cliente is not None else None
+        if ln.situacao == "valida":
+            ln.situacao = "importada"
+    db.flush()
 
 
 def _cliente_da_linha(db: Session, ator: auditoria.Ator, imp: Importacao, n: dict) -> uuid.UUID | None:

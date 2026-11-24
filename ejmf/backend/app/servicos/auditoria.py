@@ -33,8 +33,8 @@ def mascarar(valor: Any, chave: str = "") -> Any:
         return {k: mascarar(v, k) for k, v in valor.items()}
     if isinstance(valor, list):
         return [mascarar(v, chave) for v in valor]
-    if valor is None:
-        return None
+    if valor is None or valor == "":
+        return valor
     if any(s in c for s in _CHAVES_SECRETAS):
         return "***"
     if any(c == s or c.endswith("_" + s) for s in _CHAVES_PARCIAIS):

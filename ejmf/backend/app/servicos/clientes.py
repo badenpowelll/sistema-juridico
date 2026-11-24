@@ -53,20 +53,30 @@ def criar(db: Session, ator: auditoria.Ator, escritorio_id: uuid.UUID, *, nome: 
             raise ClienteDuplicado(existente)
     if tipo not in ("PF", "PJ"):
         raise ValueError("Informe o tipo (PF ou PJ) ou um CPF/CNPJ válido")
-    c = Cliente(
-        escritorio_id=escritorio_id, tipo=tipo, nome=nome, nome_normalizado=normalizar_texto(nome),
-        documento_cifrado=cifrar(norm[1]) if norm else None,
-        documento_hash=hash_documento(norm[1]) if norm else None,
-        documento_mascarado=mascarar_documento(tipo, norm[1]) if norm else None,
-        email=(email or None), telefone=(telefone or None), contatos=contatos or [],
-        observacoes=observacoes or None, origem=origem, importacao_id=importacao_id,
-    )
+    c = novo_objeto(escritorio_id, nome=nome, tipo=tipo, documento=norm[1] if norm else None, email=email,
+                    telefone=telefone, contatos=contatos, observacoes=observacoes, origem=origem,
+                    importacao_id=importacao_id)
     db.add(c)
     db.flush()
     if auditar:
         auditoria.registrar(db, ator, "cliente.criar", entidade="cliente", entidade_id=c.id, origem=origem,
                             alteracoes={"nome": nome, "tipo": tipo, "documento": norm[1] if norm else None})
     return c
+
+
+def novo_objeto(escritorio_id: uuid.UUID, *, nome: str, tipo: str, documento: str | None = None,
+                email: str | None = None, telefone: str | None = None, contatos: list | None = None,
+                observacoes: str | None = None, origem: str = "manual", importacao_id: uuid.UUID | None = None) -> Cliente:
+    """Monta o cliente (documento já validado e limpo) sem consultar o banco; o id é gerado aqui."""
+    nome = " ".join((nome or "").split())
+    return Cliente(
+        id=uuid.uuid4(), escritorio_id=escritorio_id, tipo=tipo, nome=nome, nome_normalizado=normalizar_texto(nome),
+        documento_cifrado=cifrar(documento) if documento else None,
+        documento_hash=hash_documento(documento) if documento else None,
+        documento_mascarado=mascarar_documento(tipo, documento) if documento else None,
+        email=(email or None), telefone=(telefone or None), contatos=contatos or [],
+        observacoes=observacoes or None, origem=origem, importacao_id=importacao_id,
+    )
 
 
 def documento_completo(c: Cliente) -> str | None:

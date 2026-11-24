@@ -20,7 +20,7 @@ def _situacoes(c, imp_id):
     return {i["linha"]: i for i in itens}
 
 
-def test_fluxo_completo_csv(admin):
+def test_fluxo_completo_csv(admin, caplog):
     c, _ = admin
     # cliente e processo que já existem no sistema
     homonimo = c.post("/api/v1/clientes", json={"nome": "Carlos Homônimo Sintético", "documento": s.cpf()}).json()
@@ -60,6 +60,7 @@ def test_fluxo_completo_csv(admin):
 
     r = c.post(f"/api/v1/importacoes/{imp['id']}/executar").json()
     assert r["status"] == "concluido" and r["restantes"] == 0
+    assert not [getattr(x, "erro", "") for x in caplog.records if x.getMessage() == "importacao.lote_linha_a_linha"]  # caminho rápido
     assert r["totais"]["por_situacao"]["importada"] == 5 and r["totais"]["conferencia_pendente"] == 2
 
     p1 = c.get("/api/v1/processos", params={"q": n1}).json()["itens"][0]
@@ -160,6 +161,31 @@ def test_txt_lista_simples(admin):
     nums = [s.numero() for _ in range(2)]
     imp = _enviar(c, "numeros.txt", ("\n".join(nums) + "\n\n").encode())
     assert imp["colunas"] == ["numero"] and imp["totais"]["linhas"] == 2
+
+
+def test_falha_no_lote_isola_a_linha(admin, db, monkeypatch, caplog):
+    """Se o caminho rápido falhar, o lote é refeito linha a linha e só a linha problemática vira inconsistência."""
+    from app.servicos import importacao
+    c, _ = admin
+    nums = [s.numero() for _ in range(4)]
+    imp = _enviar(c, "falha.csv", _csv([["numero"]] + [[n] for n in nums]))
+    c.post(f"/api/v1/importacoes/{imp['id']}/validar", json={"mapeamento": {"numero": "numero"}})
+    original = importacao._aplicar_linha
+
+    def lote_quebrado(*a, **k):
+        raise RuntimeError("falha simulada no lote")
+
+    def linha_quebrada(db_, ator, imp_, ln, tribs):
+        if ln.normalizado["numero"] == "".join(ch for ch in nums[2] if ch.isdigit()):
+            raise RuntimeError("falha simulada na linha")
+        return original(db_, ator, imp_, ln, tribs)
+    monkeypatch.setattr(importacao, "_aplicar_lote", lote_quebrado)
+    monkeypatch.setattr(importacao, "_aplicar_linha", linha_quebrada)
+    r = c.post(f"/api/v1/importacoes/{imp['id']}/executar").json()
+    assert r["totais"]["por_situacao"] == {"importada": 3, "invalida": 1}
+    assert any(x.getMessage() == "importacao.lote_linha_a_linha" for x in caplog.records)
+    ruim = [l for l in _situacoes(c, imp["id"]).values() if l["situacao"] == "invalida"][0]
+    assert "falha simulada na linha" in ruim["mensagens"][-1]["texto"]
 
 
 def test_execucao_interrompida_retoma_sem_duplicar(admin, db):
