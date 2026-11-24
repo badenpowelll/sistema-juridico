@@ -1,7 +1,8 @@
 # SECURITY
 
 ## Implementado (ver TESTING.md para as evidências)
-Preenchido ao final de cada fase.
+- Fase 1: Argon2id, sessões opacas revogáveis, MFA TOTP, bloqueio e limite de tentativas, CSRF por cabeçalho, RBAC no servidor, auditoria encadeada e imutável.
+- Fase 2: CPF/CNPJ cifrado em repouso (Fernet) com HMAC para busca exata; a API devolve só o documento mascarado, e o documento completo exige `clientes:ver_documento` e gera registro `cliente.documento.ver`. Importação com limite de 20 MB / 50 mil linhas, leitura sem execução de fórmulas, e relatório que mascara documentos. Operação em lote exige permissão própria (`processos:lote`).
 
 ## Política
 - Segredos só em variáveis de ambiente (`.env` nunca versionado; `.env.example` sem valores reais). A aplicação recusa iniciar em produção com `EJMF_CHAVE_SECRETA` fraca.

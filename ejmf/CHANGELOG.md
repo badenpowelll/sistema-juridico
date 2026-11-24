@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [Fase 2] — 2026-11-24
+- Migração `0002_gestao_processual`: tribunais, clientes, processos, partes, movimentações, importações e linhas de importação.
+- Número CNJ validado pelo dígito verificador (módulo 97) e tribunal identificado pelo código J.TR (95 tribunais; TJRN, TRT21 e TRF5 prioritários).
+- Clientes PF/PJ: CPF e CNPJ validados (CNPJ alfanumérico da IN RFB 2.229/2024), guardados cifrados, com hash para busca exata e deduplicação e cópia mascarada para exibição; ver o documento completo exige permissão própria e fica na auditoria.
+- Prontuário do processo: dados, partes e clientes, linha do tempo (movimentações, anotações e histórico da auditoria) e próximos módulos.
+- Pesquisa global por número (com ou sem máscara, ou trecho), parte, cliente e classe, respeitando permissões.
+- Operações em lote (situação e departamento), tudo ou nada, auditadas.
+- Importação em massa: pré-visualização, sugestão de mapeamento, validação, duplicidades no arquivo e no banco, execução em lotes de 500 retomável, relatório CSV, fila de conferência para homônimos e reversão.
+- Teste de carga com 1k, 5k e 10k processos (100 mil movimentações).
+
 ## [Fase 1] — 2026-11-24
 - Backend FastAPI + SQLAlchemy/Alembic + PostgreSQL 16 (pgvector), migração `0001_fundacao`.
 - Autenticação própria: Argon2id, sessões opacas revogáveis, MFA TOTP, bloqueio após 5 falhas, limite por IP, proteção CSRF.

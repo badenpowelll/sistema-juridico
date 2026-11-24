@@ -24,4 +24,23 @@ Cenários E2E: página pública; login inválido; login → painel com "O que ex
 
 Observação do ambiente de desenvolvimento: o `docker build` desta máquina passa por um proxy com certificado próprio; as imagens foram construídas injetando esse certificado num contexto temporário, sem alterar os Dockerfiles versionados. Em máquina comum, `docker compose up --build` funciona direto.
 
+### Fase 2 — 2026-11-24 (mesmo ambiente)
+| Comando | Resultado |
+|---|---|
+| `cd backend && pytest -q` | **73 passed** (identificadores CNJ/CPF/CNPJ, processos, clientes, partes, linha do tempo, pesquisa, lote, importação CSV/XLSX/JSON/TXT, homônimos, reenvio, falha isolada em lote, execução interrompida e retomada com 1.203 linhas, reversão, permissões) |
+| `alembic upgrade head` / `downgrade -1` / `upgrade head` e `alembic check` | ida e volta sem erro; modelos e migração sem diferença |
+| `cd frontend && npm run lint && npx tsc --noEmit && npm run build` | sem erros |
+| `cd frontend && npm run test:e2e` | **23 passed, 1 skipped** (inclui 4 cenários novos × desktop e celular: cadastro de cliente e processo com anotação e pesquisa global; importação CSV com inconsistências, execução e conferência; operador sem lote nem reversão; advogado altera processos em lote) |
+| `cd backend && python -m testes_carga.carga` | resultado em `backend/testes_carga/resultado.json` (resumo abaixo) |
+
+Teste de carga (API via TestClient, PostgreSQL local, 30 repetições por rota; tempos p50/p95 em ms):
+
+| Cenário | Lista pág. 1 | Busca por número | Busca por cliente | Prontuário | Pesquisa global | Central de comando | Banco |
+|---|---|---|---|---|---|---|---|
+| 1k processos / 3k mov. | 22.6 / 26.7 | 19.7 / 21.5 | 19.7 / 22.1 | 17.9 / 18.9 | 18.0 / 21.3 | 27.2 / 32.7 | 51 MB |
+| 5k / 15k | 21.2 / 28.2 | 26.5 / 31.0 | 26.9 / 28.2 | 19.1 / 22.0 | 20.1 / 23.1 | 34.9 / 39.0 | 39 MB |
+| 10k / 100k | 23.1 / 33.1 | 34.8 / 39.7 | 31.9 / 34.7 | 20.5 / 22.9 | 21.0 / 24.0 | 38.9 / 44.0 | 78 MB |
+
+Importação de 5.100 linhas (2% com problema): analisar 0,22 s, validar 0,84 s, executar 9,5 s em 2 chamadas; 5.000 importadas, 50 inválidas e 50 duplicadas, nenhuma descartada. Memória máxima do processo: 215 MB. Cadeia de auditoria íntegra ao final de cada cenário.
+
 CI: `.github/workflows/ejmf.yml` roda os mesmos testes (backend + E2E) em cada PR que toca `ejmf/`.

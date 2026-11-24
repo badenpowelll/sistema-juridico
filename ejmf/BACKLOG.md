@@ -23,15 +23,15 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 ## Fase 2 — Gestão processual
 | ID | Item | Prioridade |
 |---|---|---|
-| F2-01 | Tribunais (tabela de referência a partir de J.TR do número CNJ) | P0 |
-| F2-02 | Processos (número CNJ validado, classe, assuntos, unidade, status, origem) | P0 |
-| F2-03 | Clientes PF/PJ (CPF/CNPJ validados e protegidos) e contatos | P0 |
-| F2-04 | Partes e vínculo cliente-processo | P0 |
-| F2-05 | Movimentações e linha do tempo | P1 |
-| F2-06 | Importação CSV/XLSX/JSON: pré-visualização, mapeamento, validação, duplicidades, lotes, relatório, fila de conferência, reversão | P0 |
-| F2-07 | Pesquisa global (FTS + trigram) respeitando permissões | P1 |
-| F2-08 | Operações em lote auditadas | P2 |
-| F2-09 | Testes de carga 1k/5k/10k processos e 100k movimentações | P0 |
+| F2-01 ✓ | Tribunais (tabela de referência a partir de J.TR do número CNJ) | P0 |
+| F2-02 ✓ | Processos (número CNJ validado, classe, assuntos, unidade, status, origem) | P0 |
+| F2-03 ✓ | Clientes PF/PJ (CPF/CNPJ validados e protegidos) e contatos | P0 |
+| F2-04 ✓ | Partes e vínculo cliente-processo | P0 |
+| F2-05 ✓ | Movimentações e linha do tempo | P1 |
+| F2-06 ✓ | Importação CSV/XLSX/JSON: pré-visualização, mapeamento, validação, duplicidades, lotes, relatório, fila de conferência, reversão | P0 |
+| F2-07 ✓ | Pesquisa global (FTS + trigram) respeitando permissões | P1 |
+| F2-08 ✓ | Operações em lote auditadas | P2 |
+| F2-09 ✓ | Testes de carga 1k/5k/10k processos e 100k movimentações | P0 |
 
 ## Fase 3 — Controladoria
 | ID | Item | Prioridade |
