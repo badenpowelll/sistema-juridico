@@ -99,6 +99,26 @@ def criar_usuario(sessao: Session, ator: auditoria.Ator, *, email: str, nome: st
     return u
 
 
+def redefinir_acesso(sessao: Session, ator: auditoria.Ator, usuario: Usuario, *, zerar_mfa: bool,
+                     senha: str | None = None) -> str:
+    """Senha provisória (mostrada uma vez), desbloqueio e, se pedido, verificação em duas etapas desligada.
+
+    Encerra todas as sessões da pessoa. A senha nunca vai para a auditoria nem para o log.
+    """
+    import secrets
+    nova = senha or secrets.token_urlsafe(12)
+    if len(nova) < 12:
+        raise ValueError("A senha precisa ter ao menos 12 caracteres")
+    usuario.senha_hash = seguranca.gerar_hash_senha(nova)
+    usuario.falhas_login, usuario.bloqueado_ate = 0, None
+    if zerar_mfa:
+        usuario.mfa_ativo, usuario.mfa_segredo_cifrado = False, None
+    n = revogar_sessoes(sessao, usuario.id)
+    auditoria.registrar(sessao, ator, "usuario.acesso_redefinido", entidade="usuario", entidade_id=usuario.id,
+                        alteracoes={"mfa_desligada": zerar_mfa, "sessoes_revogadas": n})
+    return nova
+
+
 def _nova_sessao(sessao: Session, usuario: Usuario, ip: str | None, agente: str | None, mfa_pendente: bool) -> str:
     cfg = obter_config()
     token = seguranca.novo_token()

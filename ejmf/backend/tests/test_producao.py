@@ -194,3 +194,34 @@ def test_saude_componentes_para_monitor_externo_sem_dados(app_cliente, db):
     d = r.json()
     assert d["status"] == "ok" and d["componentes"]["copias"] == "aguardando_configuracao" and d["componentes"]["wal"] == "desligado"
     assert "ejmf" not in r.text.replace("ejmf_", "")  # nada de banco, usuário ou caminho
+
+
+# ------------------------------------------------------------------ acesso perdido
+
+def test_redefinir_acesso_pela_tela_e_pelo_servidor(admin, operador, app_cliente, db, monkeypatch, capsys):
+    from app.modelos import Usuario
+    c_adm, u_adm = admin
+    c_op, u_op = operador
+    db.execute(update(Usuario).where(Usuario.id == u_op.id).values(mfa_ativo=True, mfa_segredo_cifrado="x", falhas_login=4))
+    db.commit()
+    assert c_op.post(f"/api/v1/usuarios/{u_adm.id}/redefinir-acesso", json={}).status_code == 403
+    assert c_adm.post(f"/api/v1/usuarios/{u_adm.id}/redefinir-acesso", json={}).status_code == 400  # a própria: Segurança
+    assert c_adm.post(f"/api/v1/usuarios/{uuid.uuid4()}/redefinir-acesso", json={}).status_code == 404
+    r = c_adm.post(f"/api/v1/usuarios/{u_op.id}/redefinir-acesso", json={"zerar_mfa": True})
+    assert r.status_code == 200, r.text
+    senha = r.json()["senha_provisoria"]
+    assert len(senha) >= 12
+    assert c_op.get("/api/v1/auth/eu").status_code == 401  # sessões encerradas
+    db.expire_all()
+    u = db.get(Usuario, u_op.id)
+    assert u.mfa_ativo is False and u.mfa_segredo_cifrado is None and u.falhas_login == 0
+    novo = app_cliente()
+    assert novo.post("/api/v1/auth/login", json={"email": u_op.email, "senha": senha}).status_code == 200
+    aud = db.execute(select(Auditoria).where(Auditoria.operacao == "usuario.acesso_redefinido",
+                                             Auditoria.entidade_id == str(u_op.id))).scalars().all()
+    assert aud and all(senha not in str(a.alteracoes) for a in aud)
+    # pelo servidor, quando não há outro administrador (celular da verificação perdido)
+    assert cli.main(["redefinir-acesso", "--email", "ninguem@example.com"]) == 2
+    assert cli.main(["redefinir-acesso", "--email", u_adm.email, "--zerar-mfa"]) == 0
+    provisoria = capsys.readouterr().out.strip().splitlines()[-1]
+    assert app_cliente().post("/api/v1/auth/login", json={"email": u_adm.email, "senha": provisoria}).status_code == 200

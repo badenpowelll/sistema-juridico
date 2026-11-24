@@ -17,6 +17,9 @@ def main(argv: list[str] | None = None) -> int:
     ca.add_argument("--email", required=True)
     ca.add_argument("--nome", default="Márcio Oliveira Fernandes")
     ca.add_argument("--perfil", default="advogado_admin")
+    ra = sub.add_parser("redefinir-acesso", help="senha provisória (e, se pedido, MFA desligada) quando não há outro administrador")
+    ra.add_argument("--email", required=True)
+    ra.add_argument("--zerar-mfa", action="store_true", help="desliga a verificação em duas etapas (celular perdido)")
     sub.add_parser("verificar-auditoria", help="recalcula a cadeia de hashes da auditoria")
     sub.add_parser("gerar-vapid", help="gera localmente o par de chaves das notificações no celular (Web Push)")
     sub.add_parser("gerar-chave-backup", help="gera a chave de cifra das cópias de segurança (guarde fora do servidor)")
@@ -79,6 +82,24 @@ def main(argv: list[str] | None = None) -> int:
         if a.cmd == "semear":
             print(semente.semear(db))
             db.commit()
+        elif a.cmd == "redefinir-acesso":
+            from sqlalchemy import select as _sel
+
+            from app.modelos import Usuario
+            from app.servicos.autenticacao import redefinir_acesso
+            esc = semente.obter_escritorio(db)
+            u = db.execute(_sel(Usuario).where(Usuario.escritorio_id == esc.id, Usuario.email == a.email)).scalar()
+            if u is None:
+                print("Usuário não encontrado", file=sys.stderr)
+                return 2
+            senha = redefinir_acesso(db, auditoria.Ator(tipo="sistema", nome="cli (servidor)", escritorio_id=esc.id), u,
+                                     zerar_mfa=a.zerar_mfa, senha=os.environ.get("EJMF_SENHA_INICIAL"))
+            db.commit()
+            print("Senha provisória (troque no primeiro acesso, em Segurança):" if not os.environ.get("EJMF_SENHA_INICIAL")
+                  else "Senha definida a partir de EJMF_SENHA_INICIAL.")
+            if not os.environ.get("EJMF_SENHA_INICIAL"):
+                print(senha)
+            return 0
         elif a.cmd == "criar-admin":
             semente.semear(db)
             senha = os.environ.get("EJMF_SENHA_INICIAL") or getpass.getpass("Senha (mín. 12 caracteres): ")

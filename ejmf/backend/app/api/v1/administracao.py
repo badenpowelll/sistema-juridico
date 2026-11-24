@@ -12,7 +12,7 @@ from app.api.deps import Contexto, exigir
 from app.core.banco import obter_sessao
 from app.modelos import ESTADOS_INTEGRACAO, Configuracao, Departamento, Integracao, Perfil, Usuario
 from app.servicos import auditoria, catalogo
-from app.servicos.autenticacao import criar_usuario, revogar_sessoes
+from app.servicos.autenticacao import criar_usuario, redefinir_acesso, revogar_sessoes
 from app.servicos.semente import obter_escritorio
 
 rotas = APIRouter(tags=["administração"])
@@ -78,6 +78,24 @@ def alterar_usuario(usuario_id: uuid.UUID, dados: AlteracaoUsuario, ctx: Context
                                     "depois": {k: depois[k] for k in ("ativo", "perfis")}})
     ctx.db.commit()
     return depois
+
+
+class EntradaRedefinir(BaseModel):
+    zerar_mfa: bool = False
+
+
+@rotas.post("/usuarios/{usuario_id}/redefinir-acesso")
+def redefinir(usuario_id: uuid.UUID, dados: EntradaRedefinir, ctx: Contexto = Depends(exigir("usuarios:gerenciar"))):
+    u = ctx.db.get(Usuario, usuario_id)
+    if u is None or u.escritorio_id != ctx.usuario.escritorio_id:
+        raise HTTPException(404, "Usuário não encontrado")
+    if u.id == ctx.usuario.id:
+        raise HTTPException(400, "Para a sua própria conta, use Segurança > Trocar senha")
+    senha = redefinir_acesso(ctx.db, ctx.ator, u, zerar_mfa=dados.zerar_mfa)
+    ctx.db.commit()
+    return {"senha_provisoria": senha, "mfa_desligada": dados.zerar_mfa,
+            "aviso": "Entregue a senha provisória pessoalmente ou por canal seguro. Ela não será mostrada de novo; "
+                     "a pessoa deve trocá-la em Segurança no primeiro acesso."}
 
 
 @rotas.get("/perfis")

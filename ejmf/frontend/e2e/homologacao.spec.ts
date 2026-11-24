@@ -61,6 +61,29 @@ test("Homologação e produção: cópias aguardando a chave, contingência, pol
   await expect(adv.locator('[data-item="migracao"]')).toHaveAttribute("data-situacao", "ok");
   await expect(adv.getByText("ejmf:ejmf")).toHaveCount(0);
   await expect(avisos(adv)).toHaveCount(0);
+
+  // acesso perdido: o advogado redefine o acesso de uma pessoa e a senha provisória aparece uma vez
+  const email = `provisorio.${Date.now()}.${isMobile ? "m" : "d"}@example.com`;
+  await adv.goto("/painel/usuarios");
+  await adv.getByLabel("Nome").fill("Pessoa Provisória Sintética");
+  await adv.getByLabel("E-mail").fill(email);
+  await adv.getByLabel("Senha inicial").fill("senha-inicial-sintetica-1");
+  await adv.getByRole("button", { name: "Criar" }).click();
+  await expect(adv.getByText("Usuário criado.")).toBeVisible();
+  const linha = adv.getByRole("listitem").filter({ hasText: email });
+  await linha.getByRole("button", { name: "Redefinir acesso" }).click();
+  const caixa = adv.locator("[data-senha-provisoria]");
+  await expect(caixa).toContainText("Senha provisória de Pessoa Provisória Sintética");
+  const provisoria = (await caixa.locator(".font-mono").textContent())?.trim() ?? "";
+  expect(provisoria.length).toBeGreaterThanOrEqual(12);
+  const outra = await browser.newContext(opcoes);
+  const pg = await outra.newPage();
+  await pg.goto("/entrar");
+  await pg.getByLabel("E-mail").fill(email);
+  await pg.getByLabel("Senha").fill(provisoria);
+  await pg.getByRole("button", { name: "Entrar" }).click();
+  await expect(pg.getByRole("heading", { name: "Central de comando" })).toBeVisible();
+  await outra.close();
   expect(erros).toEqual([]);
   await adv.context().close();
 
