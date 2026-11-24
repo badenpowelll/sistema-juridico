@@ -42,3 +42,7 @@ Decisões estruturais ficam em ADRs (`docs/adr/`). Decisões menores e reversív
 | 2026-11-24 | Antivírus pelo clamd local; fora do ar = quarentena | Nenhum arquivo sai do servidor; nada se perde nem entra sem verificação | 0015 |
 | 2026-11-24 | Limite de tentativas no PostgreSQL em vez de Redis | Compartilhado entre processos sem mais um serviço | 0015 |
 | 2026-11-24 | Calculadora de rescisão não reaproveitada no financeiro; rentabilidade sem rateio de custos operacionais | Domínios diferentes; critério de rateio ainda não decidido pelo escritório | 0013 |
+| 2026-11-24 | Produção num único servidor com Docker Compose e Caddy (HTTPS automático); sem Kubernetes | Simples de operar para um escritório solo; só 80/443 expostos | 0016 |
+| 2026-11-24 | WAL pelo arquivamento nativo + pg_basebackup diário, sem pgBackRest | RPO de 15 min sem mais uma ferramenta; recuperação ensaiada | 0016 |
+| 2026-11-24 | Cópia externa pelo SDK oficial da AWS (boto3), conferida por SHA-256, sem apagar lá fora | Qualquer provedor S3 compatível; servidor invadido não apaga a cópia externa | 0016 |
+| 2026-11-24 | Configuração perigosa impede a API de subir em produção; MFA do administrador obrigatória | Simulado, HTTP ou senha de exemplo não chegam ao uso real por engano | 0016 |

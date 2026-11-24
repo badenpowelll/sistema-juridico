@@ -45,6 +45,12 @@ def pasta(tmp_path, monkeypatch, db):
     obter_config.cache_clear()
 
 
+def _head() -> str:
+    from alembic.config import Config as AlembicConfig
+    from alembic.script import ScriptDirectory
+    return ScriptDirectory.from_config(AlembicConfig(str(Path(__file__).resolve().parents[1] / "alembic.ini"))).get_current_head()
+
+
 def _bancos_descartaveis() -> list[str]:
     m = create_engine(make_url(obter_config().database_url).set(database="postgres"))
     with m.connect() as c:
@@ -79,7 +85,7 @@ def test_copia_cifrada_restaurada_em_banco_descartavel_e_conferida(admin, db, pa
     assert SEGREDO_DO_ARQUIVO not in bruto and b"PGDMP" not in bruto and b"usuarios" not in bruto
     assert oct(arq.stat().st_mode & 0o777) == "0o600"
     m = c.manifesto
-    assert m["arquivos"] == 2 and m["tabelas"]["usuarios"] >= 1 and m["revisao"] == "0011" and m["auditoria_ultimo_hash"]
+    assert m["arquivos"] == 2 and m["tabelas"]["usuarios"] >= 1 and m["revisao"] == _head() and m["auditoria_ultimo_hash"]
     assert c.chave_id == copias.id_da_chave(copias._chave())
 
     t = copias.testar(db, esc, c.id)
@@ -207,7 +213,7 @@ def test_restaurar_de_verdade_so_em_banco_vazio_e_com_confirmacao(db, pasta, tmp
         assert cli.main(["restaurar", "--arquivo", str(arq), "--destino", destino, "--arquivos-destino",
                          str(tmp_path / "rest")]) == 2  # sem --confirmar
         r = copias.restaurar(arq, destino, tmp_path / "rest")
-        assert r["divergentes"] == [] and r["arquivos"] == 2 and r["revisao"] == "0011"
+        assert r["divergentes"] == [] and r["arquivos"] == 2 and r["revisao"] == _head()
         assert (tmp_path / "rest" / "2026" / "11" / "documento.pdf").read_bytes().endswith(SEGREDO_DO_ARQUIVO)
         with pytest.raises(copias.ErroCopia, match="não está vazio"):
             copias.restaurar(arq, destino, tmp_path / "rest2")

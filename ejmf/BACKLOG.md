@@ -174,12 +174,28 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 | F11-07 ✓ | Teste de isolamento entre escritórios | P0 |
 | F11-08 ✓ | Carga repetida com todas as fases (1k, 5k e 10k processos; cópia e restauração medidas) | P0 |
 | F11-09 ✓ | Roteiro de homologação profissional (HOMOLOGACAO.md) com os 14 cenários de aceitação | P0 |
-| F11-10 | Cópia em outro provedor (S3 compatível) | Depende da conta do escritório |
-| F11-11 | WAL contínuo (pgBackRest) para RPO de 1 h | Implantação (Fase 12) |
+| F11-10 ✓ | Cópia em outro provedor (S3 compatível): pronta na Fase 12, aguardando a conta | Fase 12 |
+| F11-11 ✓ | WAL contínuo para RPO de 1 h (arquivamento nativo + pg_basebackup; ADR-0016) | Fase 12 |
 | F11-12 | Ensaio de restauração completo por pessoa, cronometrado, no servidor real | Depende do responsável |
 | F11-13 | Homologação profissional dos 14 cenários, regras de prazo, feriados, modelos e instruções de IA | Depende do Dr. Márcio |
 | F11-14 | Revisão de segurança externa (pentest) antes da produção | Recomendado; depende de contratação autorizada |
 | F11-15 | CSP com nonce (sem 'unsafe-inline') | P2 — exige renderização dinâmica das páginas |
+
+## Fase 12 — Produção
+| ID | Item | Situação |
+|---|---|---|
+| F12-01 ✓ | Prontidão para produção (comando, API e tela) e recusa de configuração perigosa ao subir | P0 |
+| F12-02 ✓ | MFA do administrador sempre obrigatória em produção | P0 |
+| F12-03 ✓ | Cópia externa S3 compatível, conferida por SHA-256, sem apagar lá fora | P0 |
+| F12-04 ✓ | WAL arquivado, cópia física diária e recuperação a um ponto no tempo com ensaio | P0 |
+| F12-05 ✓ | Docker Compose de produção com Caddy (HTTPS), antivírus, reinício e limite de logs | P0 |
+| F12-06 ✓ | Saúde dos componentes para monitor externo | P0 |
+| F12-07 ✓ | Redefinição de acesso perdido (tela e servidor) | P0 |
+| F12-08 ✓ | MANUAL.md (treinamento por perfil) e IMPLANTACAO.md (roteiro) | P0 |
+| F12-09 | Contratar servidor, domínio, S3 e monitor; implantar pelo roteiro | Depende do responsável |
+| F12-10 | Primeira construção da imagem Docker no servidor (aqui a rede bloqueia o Debian e o PGDG no build) | Implantação |
+| F12-11 | "Esqueci a senha" por e-mail | Depende do e-mail institucional |
+| F12-12 | WAL cifrado para cópia fora do servidor | P2 |
 
 ## Demais fases
 Itens detalhados ao abrir cada fase (ver ROADMAP). Itens registrados desde já:

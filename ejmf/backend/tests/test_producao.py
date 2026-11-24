@@ -61,7 +61,12 @@ def test_prontidao_lista_o_que_bloqueia_e_so_quem_pode_ve(admin, operador, db):
     assert por_id["senha-banco"]["situacao"] == "bloqueia" and d["pronta"] is False
     assert por_id["migracao"]["situacao"] == "ok"
     assert por_id["backup-externo"]["situacao"] == "atencao"
-    assert por_id["regras-prazo"]["situacao"] == "atencao"  # as 5 regras iniciais aguardam o advogado
+    from sqlalchemy import func
+
+    from app.modelos import RegraPrazo
+    pendentes = db.execute(select(func.count()).select_from(RegraPrazo).where(
+        RegraPrazo.escritorio_id == obter_escritorio(db).id, RegraPrazo.situacao == "nao_homologada")).scalar_one()
+    assert por_id["regras-prazo"]["situacao"] == ("atencao" if pendentes else "ok")  # regra não homologada pede atenção
     assert all(i["como_resolver"] for i in d["itens"] if i["situacao"] != "ok")
     assert all(i["como_resolver"] is None for i in d["itens"] if i["situacao"] == "ok")
     assert d["contagem"]["bloqueia"] == sum(1 for i in d["itens"] if i["situacao"] == "bloqueia")

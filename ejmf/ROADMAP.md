@@ -16,4 +16,4 @@ Fases do superprompt (seção 47). Cada fase termina com testes reais, atualiza�
 | 9 | Financeiro | Honorários, lançamentos, previsto/faturado/recebido, fluxo de caixa, rentabilidade, recibos, conciliação por extrato importado e lembretes só no portal (ADR-0013; a calculadora é de verbas rescisórias e não foi reaproveitada) | concluída |
 | 10 | PWA e experiência | Manifesto, service worker sem cache de documentos confidenciais, voz, notificações (ADR-0014) | concluída (Web Push real aguardando chaves VAPID) |
 | 11 | Homologação | Segurança, carga, restauração de backup, homologação profissional pelo Dr. Márcio (ADR-0015, HOMOLOGACAO.md) | parte técnica concluída; homologação profissional depende do responsável |
-| 12 | Produção | Implantação **somente com autorização** | depende do responsável |
+| 12 | Produção | Preparação concluída (autorizada em 2026-11-24): prontidão, cópia externa, WAL, Compose com Caddy, monitor, manual e roteiro. A implantação real segue IMPLANTACAO.md | servidor, domínio e S3 dependem do responsável |

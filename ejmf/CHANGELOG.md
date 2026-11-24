@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [Fase 12] — 2026-11-24
+- Prontidão para produção: `python -m app.cli verificar-producao`, `GET /api/v1/producao/prontidao` (permissão `producao:ler`) e tela própria, com o que bloqueia, o que pede atenção e como resolver.
+- Com `EJMF_AMBIENTE=producao`, a API não sobe com adaptador simulado ligado, endereço sem HTTPS, senha de exemplo do banco ou chave fraca, e a verificação em duas etapas do administrador é sempre obrigatória.
+- Migração `0012`: situação da cópia externa em `copias_seguranca`. Cópia externa em S3 compatível pelo SDK oficial (boto3), lida de volta e conferida por SHA-256; `listar-copias-externas` e `baixar-copia-externa`.
+- WAL arquivado (`infra/wal/arquivar.sh`), cópia física diária com limpeza (`base.sh`) e recuperação a um ponto no tempo (`recuperar.sh`), com ensaio real (`testar.sh`).
+- `docker-compose.producao.yml` com Caddy (HTTPS automático), antivírus, WAL, reinício e limite de logs; `.env.producao.example`.
+- `GET /api/v1/saude/componentes` para monitor externo (503 quando algo precisa de alguém).
+- Redefinição de acesso perdido pela tela (Usuários) e pelo servidor (`redefinir-acesso`).
+- MANUAL.md (treinamento por perfil), IMPLANTACAO.md (roteiro) e ADR-0016.
+
 ## [Fase 11] — 2026-11-24
 - Migração `0011_homologacao`: cópias de segurança (`copias_seguranca`) e contadores do limite de tentativas (`contadores_taxa`).
 - Cópias de segurança (ADR-0015): banco (`pg_dump` no mesmo instante das contagens) + arquivos + manifesto, cifrados com AES-256-GCM em blocos autenticados; chave só em `EJMF_BACKUP_CHAVE` (`gerar-chave-backup`); sem chave, nenhuma cópia. Diária a partir das 2h, retenção de 7 diárias, 5 semanais e 12 mensais, a última aprovada sempre guardada.

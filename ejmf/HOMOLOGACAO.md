@@ -38,10 +38,14 @@
 
 | Requisito | Situação no código | O que falta (responsável) |
 |---|---|---|
-| Segurança | Argon2id, MFA, sessões revogáveis, permissões por ato, CSRF, limite de tentativas compartilhado, auditoria encadeada, política de conteúdo (CSP), antivírus pronto, varredura de dependências no CI (ver SECURITY.md) | Ativar MFA de todas as contas; instalar o ClamAV no servidor; HTTPS com certificado; revisão de segurança externa recomendada |
-| Recuperação | Cópia cifrada diária com retenção, teste de restauração semanal num banco descartável, alertas, restauração pela linha de comando (BACKUP.md, ADR-0015) | Gerar e guardar a chave fora do servidor; cópia em outro provedor (conta S3 compatível); um ensaio de restauração completo feito por pessoa, cronometrado |
+| Segurança | Argon2id, MFA, sessões revogáveis, permissões por ato, CSRF, limite de tentativas compartilhado, auditoria encadeada, política de conteúdo (CSP), antivírus pronto, varredura de dependências no CI (ver SECURITY.md) | Ativar MFA de todas as contas (a do administrador é obrigatória em produção); subir o ClamAV e o Caddy pelo `docker-compose.producao.yml`; revisão de segurança externa recomendada |
+| Recuperação | Cópia cifrada diária com retenção, teste de restauração semanal num banco descartável, alertas, restauração pela linha de comando (BACKUP.md, ADR-0015) | Gerar e guardar a chave fora do servidor; conta S3 compatível para a cópia externa (já implementada); WAL arquivado pelo Compose de produção; um ensaio de restauração completo feito por pessoa, cronometrado (IMPLANTACAO.md) |
 | Isolamento de dados | Tudo com `escritorio_id`; teste de isolamento entre escritórios (listas, pesquisa, pesquisa no conteúdo, detalhes e vínculos); portal isolado; escopo de cliente e processo na pesquisa e nas ferramentas de IA | — |
 | Homologação | Este roteiro | Conferência dos 14 cenários, das regras de prazo, dos feriados locais, dos modelos e das instruções das funções de IA |
+
+## Prontidão
+A tela **Prontidão para produção** (ou `python -m app.cli verificar-producao`) mostra, a cada momento, o que ainda bloqueia
+a produção e o que pede atenção. O roteiro de implantação está em IMPLANTACAO.md.
 
 ## Pendências de configuração que bloqueiam a homologação completa
 Lista viva em PROGRESS.md, seção "Pendências que dependem do responsável".

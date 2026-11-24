@@ -27,10 +27,13 @@
 
 - **Fase 11** — homologação (parte técnica): cópias de segurança cifradas do banco e dos arquivos com retenção, teste de restauração automático num banco descartável (contagens, arquivos e cadeia de auditoria conferidos) e restauração pela linha de comando só em banco vazio; antivírus pelo clamd; limite de tentativas compartilhado entre processos; política de conteúdo (CSP); varredura de dependências no CI; teste de isolamento entre escritórios; carga repetida até 10 mil processos; roteiro de homologação com os 14 cenários de aceitação em HOMOLOGACAO.md (ADR-0015). Testes em TESTING.md (218 no backend; 55 E2E passed, 1 skipped).
 
+- **Fase 12** — produção (preparação, autorizada em 2026-11-24): verificação de prontidão para produção (comando, API e tela) e recusa da API em subir com configuração perigosa; verificação em duas etapas sempre obrigatória para o administrador em produção; cópia externa em S3 compatível pelo SDK oficial, conferida por SHA-256 e sem apagar lá fora; arquivamento contínuo do WAL, cópia física diária e recuperação a um ponto no tempo (RPO de 15 min); Docker Compose de produção com Caddy (HTTPS automático), antivírus e reinício automático; saúde dos componentes para monitor externo; redefinição de acesso perdido; MANUAL.md por perfil e IMPLANTACAO.md (ADR-0016). Testes em TESTING.md (226 no backend; 55 E2E passed, 1 skipped; ensaio real de recuperação a um ponto no tempo aprovado).
+
 ## Em desenvolvimento
-- Homologação profissional pelo Dr. Márcio (HOMOLOGACAO.md). Depois dela, só a Fase 12 (produção), que exige autorização.
+- Homologação profissional pelo Dr. Márcio (HOMOLOGACAO.md) e implantação real pelo roteiro de IMPLANTACAO.md, que depende de servidor, domínio e conta de armazenamento contratados pelo escritório.
 
 ## Pendências que dependem do responsável
+- Implantação (IMPLANTACAO.md): contratar o servidor no Brasil com dois discos, registrar o domínio, definir o e-mail do certificado, criar a conta S3 compatível (bucket com bloqueio de objetos e credencial sem permissão de apagar) e o monitor externo; fazer o ensaio de recuperação cronometrado.
 - Dados institucionais: CNPJ, endereço, telefone, e-mail institucional, WhatsApp, domínio.
 - Projeto Google Cloud do escritório para Gmail e Agenda (variáveis `EJMF_GOOGLE_*`; tela de consentimento com o escopo `calendar.events.owned`), provedores de IA (com aprovação de tratamento de dados).
 - WhatsApp Business: conta Meta Business verificada, número e as variáveis `EJMF_WHATSAPP_TOKEN`, `EJMF_WHATSAPP_PHONE_NUMBER_ID`, `EJMF_WHATSAPP_APP_SECRET` e `EJMF_WHATSAPP_VERIFY_TOKEN`; o webhook fica em `/api/v1/publico/whatsapp/webhook`. Modelos de mensagem (para escrever fora da janela de 24 h) precisam de aprovação da Meta.
@@ -83,4 +86,4 @@ Ver INTEGRATIONS.md.
 ## Próxima atividade recomendada
 1. O Dr. Márcio percorre HOMOLOGACAO.md num ambiente de homologação e registra cada cenário; divergências viram itens do BACKLOG.
 2. Resolver as pendências que dependem do responsável (acima), principalmente: chave das cópias guardada fora do servidor, conta de armazenamento externo, ClamAV no servidor, regras de prazo e feriados homologados, modelos homologados.
-3. Fase 12 (produção) **somente com autorização expressa**: escolha do servidor no Brasil, HTTPS, WAL contínuo, cópia externa, ensaio de restauração por pessoa.
+3. Implantação real pelo roteiro IMPLANTACAO.md, quando o escritório contratar servidor, domínio e armazenamento externo. Cada contratação ou publicação depende de autorização expressa.

@@ -169,4 +169,11 @@ A voz é a configuração `voz.reconhecimento_navegador` (tabela `configuracoes`
 | `copias_seguranca` | `situacao` (executando, concluida, falhou, expirada), `origem` (agendador, pessoa, funcao), quem pediu, início e fim, nome do arquivo (o arquivo fica em `EJMF_BACKUP_DIR`, fora do banco), tamanho, SHA-256 do arquivo cifrado, `chave_id` (identifica a chave sem revelá-la), `manifesto` (revisão, linhas por tabela, total, arquivos e bytes, tamanho do dump, último hash da auditoria), erro, `teste_situacao` (aprovado, reprovado), testada em, `teste_detalhes` (tempo, tabelas, linhas, divergências, auditoria íntegra), expirada em. |
 | `contadores_taxa` | Chave (ex.: `ip:…`, `portal-ip:…`, `mcp:…`) e janela de um minuto, com a contagem. Janela deslizante aproximada (minuto atual + fração do anterior); linhas com mais de uma hora são apagadas aos poucos. Sem dado pessoal além do IP da tentativa. |
 
+## Fase 12 (`0012`)
+| Tabela | Observações |
+|---|---|
+| `copias_seguranca` (novas colunas) | `externa_situacao` (pendente, enviada, falhou), `externa_chave` (nome do objeto no bucket), `externa_em`, `externa_erro` (sem a credencial). O EJMF não apaga objetos no armazenamento externo. |
+
+O WAL e as cópias físicas ficam fora do banco, em `EJMF_WAL_DIR` (ADR-0016).
+
 As tabelas das fases seguintes são documentadas aqui quando a migração correspondente é criada.

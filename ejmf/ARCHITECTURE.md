@@ -64,6 +64,7 @@ Monólito modular + worker, um único PostgreSQL. Decisões em `docs/adr/`.
 | Financeiro: lançamentos, honorários, recibos, conciliação por extrato importado, fluxo e rentabilidade (ADR-0013) | 9 |
 | PWA instalável sem dados guardados no aparelho, notificações Web Push genéricas, voz opcional no assistente (ADR-0014) | 10 |
 | Cópias de segurança cifradas com teste de restauração, antivírus (clamd), limite de tentativas compartilhado, CSP, isolamento testado, roteiro de homologação (ADR-0015) | 11 |
+| Produção: prontidão verificável, Compose com Caddy (HTTPS), WAL arquivado e recuperação a um ponto no tempo, cópia externa S3, saúde para monitor externo, redefinição de acesso (ADR-0016) | 12 |
 
 ## Estrutura de pastas
 

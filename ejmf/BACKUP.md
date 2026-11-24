@@ -1,7 +1,8 @@
 # BACKUP — cópias e recuperação
 
-> Situação: **cópia cifrada diária, retenção e teste de restauração automáticos (Fase 11, ADR-0015).** A cópia em outro
-> provedor (S3 compatível) aguarda a conta do escritório. Um backup só conta como confiável depois de um teste de
+> Situação: **cópia cifrada diária, retenção e teste de restauração automáticos (Fase 11, ADR-0015); cópia externa S3
+> compatível pronta e WAL arquivado com recuperação a um ponto no tempo (Fase 12, ADR-0016).** A cópia externa aguarda
+> a conta do escritório. Um backup só conta como confiável depois de um teste de
 > restauração aprovado; o EJMF trata "nunca testada" como atenção.
 
 ## O que entra na cópia
@@ -28,7 +29,12 @@ o CI instalam o `postgresql-client-16` do repositório oficial do PostgreSQL; fo
 
 ## Onde
 - `EJMF_BACKUP_DIR` (padrão `dados/backups`). Use outro disco do servidor.
-- **Pendente:** cópia em outro provedor (conta S3 compatível, a ser escolhida pelo escritório). Até lá, copie a pasta de
+- **Cópia externa (Fase 12):** com `EJMF_BACKUP_S3_*`, cada cópia concluída é enviada já cifrada ao bucket, lida de volta
+  e conferida por tamanho e SHA-256. Falha fica registrada, sem a credencial no texto, e a fila tenta de novo. Depois
+  de 2 h sem chegar lá fora, o painel avisa. O EJMF não apaga nada no bucket: use uma credencial só com gravar e ler,
+  bloqueio de objetos e uma regra de ciclo de vida (por exemplo, 90 dias). Para restaurar, use
+  `listar-copias-externas` e `baixar-copia-externa --chave ... --destino ...` e depois `restaurar` (abaixo).
+- Sem a conta externa, copie a pasta de
   cópias para fora do servidor regularmente (por exemplo, para um disco externo). Os arquivos já vão cifrados.
 
 ## Frequência, retenção e alertas
@@ -50,11 +56,29 @@ o CI instalam o `postgresql-client-16` do repositório oficial do PostgreSQL; fo
 
 O resultado fica na cópia (tela Cópias de segurança) e na auditoria.
 
+## Arquivamento contínuo do WAL e recuperação a um ponto no tempo (Fase 12)
+- No `docker-compose.producao.yml`, o PostgreSQL arquiva cada segmento de WAL em `EJMF_WAL_DIR/arquivo`
+  (`infra/wal/arquivar.sh`, que nunca sobrescreve), e no máximo a cada 15 min (`archive_timeout`).
+- O serviço `wal` faz uma cópia física (`pg_basebackup`) por dia às `EJMF_WAL_HORA` (padrão 03:00), mantém as
+  `EJMF_WAL_BASES` mais recentes (padrão 7) e apaga o WAL que nenhuma delas usa (`pg_archivecleanup`).
+- A prontidão e `/api/v1/saude/componentes` avisam quando o arquivamento está desligado ou falhando.
+- O WAL fica em claro no segundo disco, como o próprio banco. **Não copie a pasta do WAL para fora do servidor sem
+  cifra.** A cópia que sai do servidor é a lógica, cifrada.
+- Recuperar até um instante (por exemplo, logo antes de uma exclusão acidental em massa):
+  ```bash
+  infra/wal/recuperar.sh /wal/bases/base-AAAAMMDDTHHMMSSZ /pasta/vazia "2026-11-24 14:30:00-03" /wal/arquivo
+  # suba um PostgreSQL 16 com /pasta/vazia como PGDATA; ele aplica o WAL até o instante e promove
+  ```
+  Use a cópia física mais recente **anterior** ao instante. Confira os dados antes de apontar o EJMF para o banco
+  recuperado.
+- Ensaio automático com contêineres descartáveis: `infra/wal/testar.sh` (ver TESTING.md, Fase 12).
+
 ## RPO e RTO
-- RPO: 24 h (cópia diária). Para chegar a 1 h é preciso arquivamento contínuo do WAL (pgBackRest ou similar) no servidor
-  de produção: fica para a implantação, com o servidor escolhido.
+- RPO: até 15 min com o WAL arquivado (`docker-compose.producao.yml`); 24 h só com a cópia lógica diária.
 - RTO: medido no teste de carga (ver TESTING.md, Fase 11): com 10 mil processos e 100 mil movimentações, a cópia e a
-  restauração completas levam poucos segundos. A meta de 4 h cobre folgadamente reinstalar o servidor e restaurar.
+  restauração completas levam poucos segundos. A recuperação a um ponto no tempo do ensaio levou cerca de 1 s. A meta
+  de 4 h cobre com folga reinstalar o servidor e restaurar. O ensaio cronometrado por pessoa, no servidor real, ainda
+  está pendente (IMPLANTACAO.md, item 4).
 
 ## Procedimentos
 
