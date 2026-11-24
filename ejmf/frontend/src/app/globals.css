@@ -1,0 +1,28 @@
+@import "tailwindcss";
+@import "../marca/tema.css";
+
+@theme inline {
+  --color-fundo: var(--ejmf-fundo);
+  --color-superficie: var(--ejmf-superficie);
+  --color-superficie-2: var(--ejmf-superficie-2);
+  --color-texto: var(--ejmf-texto);
+  --color-suave: var(--ejmf-texto-suave);
+  --color-borda: var(--ejmf-borda);
+  --color-marinho: var(--ejmf-marinho);
+  --color-marinho-profundo: var(--ejmf-marinho-profundo);
+  --color-dourado: var(--ejmf-dourado);
+  --color-dourado-claro: var(--ejmf-dourado-claro);
+  --color-perigo: var(--ejmf-perigo);
+  --color-alerta: var(--ejmf-alerta);
+  --color-ok: var(--ejmf-ok);
+  --color-info: var(--ejmf-info);
+  --font-sans: var(--fonte-texto), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--fonte-titulo), Georgia, serif;
+}
+
+html, body { background: var(--ejmf-fundo); color: var(--ejmf-texto); }
+body { font-family: var(--font-sans); }
+:focus-visible { outline: 2px solid var(--ejmf-foco); outline-offset: 2px; border-radius: 4px; }
+.pular-conteudo { position: absolute; left: -9999px; }
+.pular-conteudo:focus { left: 1rem; top: 1rem; z-index: 50; background: var(--ejmf-superficie); padding: .5rem 1rem; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
