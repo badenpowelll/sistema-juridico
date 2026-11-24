@@ -20,7 +20,9 @@ TIPOS = {"cancelar_audiencia": "Cancelamento de audiência", "reagendamento_goog
          "homologar_prazo": "Homologação de prazo", "homologar_regra": "Homologação de regra de contagem",
          "confirmar_suspensao": "Confirmação de dia sem expediente",
          "confirmar_agendamento": "Agendamento pedido pela recepcionista virtual",
-         "ia_agendar_audiencia": "Audiência proposta por função virtual"}
+         "ia_agendar_audiencia": "Audiência proposta por função virtual",
+         "lembrete_cobranca": "Lembrete de pagamento no portal do cliente",
+         "ia_lembrete_cobranca": "Lembrete de pagamento proposto por função virtual"}
 
 
 class ErroAprovacao(ValueError):
@@ -73,6 +75,15 @@ def decidir(db: Session, ator: auditoria.Ator, ap: Aprovacao, usuario: Usuario, 
                 conversas.enviar(db, conv, t, autor="recepcionista")
             except conversas.ErroConversa:
                 pass  # fora da janela de 24 h: a equipe avisa por outro canal (fica no histórico da aprovação)
+    elif ap.tipo == "lembrete_cobranca" and decisao in ("aprovar", "rejeitar"):
+        from app.modelos import LembreteCobranca
+        from app.servicos import financeiro
+        le = db.get(LembreteCobranca, uuid.UUID(ap.entidade_id))
+        if le is not None:
+            try:
+                financeiro.decidir_lembrete(db, ator, le, decisao == "aprovar", usuario)
+            except financeiro.ErroFinanceiro as e:
+                raise ErroAprovacao(str(e))
     elif ap.tipo.startswith("ia_"):
         from app.servicos.ia import orquestrador
         orquestrador.decidir_aprovacao(db, ator, ap, decisao, usuario)
@@ -133,6 +144,8 @@ def _link(ap: Aprovacao) -> str | None:
         return f"/painel/agenda?compromisso={ap.entidade_id}"
     if ap.entidade == "conversa":
         return f"/painel/conversas?c={ap.entidade_id}"
+    if ap.entidade == "lembrete_cobranca" and (ap.dados or {}).get("lancamento_id"):
+        return f"/painel/financeiro/lancamentos/{ap.dados['lancamento_id']}"
     if ap.entidade == "ia_execucao":
         return f"/painel/ia/execucoes/{ap.entidade_id}"
     return None

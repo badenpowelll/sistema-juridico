@@ -1520,3 +1520,181 @@ class TokenMCP(Base):
     ultimo_uso_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     usos: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     criado_em: Mapped[datetime] = _criado()
+
+
+# ================================================================ Fase 9 — financeiro
+# Registro e controle. Nenhuma tabela guarda credencial bancária e nada aqui movimenta dinheiro: receber e pagar são
+# fatos registrados por uma pessoa (ou conciliados a partir de um extrato importado), nunca ordens enviadas a um banco.
+
+class ContaFinanceira(Base):
+    """Conta onde o dinheiro entra e sai (conta corrente, caixa, aplicação). Só nome e saldo inicial; sem dados de acesso."""
+    __tablename__ = "contas_financeiras"
+    __table_args__ = (CheckConstraint("tipo in ('corrente','caixa','aplicacao','outra')"),
+                      UniqueConstraint("escritorio_id", "nome"))
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    nome: Mapped[str] = mapped_column(String(120), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(15), nullable=False, server_default=text("'corrente'"))
+    saldo_inicial: Mapped[Any] = mapped_column(Numeric(14, 2), nullable=False, server_default=text("0"))
+    data_saldo_inicial: Mapped[date] = mapped_column(Date, nullable=False)
+    ativa: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class CategoriaFinanceira(Base):
+    __tablename__ = "categorias_financeiras"
+    __table_args__ = (CheckConstraint("tipo in ('receita','despesa')"), UniqueConstraint("escritorio_id", "codigo"))
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    codigo: Mapped[str] = mapped_column(String(60), nullable=False)
+    nome: Mapped[str] = mapped_column(String(120), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(10), nullable=False)
+    honorario: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    operacional: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))  # custo fixo do escritório
+    ativa: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+
+
+class ContratoHonorarios(Base):
+    """Honorários combinados com o cliente. As parcelas viram lançamentos previstos; êxito entra quando registrado."""
+    __tablename__ = "contratos_honorarios"
+    __table_args__ = (
+        CheckConstraint("modalidade in ('fixo','parcelado','mensal','exito','misto')"),
+        CheckConstraint("situacao in ('vigente','encerrado','cancelado')"),
+        CheckConstraint("percentual_exito is null or (percentual_exito > 0 and percentual_exito <= 100)"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    numero: Mapped[str] = mapped_column(String(20), nullable=False)  # AAAA/NNNN
+    cliente_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clientes.id", ondelete="RESTRICT"), nullable=False, index=True)
+    processo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("processos.id", ondelete="SET NULL"), index=True)
+    departamento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("departamentos.id", ondelete="SET NULL"))
+    minuta_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("minutas.id", ondelete="SET NULL"))  # contrato assinado
+    descricao: Mapped[str] = mapped_column(String(500), nullable=False)
+    modalidade: Mapped[str] = mapped_column(String(10), nullable=False)
+    valor_fixo: Mapped[Any | None] = mapped_column(Numeric(14, 2))
+    parcelas: Mapped[int | None] = mapped_column(Integer)
+    primeiro_vencimento: Mapped[date | None] = mapped_column(Date)
+    percentual_exito: Mapped[Any | None] = mapped_column(Numeric(5, 2))
+    data_contrato: Mapped[date] = mapped_column(Date, nullable=False)
+    portal_visivel: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    situacao: Mapped[str] = mapped_column(String(10), nullable=False, server_default=text("'vigente'"))
+    motivo_situacao: Mapped[str | None] = mapped_column(Text)
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class Lancamento(Base):
+    """Receita ou despesa. Situação: previsto → faturado (só receita) → liquidado (recebido/pago), ou cancelado.
+    Valor sempre positivo; o tipo diz o sentido. Cancelar e estornar exigem motivo; nada é apagado."""
+    __tablename__ = "lancamentos"
+    __table_args__ = (
+        CheckConstraint("tipo in ('receita','despesa')"),
+        CheckConstraint("situacao in ('previsto','faturado','liquidado','cancelado')"),
+        CheckConstraint("valor > 0"),
+        CheckConstraint("forma is null or forma in ('pix','transferencia','boleto','dinheiro','cartao','cheque','deposito_judicial','outra')"),
+        CheckConstraint("situacao <> 'liquidado' or liquidado_em is not null"),
+        CheckConstraint("tipo = 'receita' or situacao <> 'faturado'"),
+        Index("ix_lancamentos_abertos", "escritorio_id", "vencimento", postgresql_where=text("situacao in ('previsto','faturado')")),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False, index=True)
+    tipo: Mapped[str] = mapped_column(String(10), nullable=False)
+    categoria_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("categorias_financeiras.id"), nullable=False)
+    descricao: Mapped[str] = mapped_column(String(300), nullable=False)
+    valor: Mapped[Any] = mapped_column(Numeric(14, 2), nullable=False)
+    vencimento: Mapped[date] = mapped_column(Date, nullable=False)
+    competencia: Mapped[date] = mapped_column(Date, nullable=False)  # primeiro dia do mês de referência
+    situacao: Mapped[str] = mapped_column(String(10), nullable=False, server_default=text("'previsto'"), index=True)
+    cliente_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clientes.id", ondelete="RESTRICT"), index=True)
+    processo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("processos.id", ondelete="SET NULL"), index=True)
+    contrato_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("contratos_honorarios.id", ondelete="RESTRICT"), index=True)
+    departamento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("departamentos.id", ondelete="SET NULL"))
+    parcela: Mapped[int | None] = mapped_column(Integer)
+    total_parcelas: Mapped[int | None] = mapped_column(Integer)
+    origem_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))  # saldo desdobrado de outro lançamento
+    reembolsavel: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))  # despesa a cobrar do cliente
+    portal_visivel: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    faturado_em: Mapped[date | None] = mapped_column(Date)
+    liquidado_em: Mapped[date | None] = mapped_column(Date)
+    conta_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("contas_financeiras.id"))
+    forma: Mapped[str | None] = mapped_column(String(20))
+    observacao: Mapped[str | None] = mapped_column(Text)
+    motivo_cancelamento: Mapped[str | None] = mapped_column(Text)
+    liquidado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class Recibo(Base):
+    """Recibo numerado de um valor recebido. O texto sai do modelo homologado 'Recibo de honorários' (Fase 6)."""
+    __tablename__ = "recibos"
+    __table_args__ = (UniqueConstraint("escritorio_id", "numero"), CheckConstraint("situacao in ('emitido','cancelado')"),
+                      Index("ix_recibo_lancamento_ativo", "lancamento_id", unique=True, postgresql_where=text("situacao = 'emitido'")))
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    numero: Mapped[str] = mapped_column(String(20), nullable=False)
+    lancamento_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("lancamentos.id", ondelete="RESTRICT"), nullable=False, index=True)
+    valor: Mapped[Any] = mapped_column(Numeric(14, 2), nullable=False)
+    referente: Mapped[str] = mapped_column(String(500), nullable=False)
+    minuta_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("minutas.id", ondelete="SET NULL"))
+    situacao: Mapped[str] = mapped_column(String(10), nullable=False, server_default=text("'emitido'"))
+    motivo_cancelamento: Mapped[str | None] = mapped_column(Text)
+    emitido_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    emitido_em: Mapped[datetime] = _criado()
+
+
+class ExtratoImportado(Base):
+    """Extrato bancário enviado pela equipe (OFX ou CSV). O EJMF não acessa banco nenhum."""
+    __tablename__ = "extratos_importados"
+    __table_args__ = (UniqueConstraint("conta_id", "sha256"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    conta_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contas_financeiras.id"), nullable=False, index=True)
+    nome_arquivo: Mapped[str] = mapped_column(String(255), nullable=False)
+    formato: Mapped[str] = mapped_column(String(5), nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    linhas_novas: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    linhas_repetidas: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    importado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class LinhaExtrato(Base):
+    __tablename__ = "extrato_linhas"
+    __table_args__ = (
+        UniqueConstraint("conta_id", "chave"),
+        CheckConstraint("situacao in ('pendente','conciliada','ignorada')"),
+        CheckConstraint("valor <> 0"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    conta_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contas_financeiras.id"), nullable=False, index=True)
+    extrato_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("extratos_importados.id", ondelete="CASCADE"), nullable=False)
+    chave: Mapped[str] = mapped_column(String(120), nullable=False)  # FITID do OFX ou hash de data+valor+descrição+ordem
+    data: Mapped[date] = mapped_column(Date, nullable=False)
+    valor: Mapped[Any] = mapped_column(Numeric(14, 2), nullable=False)  # positivo entra, negativo sai
+    descricao: Mapped[str] = mapped_column(String(300), nullable=False)
+    situacao: Mapped[str] = mapped_column(String(10), nullable=False, server_default=text("'pendente'"), index=True)
+    lancamento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("lancamentos.id", ondelete="SET NULL"), index=True)
+    motivo: Mapped[str | None] = mapped_column(Text)
+    conciliada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    conciliada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class LembreteCobranca(Base):
+    """Lembrete de pagamento ao cliente. Só aparece no portal depois de autorizado; o EJMF não envia cobrança para fora."""
+    __tablename__ = "lembretes_cobranca"
+    __table_args__ = (CheckConstraint("situacao in ('aguardando_aprovacao','publicado','rejeitado','retirado')"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    lancamento_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("lancamentos.id", ondelete="CASCADE"), nullable=False, index=True)
+    cliente_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clientes.id", ondelete="CASCADE"), nullable=False, index=True)
+    texto: Mapped[str] = mapped_column(Text, nullable=False)
+    situacao: Mapped[str] = mapped_column(String(25), nullable=False)
+    origem: Mapped[str] = mapped_column(String(10), nullable=False, server_default=text("'pessoa'"))  # pessoa | funcao
+    aprovacao_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("aprovacoes.id", ondelete="SET NULL"))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    autorizado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    publicado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    criado_em: Mapped[datetime] = _criado()

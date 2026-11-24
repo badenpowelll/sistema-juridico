@@ -325,10 +325,22 @@ def _revisao(ctx: Contexto, p: PVazio) -> dict:
     return _resultado(itens, "Produção de documentos", "/painel/minutas?situacao=em_revisao")
 
 
-@ferramenta("honorarios_a_receber", "Honorários a receber (módulo financeiro).", ("painel:ler",), PVazio)
+@ferramenta("honorarios_a_receber", "Receitas em aberto (previstas ou faturadas), vencidas primeiro.", ("financeiro:ler",), PVazio)
 def _honorarios(ctx: Contexto, p: PVazio) -> dict:
-    return {"itens": [], "total": None, "origem": "Financeiro", "link": None, "indisponivel": True,
-            "aviso": "O módulo financeiro ainda não existe (Fase 9). Não há dado: isto não significa que não há valores a receber."}
+    from app.modelos import Cliente, Lancamento
+    from app.servicos import financeiro as fin
+    conds = _no_escopo(ctx, [Lancamento.escritorio_id == ctx.esc_id, Lancamento.tipo == "receita",
+                             Lancamento.situacao.in_(fin.ABERTAS)], Lancamento.processo_id, Lancamento.cliente_id)
+    lcs = ctx.db.execute(select(Lancamento).where(*conds).order_by(Lancamento.vencimento).limit(200)).scalars().all()
+    nomes = dict(ctx.db.execute(select(Cliente.id, Cliente.nome).where(Cliente.id.in_({x.cliente_id for x in lcs if x.cliente_id})))
+                 .all()) if lcs else {}
+    h = fin.hoje()
+    itens = [{"descricao": x.descricao, "cliente": nomes.get(x.cliente_id), "valor": fin.moeda(x.valor),
+              "vencimento": x.vencimento, "vencido": x.vencimento < h, "link": f"/painel/financeiro/lancamentos/{x.id}"} for x in lcs]
+    total = sum((x.valor for x in lcs), fin.Decimal("0.00"))
+    vencido = sum((x.valor for x in lcs if x.vencimento < h), fin.Decimal("0.00"))
+    return _resultado(itens, "Financeiro", "/painel/financeiro/lancamentos?tipo=receita&situacao=aberto",
+                      soma=fin.moeda(total), soma_vencida=fin.moeda(vencido))
 
 
 class PTermo(_P):

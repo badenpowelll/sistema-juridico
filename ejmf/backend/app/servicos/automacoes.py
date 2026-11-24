@@ -129,6 +129,23 @@ def _integracao(db, esc, desde, agora, p):
                    "motivos": "; ".join(f["motivos"]), "link": "/painel/contingencia"}
 
 
+def _honorario(db, esc, desde, agora, p):
+    from app.modelos import Lancamento
+    from app.servicos import financeiro as fin
+    hoje = fin.hoje()
+    corte = hoje - timedelta(days=p["dias"])
+    for lc in db.execute(select(Lancamento).where(
+            Lancamento.escritorio_id == esc, Lancamento.tipo == "receita", Lancamento.situacao.in_(fin.ABERTAS),
+            Lancamento.vencimento <= corte, Lancamento.vencimento < hoje).order_by(Lancamento.vencimento).limit(LIMITE_EVENTOS)).scalars():
+        cli = db.get(Cliente, lc.cliente_id) if lc.cliente_id else None
+        proc = db.get(Processo, lc.processo_id) if lc.processo_id else None
+        yield {"chave": f"honorario:{lc.id}:{_janela(agora, p['repetir_dias'] * 24)}", "id": str(lc.id),
+               "cliente": cli.nome if cli else "", "descricao": lc.descricao, "valor": fin.moeda(lc.valor),
+               "vencimento": lc.vencimento.strftime("%d/%m/%Y"), "dias_atraso": (hoje - lc.vencimento).days,
+               "processo": proc.numero_formatado if proc else "", "lancamento_id": str(lc.id),
+               "link": f"/painel/financeiro/lancamentos/{lc.id}"}
+
+
 GATILHOS: dict[str, Gatilho] = {
     "cliente_novo": Gatilho("Novo cliente", "Cliente cadastrado", ("nome", "tipo", "origem"), varrer=_cliente_novo),
     "documento_recebido": Gatilho("Documento recebido", "Arquivo enviado pelo link de cadastro, portal ou WhatsApp",
@@ -148,8 +165,9 @@ GATILHOS: dict[str, Gatilho] = {
                                      varrer=_prazo_sem_homologacao),
     "integracao_falhou": Gatilho("Falha de integração", "Fonte comprometida na central de contingência (uma vez por dia)",
                                  ("fonte", "motivos"), varrer=_integracao),
-    "honorario_pendente": Gatilho("Honorário pendente", "Parcela vencida", ("cliente", "valor"),
-                                  indisponivel="Depende do módulo financeiro (Fase 9)"),
+    "honorario_pendente": Gatilho("Honorário pendente", "Receita em aberto vencida há N dias (repete a cada M dias)",
+                                  ("cliente", "descricao", "valor", "vencimento", "dias_atraso", "processo"),
+                                  {"dias": (1, 0, 365), "repetir_dias": (7, 1, 90)}, varrer=_honorario),
     "backup_nao_realizado": Gatilho("Backup não realizado", "Backup do dia não concluído", ("data",),
                                     indisponivel="Depende do backup externo (Fase 11)"),
 }
@@ -163,6 +181,7 @@ FUNCOES_POR_GATILHO: dict[str, dict[str, Callable[[dict], dict]]] = {
     "publicacao_capturada": {"organizador_audiencias": lambda ev: {"entrada": {"publicacao_id": ev["id"]}}},
     "processo_sem_atualizacao": {"classificador_processual": lambda ev: {"entrada": {}, "processo_id": uuid.UUID(ev["id"])}},
     "integracao_falhou": {"monitor_integracoes": lambda ev: {"entrada": {}}},
+    "honorario_pendente": {"gestor_cobrancas": lambda ev: {"entrada": {"lancamento_id": ev["id"]}}},
 }
 ACOES = {"notificar": "Notificar quem tem uma permissão", "criar_pendencia": "Criar pendência na central de prioridades",
          "executar_funcao": "Pedir uma função virtual (segue o nível de autonomia dela)"}

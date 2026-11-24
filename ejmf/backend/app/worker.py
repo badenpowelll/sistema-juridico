@@ -54,6 +54,9 @@ def ciclo(agora_local: datetime | None = None) -> dict:
         db.commit()
         automacoes.varrer_todas(db, esc.id)
         db.commit()
+        from app.servicos import financeiro
+        financeiro.notificar_vencidos(db, esc.id)  # uma vez por dia (chave por data)
+        db.commit()
         processadas = fila.processar(db)
     return {"agendadas": agendadas, "retomadas": retomadas, "processadas": processadas}
 

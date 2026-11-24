@@ -570,7 +570,7 @@ def test_automacao_testa_antes_de_ativar_nao_repete_e_nova_versao_volta_ao_rascu
     c, _ = admin
     assert c.post("/api/v1/automacoes", json={"nome": "Mandar e-mail", "gatilho": "cliente_novo",
                                               "acoes": [{"tipo": "enviar_email"}]}).status_code == 422
-    assert c.post("/api/v1/automacoes", json={"nome": "Honorário", "gatilho": "honorario_pendente",
+    assert c.post("/api/v1/automacoes", json={"nome": "Backup", "gatilho": "backup_nao_realizado",
                                               "acoes": [{"tipo": "criar_pendencia", "titulo": "x"}]}).status_code == 422
     a = _automacao(c, condicoes=[{"campo": "tipo", "operador": "igual", "valor": "PF"}])
     assert a["situacao"] == "rascunho"

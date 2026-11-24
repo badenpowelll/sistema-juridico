@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.modelos import Compromisso, ExecucaoIntegracao, Integracao, Minuta, Pendencia, Prazo, Processo, Publicacao, Relatorio, Tarefa
 from app.servicos import agenda, contingencia, fila, notificacoes, prazos as svc_prazos, prioridades
 
-FUTUROS = [("Clientes aguardando retorno", 5), ("Pendências financeiras", 9)]
+FUTUROS: list[tuple[str, int]] = []
 
 
 def _prazo(pz: Prazo, numero: str) -> dict:
@@ -123,6 +123,10 @@ def _diario(db: Session, esc_id: uuid.UUID, dia: date, agora: datetime) -> dict:
                                              Pendencia.classe.in_(("atencao_imediata", "alta")))
                      .order_by(Pendencia.pontuacao.desc()).limit(7)).scalars().all()
     falhas = _falhas(db, esc_id)
+    fin_sec = _financeiro_do_dia(db, esc_id, dia)
+    from app.modelos import SolicitacaoPortal
+    aguardando = db.execute(select(func.count()).select_from(SolicitacaoPortal).where(
+        SolicitacaoPortal.escritorio_id == esc_id, SolicitacaoPortal.situacao == "aberta")).scalar_one()
     nao_conf = [p for p in hoje_pz if not p["confirmado"]]
     partes = [f"{len(hoje_pz)} prazo(s) vencendo hoje" + (f" ({len(nao_conf)} sem homologação)" if nao_conf else ""),
               f"{len(audiencias)} audiência(s)", f"{len(reunioes)} reunião(ões) ou atendimento(s)",
@@ -131,6 +135,10 @@ def _diario(db: Session, esc_id: uuid.UUID, dia: date, agora: datetime) -> dict:
         partes.append(f"{em_revisao} minuta(s) aguardando revisão")
     if falhas:
         partes.append(f"{len(falhas)} fonte(s) comprometida(s)")
+    if fin_sec["receitas_vencidas"]["quantidade"]:
+        partes.append(f"{fin_sec['receitas_vencidas']['quantidade']} receita(s) vencida(s)")
+    if aguardando:
+        partes.append(f"{aguardando} pedido(s) de cliente aguardando retorno")
     return {
         "tipo": "diario", "referencia": dia, "gerado_em": agora,
         "atrasado": agora > madrugada_fim + timedelta(minutes=30),
@@ -149,11 +157,30 @@ def _diario(db: Session, esc_id: uuid.UUID, dia: date, agora: datetime) -> dict:
             "prioridades": [{"titulo": p.titulo, "classe": p.classe, "classe_rotulo": prioridades.CLASSES[p.classe],
                              "justificativa": p.justificativa, "link": p.link} for p in top],
             "minutas_em_revisao": em_revisao,
+            "clientes_aguardando_retorno": aguardando,
+            "financeiro": fin_sec,
             "modulos_futuros": [{"rotulo": r, "fase": f} for r, f in FUTUROS],
         },
         "avisos": (["Há prazo vencendo hoje sem homologação: confira o vencimento antes de cumprir."] if nao_conf else []) +
                   (["Ausência de informação não é ausência de acontecimentos: há fonte comprometida."] if falhas else []),
     }
+
+
+def _financeiro_do_dia(db: Session, esc_id: uuid.UUID, dia: date) -> dict:
+    """Pendências financeiras: contagens e somas dos lançamentos (o detalhe fica na tela, com permissão)."""
+    from app.modelos import Lancamento
+    from app.servicos import financeiro as fin
+
+    def soma(*cond):
+        n, v = db.execute(select(func.count(), func.coalesce(func.sum(Lancamento.valor), 0)).where(
+            Lancamento.escritorio_id == esc_id, *cond)).one()
+        return {"quantidade": n, "valor": str(fin.dinheiro(v))}
+    aberto_r = (Lancamento.tipo == "receita", Lancamento.situacao.in_(fin.ABERTAS))
+    return {"receitas_vencidas": soma(*aberto_r, Lancamento.vencimento < dia),
+            "receitas_hoje": soma(*aberto_r, Lancamento.vencimento == dia),
+            "despesas_hoje_ou_vencidas": soma(Lancamento.tipo == "despesa", Lancamento.situacao == "previsto",
+                                              Lancamento.vencimento <= dia),
+            "link": "/painel/financeiro"}
 
 
 def _encerramento(db: Session, esc_id: uuid.UUID, dia: date, agora: datetime) -> dict:

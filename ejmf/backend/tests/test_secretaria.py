@@ -418,7 +418,7 @@ def test_relatorio_diario_e_de_encerramento_idempotentes_com_entregas(db, admin)
     assert [a["titulo"] for a in sec["audiencias"]] == ["Audiência do relatório"]
     assert [a["titulo"] for a in sec["reunioes"]] == ["Atendimento do relatório"]
     assert any("sem homologação" in a for a in r.conteudo["avisos"]) and "sem homologação" in r.conteudo["resumo"]
-    assert {m["fase"] for m in sec["modulos_futuros"]} == {5, 9} and sec["minutas_em_revisao"] >= 0  # ainda não acompanhados: fase, não zero
+    assert sec["modulos_futuros"] == [] and sec["minutas_em_revisao"] >= 0 and "receitas_vencidas" in sec["financeiro"]
     canais = {e["canal"]: e for e in r.entregas}
     assert canais["painel"]["situacao"] == "entregue" and canais["notificacao"]["destinatarios"] >= 1
     assert canais["email"]["situacao"] == "aguardando_credenciais" and canais["whatsapp"]["situacao"] == "aguardando_credenciais"

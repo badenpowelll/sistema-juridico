@@ -77,6 +77,13 @@ PERMISSOES: dict[str, tuple[str, int]] = {
     "automacoes:ler": ("Ver automações e o histórico de execuções", 0),
     "automacoes:gerenciar": ("Criar, editar e testar automações", 3),
     "automacoes:ativar": ("Ativar, pausar e desativar automações", 4),
+    "financeiro:ler": ("Ver o financeiro: lançamentos, contratos de honorários, contas e relatórios", 0),
+    "financeiro:gerenciar": ("Lançar receitas e despesas previstas, contratos de honorários, contas e categorias", 2),
+    "financeiro:liquidar": ("Registrar recebimento ou pagamento, faturar, estornar e cancelar lançamentos", 3),
+    "financeiro:conciliar": ("Importar extratos bancários e conciliar com os lançamentos", 3),
+    "financeiro:recibos": ("Emitir e cancelar recibos", 3),
+    "financeiro:cobrar": ("Autorizar lembrete de pagamento ao cliente no portal (o EJMF não envia cobrança para fora)", 4),
+    "financeiro:exportar": ("Exportar lançamentos e relatórios financeiros", 2),
 }
 
 PERFIS: dict[str, dict] = {
@@ -98,7 +105,8 @@ PERFIS: dict[str, dict] = {
                        "atendimentos:ler", "atendimentos:gerenciar", "conversas:ler", "conversas:responder",
                        "documentos:ler", "documentos:gerenciar", "modelos:ler", "minutas:ler", "minutas:editar",
                        "conhecimento:ler", "biblioteca:gerenciar", "jurisprudencia:gerenciar", "memoria:ler",
-                       "memoria:gerenciar", "ia:ler", "ia:usar", "automacoes:ler"],
+                       "memoria:gerenciar", "ia:ler", "ia:usar", "automacoes:ler",
+                       "financeiro:ler", "financeiro:gerenciar"],
     },
     "cliente": {
         "nome": "Cliente (portal)",
@@ -112,6 +120,28 @@ PERFIS: dict[str, dict] = {
         "permissoes": [],
     },
 }
+
+# Categorias iniciais do financeiro: (código, nome, tipo, é honorário, custo operacional do escritório)
+CATEGORIAS_FINANCEIRAS = [
+    ("honorarios_contratuais", "Honorários contratuais", "receita", True, False),
+    ("honorarios_exito", "Honorários de êxito", "receita", True, False),
+    ("honorarios_sucumbencia", "Honorários de sucumbência", "receita", True, False),
+    ("consultoria", "Consultoria e pareceres", "receita", True, False),
+    ("reembolso_despesas", "Reembolso de despesas pelo cliente", "receita", False, False),
+    ("outras_receitas", "Outras receitas", "receita", False, False),
+    ("custas_processuais", "Custas e taxas processuais", "despesa", False, False),
+    ("diligencias", "Diligências, deslocamentos e cópias", "despesa", False, False),
+    ("pericias", "Perícias e assistentes técnicos", "despesa", False, False),
+    ("aluguel", "Aluguel e condomínio", "despesa", False, True),
+    ("servicos_basicos", "Energia, água, internet e telefone", "despesa", False, True),
+    ("software", "Software e assinaturas", "despesa", False, True),
+    ("inteligencia_artificial", "Inteligência artificial (provedores)", "despesa", False, True),
+    ("anuidade_oab", "Anuidade da OAB e associações", "despesa", False, True),
+    ("impostos", "Impostos e contribuições", "despesa", False, True),
+    ("pessoal", "Pessoal e prestadores", "despesa", False, True),
+    ("tarifas_bancarias", "Tarifas bancárias", "despesa", False, True),
+    ("outras_despesas", "Outras despesas", "despesa", False, False),
+]
 
 DEPARTAMENTOS = [
     ("civil", "Direito Civil"), ("trabalhista", "Direito Trabalhista"),

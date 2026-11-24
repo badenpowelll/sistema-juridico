@@ -252,9 +252,32 @@ def inicio(db: Session, sc: SessaoCliente) -> dict:
         "solicitacoes": [solicitacao_json(s) for s in sols],
         "documentos": [{"id": str(d.id), "nome": d.nome_original, "situacao": d.situacao, "motivo": d.motivo,
                         "enviado_em": d.criado_em} for d in docs],
-        "modulos_futuros": [{"rotulo": "Contratos e assinaturas", "fase": 6}, {"rotulo": "Financeiro", "fase": 9}],
+        "financeiro": financeiro_do_cliente(db, c),
+        "modulos_futuros": [{"rotulo": "Contratos e assinaturas", "fase": 6}],
         "aviso": "Dúvidas sobre o seu caso são respondidas pelo advogado. Use “Enviar mensagem”.",
     }
+
+
+def financeiro_do_cliente(db: Session, c: Cliente) -> dict:
+    """Só o que o escritório marcou como visível: receitas do cliente, recibos emitidos e lembretes autorizados."""
+    from app.modelos import Lancamento, LembreteCobranca, Recibo
+    from app.servicos import financeiro as fin
+    lcs = db.execute(select(Lancamento).where(Lancamento.cliente_id == c.id, Lancamento.tipo == "receita",
+                                              Lancamento.portal_visivel.is_(True), Lancamento.situacao != "cancelado")
+                     .order_by(Lancamento.vencimento).limit(200)).scalars().all()
+    ids = [x.id for x in lcs]
+    recibos = db.execute(select(Recibo).where(Recibo.lancamento_id.in_(ids), Recibo.situacao == "emitido")).scalars().all() if ids else []
+    lembretes = db.execute(select(LembreteCobranca).where(LembreteCobranca.cliente_id == c.id, LembreteCobranca.situacao == "publicado",
+                                                          LembreteCobranca.lancamento_id.in_(ids))
+                           .order_by(LembreteCobranca.publicado_em.desc())).scalars().all() if ids else []
+    rec = {r.lancamento_id: r for r in recibos}
+    h = fin.hoje()
+    itens = [{"id": str(x.id), "descricao": x.descricao, "valor": str(x.valor), "vencimento": x.vencimento,
+              "situacao": "pago" if x.situacao == "liquidado" else ("vencido" if x.vencimento < h else "a vencer"),
+              "pago_em": x.liquidado_em, "recibo": rec[x.id].numero if x.id in rec else None} for x in lcs]
+    return {"itens": itens, "lembretes": [{"id": str(le.id), "texto": le.texto, "publicado_em": le.publicado_em} for le in lembretes],
+            "em_aberto": str(sum((x.valor for x in lcs if x.situacao in fin.ABERTAS), fin.Decimal("0.00"))),
+            "aviso": "Valores informados pelo escritório. Pagamentos não são feitos pelo portal."}
 
 
 def solicitacao_json(s: SolicitacaoPortal) -> dict:

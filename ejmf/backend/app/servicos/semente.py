@@ -123,6 +123,14 @@ def semear(sessao: Session) -> dict[str, int]:
                             rotulo="[SIMULADO] Adaptador de testes (sem IA real, custo zero)"))
         criados["modelos_ia"] = 1
     sessao.flush()
+    from app.modelos import CategoriaFinanceira
+    cats = set(sessao.execute(select(CategoriaFinanceira.codigo).where(CategoriaFinanceira.escritorio_id == esc.id)).scalars())
+    for codigo, nome, tipo, honorario, operacional in catalogo.CATEGORIAS_FINANCEIRAS:
+        if codigo not in cats:
+            sessao.add(CategoriaFinanceira(escritorio_id=esc.id, codigo=codigo, nome=nome, tipo=tipo, honorario=honorario,
+                                           operacional=operacional))
+            criados["categorias_financeiras"] = criados.get("categorias_financeiras", 0) + 1
+    sessao.flush()
     if any(criados.values()):
         auditoria.registrar(sessao, auditoria.Ator(tipo="sistema", nome="semeadura", escritorio_id=esc.id),
                             "sistema.semear", alteracoes=criados, origem="cli")

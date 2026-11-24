@@ -474,3 +474,6 @@ def produtividade(rd: Rodada) -> dict:
 def exigir_modelo(rd: Rodada) -> None:
     if not rd.tem_modelo():
         raise Bloqueio("Escolha um modelo de IA para esta função na central de IA")
+
+
+from app.servicos.ia import funcoes_financeiro  # noqa: E402,F401  (registra os executores 26 a 30)

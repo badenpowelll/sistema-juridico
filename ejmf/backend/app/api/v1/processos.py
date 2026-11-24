@@ -151,10 +151,23 @@ def prontuario(processo_id: uuid.UUID, ctx: Contexto = Depends(exigir("processos
         cs = ctx.db.execute(select(Compromisso).where(Compromisso.processo_id == p.id)
                             .order_by(Compromisso.inicio.desc()).limit(50)).scalars().all()
         dados["compromissos"] = [agenda.como_json(c, visualizador=ctx.usuario.id, processo=p) for c in cs]
-    # módulos ainda não implementados aparecem como tal, nunca como "zero"
-    dados["modulos_futuros"] = [
-        {"rotulo": "Financeiro", "fase": 9},
-    ]
+    if "financeiro:ler" in ctx.permissoes:
+        from app.servicos import financeiro as fin
+        from app.modelos import ContratoHonorarios, Lancamento
+        lcs = ctx.db.execute(select(Lancamento).where(Lancamento.processo_id == p.id).order_by(Lancamento.vencimento)
+                             .limit(200)).scalars().all()
+        ctrs = ctx.db.execute(select(ContratoHonorarios).where(ContratoHonorarios.processo_id == p.id)
+                              .order_by(ContratoHonorarios.criado_em)).scalars().all()
+        nm = fin.nomes(ctx.db, p.escritorio_id, list(lcs))
+        soma = lambda tipo, sits: str(sum((x.valor for x in lcs if x.tipo == tipo and x.situacao in sits), fin.Decimal("0.00")))  # noqa: E731
+        dados["financeiro"] = {"contratos": [fin.contrato_json(ctx.db, c) for c in ctrs],
+                               "lancamentos": [fin.como_json(x, nm) for x in lcs],
+                               "totais": {"recebido": soma("receita", ("liquidado",)), "a_receber": soma("receita", fin.ABERTAS),
+                                          "despesas_pagas": soma("despesa", ("liquidado",)),
+                                          "despesas_a_pagar": soma("despesa", ("previsto",)),
+                                          "resultado": str(sum((x.valor if x.tipo == "receita" else -x.valor for x in lcs
+                                                                if x.situacao == "liquidado"), fin.Decimal("0.00")))}}
+    dados["modulos_futuros"] = []
     return dados
 
 

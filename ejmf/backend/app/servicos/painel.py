@@ -33,10 +33,46 @@ ROTULOS_ESTADO = {
 }
 
 # Indicadores dos módulos ainda não construídos: aparecem como "disponível na fase X", nunca como zero.
-INDICADORES_FUTUROS = [
-    ("clientes_aguardando", "Clientes aguardando atendimento", 5), ("documentos_revisao", "Documentos aguardando revisão", 6),
-    ("honorarios_receber", "Honorários a receber", 9), ("custos_ia_mes", "Custos de IA no mês", 8),
-]
+INDICADORES_FUTUROS: list[tuple[str, str, int]] = [("backups", "Estado dos backups", 11)]
+AGUARDANDO_ESCRITORIO = ("primeiro_contato", "cadastro_preenchido", "documentos_recebidos", "conferencia_profissional")
+
+
+def _indicadores_modulos(db: Session, usuario: Usuario) -> list[dict]:
+    """Atendimento, documentos, IA e financeiro: cada um só aparece para quem pode ver o módulo."""
+    from app.modelos import Atendimento, ExecucaoIA, Minuta
+    from app.servicos.autenticacao import permissoes_do_usuario
+    perms, esc_id, out = permissoes_do_usuario(usuario), usuario.escritorio_id, []
+    if "atendimentos:ler" in perms:
+        out.append({"codigo": "clientes_aguardando", "rotulo": "Atendimentos aguardando o escritório", "disponivel": True,
+                    "valor": db.execute(select(func.count()).select_from(Atendimento).where(
+                        Atendimento.escritorio_id == esc_id, Atendimento.etapa.in_(AGUARDANDO_ESCRITORIO))).scalar_one(),
+                    "link": "/painel/atendimentos"})
+    if "minutas:ler" in perms:
+        out.append({"codigo": "documentos_revisao", "rotulo": "Minutas aguardando revisão", "disponivel": True,
+                    "valor": db.execute(select(func.count()).select_from(Minuta).where(
+                        Minuta.escritorio_id == esc_id, Minuta.situacao == "em_revisao")).scalar_one(),
+                    "link": "/painel/minutas"})
+    if "ia:ler" in perms:
+        inicio = datetime.now(timezone.utc).astimezone(agenda_fuso()).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        custo = db.execute(select(func.coalesce(func.sum(ExecucaoIA.custo), 0)).where(
+            ExecucaoIA.escritorio_id == esc_id, ExecucaoIA.criado_em >= inicio)).scalar_one()
+        out.append({"codigo": "custos_ia_mes", "rotulo": "Custos de IA no mês (US$)", "disponivel": True,
+                    "valor": float(custo), "formato": "dolar", "link": "/painel/ia"})
+    if "financeiro:ler" in perms:
+        from app.servicos import financeiro_relatorios
+        pos = financeiro_relatorios.posicao(db, esc_id)
+        out.append({"codigo": "honorarios_receber", "rotulo": "Honorários a receber", "disponivel": True,
+                    "valor": float(pos["honorarios_a_receber"]), "formato": "moeda",
+                    "link": "/painel/financeiro/lancamentos?tipo=receita&situacao=aberto"})
+        out.append({"codigo": "receitas_vencidas", "rotulo": "Receitas vencidas", "disponivel": True,
+                    "valor": float(pos["a_receber_vencido"]), "formato": "moeda",
+                    "link": "/painel/financeiro/lancamentos?tipo=receita&situacao=vencido"})
+    return out
+
+
+def agenda_fuso():
+    from app.servicos import agenda
+    return agenda.fuso()
 
 
 def _item(id_: str, titulo: str, prioridade: str, justificativa: str, acao: str | None = None, origem: str = "regra") -> dict:
@@ -266,7 +302,8 @@ def resumo(db: Session, usuario: Usuario) -> dict:
         ] + _indicadores_controladoria(db, esc_id, svc_prazos.hoje_local()) + _indicadores_agenda(db, esc_id, svc_prazos.hoje_local()) + [
             {"codigo": "sessoes_ativas", "rotulo": "Sessões ativas", "valor": sessoes_ativas, "disponivel": True},
             {"codigo": "eventos_auditoria_24h", "rotulo": "Eventos auditados (24 h)", "valor": eventos_24h, "disponivel": True},
-        ] + [{"codigo": c, "rotulo": r, "valor": None, "disponivel": False, "fase": f} for c, r, f in INDICADORES_FUTUROS],
+        ] + _indicadores_modulos(db, usuario)
+        + [{"codigo": c, "rotulo": r, "valor": None, "disponivel": False, "fase": f} for c, r, f in INDICADORES_FUTUROS],
         "integracoes": [{"codigo": i.codigo, "nome": i.nome, "categoria": i.categoria, "estado": i.estado,
                          "estado_rotulo": ROTULOS_ESTADO[i.estado], "simulado": i.simulado, "critica": i.critica,
                          "ultimo_sucesso_em": i.ultimo_sucesso_em, "ultimo_erro": i.ultimo_erro} for i in integracoes],
