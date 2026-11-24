@@ -11,7 +11,7 @@ from sqlalchemy import func, select, update
 
 from app.api.deps import Contexto, contexto, exigir
 from app.modelos import Aprovacao, Auditoria, Cliente, Compromisso, Notificacao, Pendencia, Processo, Relatorio, Usuario
-from app.servicos import agenda, agenda_google, aprovacoes, auditoria, notificacoes, prioridades, relatorios
+from app.servicos import agenda, agenda_google, aprovacoes, auditoria, notificacoes, prioridades, push, relatorios
 from app.servicos.conectores.base import ErroConector
 
 rotas = APIRouter(tags=["secretaria"])
@@ -384,9 +384,11 @@ def decidir_aprovacao(aid: uuid.UUID, dados: Decisao, ctx: Contexto = Depends(ex
     except agenda.ErroAgenda as e:
         raise HTTPException(409, str(e))
     if ap.solicitada_por:
-        ctx.db.add(Notificacao(escritorio_id=ap.escritorio_id, usuario_id=ap.solicitada_por,
-                               titulo=f"Pedido {ap.situacao}: {ap.titulo}"[:300], texto=ap.motivo, link="/painel/aprovacoes",
-                               nivel="info"))
+        aviso = Notificacao(escritorio_id=ap.escritorio_id, usuario_id=ap.solicitada_por,
+                            titulo=f"Pedido {ap.situacao}: {ap.titulo}"[:300], texto=ap.motivo, link="/painel/aprovacoes", nivel="info")
+        ctx.db.add(aviso)
+        ctx.db.flush()
+        push.avisar(ctx.db, ap.solicitada_por, aviso.id, "info")
     ctx.db.commit()
     return {"id": str(ap.id), "situacao": ap.situacao}
 

@@ -11,7 +11,7 @@ from app.core.banco import obter_sessao
 from app.core.config import obter_config
 from app.core.logs import trace_id_atual
 from app.modelos import Sessao
-from app.servicos import auditoria
+from app.servicos import auditoria, push
 from app.servicos.autenticacao import (
     ErroAutenticacao, agora, confirmar_mfa, eh_admin, login, revogar_sessoes,
 )
@@ -78,6 +78,7 @@ def eu(ctx: Contexto = Depends(contexto_mfa_pendente)):
 @rotas.post("/sair")
 def sair(response: Response, ctx: Contexto = Depends(contexto_mfa_pendente)):
     ctx.sessao.revogada_em = agora()
+    push.revogar_das_sessoes(ctx.db, Sessao.id == ctx.sessao.id)
     auditoria.registrar(ctx.db, ctx.ator, "auth.sair", entidade="sessao", entidade_id=ctx.sessao.id)
     ctx.db.commit()
     response.delete_cookie(obter_config().nome_cookie, path="/")
@@ -137,6 +138,7 @@ def revogar(sessao_id: uuid.UUID, ctx: Contexto = Depends(contexto)):
     if s is None or s.usuario_id != ctx.usuario.id:
         raise HTTPException(404, "Sessão não encontrada")
     s.revogada_em = agora()
+    push.revogar_das_sessoes(ctx.db, Sessao.id == s.id)
     auditoria.registrar(ctx.db, ctx.ator, "auth.revogar_sessao", entidade="sessao", entidade_id=s.id)
     ctx.db.commit()
     return {"ok": True}

@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.api.v1 import (
-    administracao, atendimento, autenticacao, conhecimento, controladoria, documentos, financeiro, ia, importacoes, painel, processos,
+    administracao, aparelhos, atendimento, autenticacao, conhecimento, controladoria, documentos, financeiro, ia, importacoes, painel, processos,
     publico, secretaria,
 )
 from app.core.banco import fabrica_sessao
@@ -78,6 +78,7 @@ def criar_app() -> FastAPI:
     app.include_router(conhecimento.rotas, prefix="/api/v1")
     app.include_router(ia.rotas, prefix="/api/v1")
     app.include_router(financeiro.rotas, prefix="/api/v1")
+    app.include_router(aparelhos.rotas, prefix="/api/v1")
     app.include_router(ia.publicas, prefix="/api/v1")
     return app
 

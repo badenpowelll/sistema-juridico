@@ -21,7 +21,11 @@ def notificar(db: Session, esc_id: uuid.UUID, permissao: str, titulo: str, *, te
         r = db.execute(insert(Notificacao).values(escritorio_id=esc_id, usuario_id=u.id, chave=chave, titulo=titulo[:300],
                                                   texto=texto, link=link, nivel=nivel)
                        .on_conflict_do_nothing().returning(Notificacao.id))
-        n += len(r.all())
+        novas = r.all()
+        n += len(novas)
+        if novas:
+            from app.servicos import push
+            push.avisar(db, u.id, novas[0][0], nivel)
     return n
 
 

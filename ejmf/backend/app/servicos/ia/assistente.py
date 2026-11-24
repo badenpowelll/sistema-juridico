@@ -213,7 +213,7 @@ def decidir(db: Session, ator: auditoria.Ator, c: ComandoAssistente, usuario: Us
 
 
 def como_json(c: ComandoAssistente) -> dict:
-    return {"id": str(c.id), "texto": c.texto, "tipo": c.tipo, "situacao": c.situacao, "intencao": c.intencao,
+    return {"id": str(c.id), "texto": c.texto, "tipo": c.tipo, "situacao": c.situacao, "intencao": c.intencao, "canal": c.canal,
             "resposta": c.resposta, "execucao_id": str(c.execucao_id) if c.execucao_id else None, "criado_em": c.criado_em}
 
 

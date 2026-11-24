@@ -1698,3 +1698,25 @@ class LembreteCobranca(Base):
     autorizado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
     publicado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     criado_em: Mapped[datetime] = _criado()
+
+
+# ============================================================== Fase 10 — PWA e notificações no celular
+
+class AssinaturaPush(Base):
+    """Aparelho que aceitou notificações (Web Push). Ligada à sessão: encerrar a sessão encerra a assinatura."""
+    __tablename__ = "assinaturas_push"
+    __table_args__ = (Index("ix_assinaturas_push_usuario", "usuario_id", postgresql_where=text("revogada_em is null")),)
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    sessao_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("sessoes.id", ondelete="SET NULL"))
+    endpoint: Mapped[str] = mapped_column(String(1000), nullable=False, unique=True)
+    p256dh: Mapped[str] = mapped_column(String(200), nullable=False)
+    auth: Mapped[str] = mapped_column(String(100), nullable=False)
+    dispositivo: Mapped[str | None] = mapped_column(String(120))
+    so_urgentes: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    falhas: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    ultimo_envio_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revogada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    motivo_revogacao: Mapped[str | None] = mapped_column(String(200))
+    criado_em: Mapped[datetime] = _criado()

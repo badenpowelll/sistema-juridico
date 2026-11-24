@@ -62,6 +62,11 @@ class Config(BaseSettings):
     ia_openai_compativel_chave: str | None = None
     ia_simulado: bool = False  # provedor de testes, determinístico, custo zero, sempre marcado como [SIMULADO]
     ia_timeout_segundos: float = 120.0
+    # Notificações no celular (Fase 10, Web Push com VAPID). Chaves geradas localmente: `python -m app.cli gerar-vapid`.
+    # Sem as duas chaves, as notificações ficam só dentro do sistema ("aguardando credenciais").
+    vapid_chave_publica: str | None = None
+    vapid_chave_privada: str | None = None
+    vapid_contato: str | None = None  # "mailto:..." ou "https://..."; vazio = usa url_publica
 
     @property
     def producao(self) -> bool:

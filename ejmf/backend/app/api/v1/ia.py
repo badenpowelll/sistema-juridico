@@ -486,12 +486,27 @@ def aplicar(eid: uuid.UUID, dados: Aplicar, ctx: Contexto = Depends(exigir("ia:u
 
 class Comando(BaseModel):
     texto: str = Field(min_length=2, max_length=2000)
+    canal: Literal["texto", "voz"] = "texto"
+
+
+VOZ = "voz.reconhecimento_navegador"
+AVISO_VOZ = ("O reconhecimento de voz é feito pelo navegador. No Chrome e no Edge o áudio vai para os servidores do Google ou da "
+             "Microsoft; no Safari, para a Apple (ou fica no aparelho, conforme o sistema). Só ligue se o escritório aceitar "
+             "isso. A resposta falada é gerada pelo próprio aparelho.")
+
+
+def _voz(ctx: Contexto) -> dict:
+    v = ctx.db.execute(select(Configuracao.valor).where(Configuracao.escritorio_id == ctx.usuario.escritorio_id,
+                                                        Configuracao.chave == VOZ)).scalar()
+    return {"permitida": v is True, "pode_alterar": "ia:gerenciar" in ctx.permissoes, "aviso": AVISO_VOZ}
 
 
 @rotas.post("/assistente", status_code=201)
 def comando(dados: Comando, ctx: Contexto = Depends(exigir("ia:usar"))):
     try:
-        c = assistente.comando(ctx.db, ctx.ator, ctx.usuario, ctx.permissoes, dados.texto)
+        if dados.canal == "voz" and not _voz(ctx)["permitida"]:
+            raise HTTPException(409, "Comandos por voz estão desligados neste escritório")
+        c = assistente.comando(ctx.db, ctx.ator, ctx.usuario, ctx.permissoes, dados.texto, canal=dados.canal)
     except assistente.ErroAssistente as e:
         _erro(e)
     ctx.db.commit()
@@ -502,7 +517,21 @@ def comando(dados: Comando, ctx: Contexto = Depends(exigir("ia:usar"))):
 def historico(ctx: Contexto = Depends(exigir("ia:usar"))):
     cs = ctx.db.execute(select(ComandoAssistente).where(ComandoAssistente.usuario_id == ctx.usuario.id)
                         .order_by(ComandoAssistente.criado_em.desc()).limit(30)).scalars().all()
-    return {"itens": [assistente.como_json(c) for c in reversed(cs)], "exemplos": assistente.EXEMPLOS}
+    return {"itens": [assistente.como_json(c) for c in reversed(cs)], "exemplos": assistente.EXEMPLOS, "voz": _voz(ctx)}
+
+
+class Voz(BaseModel):
+    permitida: bool
+
+
+@rotas.put("/assistente/voz")
+def configurar_voz(dados: Voz, ctx: Contexto = Depends(exigir("ia:gerenciar"))):
+    ctx.db.execute(insert(Configuracao).values(escritorio_id=ctx.usuario.escritorio_id, chave=VOZ, valor=dados.permitida, sensivel=False)
+                   .on_conflict_do_update(index_elements=["escritorio_id", "chave"], set_={"valor": dados.permitida}))
+    auditoria.registrar(ctx.db, ctx.ator, "assistente.voz", entidade="configuracao", entidade_id=VOZ,
+                        alteracoes={"permitida": dados.permitida})
+    ctx.db.commit()
+    return _voz(ctx)
 
 
 @rotas.post("/assistente/{cid}/{acao}")

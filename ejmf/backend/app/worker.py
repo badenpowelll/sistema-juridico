@@ -17,7 +17,7 @@ from app.core.config import obter_config
 from app.core.logs import configurar_logs
 from app.modelos import Configuracao
 from app.servicos import (  # noqa: F401  (registram executores da fila)
-    assinaturas, biblioteca, conversas, documentos, fila, relatorios, sincronizacao,
+    assinaturas, biblioteca, conversas, documentos, fila, push, relatorios, sincronizacao,
 )
 from app.servicos import automacoes
 from app.servicos.ia import assistente, funcoes, orquestrador  # noqa: F401  (registram executores)

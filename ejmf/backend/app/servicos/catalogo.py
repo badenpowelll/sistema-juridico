@@ -214,6 +214,9 @@ INTEGRACOES = [
     ("verificador_jurisprudencia", "Verificador de jurisprudência (sites dos tribunais)", "conhecimento",
      "ambiente_testes", False, OBS_VERIFICADOR),
     ("ia", "Provedores de IA", "ia", "aguardando_credenciais", False, OBS_IA),
+    ("web_push", "Notificações no celular (Web Push)", "comunicacao", "aguardando_credenciais", False,
+     "Chaves VAPID geradas localmente (python -m app.cli gerar-vapid) em EJMF_VAPID_CHAVE_PUBLICA e "
+     "EJMF_VAPID_CHAVE_PRIVADA. O aparelho recebe só um aviso genérico; o conteúdo fica no EJMF. ADR-0014."),
     ("backup", "Backup externo (S3 compatível)", "infraestrutura", "aguardando_credenciais", True,
      "Sem backup externo configurado. Fase 11."),
 ]

@@ -6,7 +6,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, select, update
 from sqlalchemy.orm import Session
 
 from app.core import seguranca
@@ -171,7 +171,7 @@ def confirmar_mfa(sessao: Session, s: Sessao, u: Usuario, codigo: str, ator: aud
 
 
 def revogar_sessoes(sessao: Session, usuario_id: uuid.UUID, exceto: uuid.UUID | None = None) -> int:
-    q = update(Sessao).where(Sessao.usuario_id == usuario_id, Sessao.revogada_em.is_(None))
-    if exceto is not None:
-        q = q.where(Sessao.id != exceto)
-    return sessao.execute(q.values(revogada_em=agora())).rowcount or 0
+    from app.servicos import push
+    cond = [Sessao.usuario_id == usuario_id, Sessao.revogada_em.is_(None)] + ([Sessao.id != exceto] if exceto is not None else [])
+    push.revogar_das_sessoes(sessao, and_(*cond))
+    return sessao.execute(update(Sessao).where(*cond).values(revogada_em=agora())).rowcount or 0

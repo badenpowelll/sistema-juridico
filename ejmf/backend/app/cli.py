@@ -18,7 +18,15 @@ def main(argv: list[str] | None = None) -> int:
     ca.add_argument("--nome", default="Márcio Oliveira Fernandes")
     ca.add_argument("--perfil", default="advogado_admin")
     sub.add_parser("verificar-auditoria", help="recalcula a cadeia de hashes da auditoria")
+    sub.add_parser("gerar-vapid", help="gera localmente o par de chaves das notificações no celular (Web Push)")
     a = p.parse_args(argv)
+    if a.cmd == "gerar-vapid":
+        from app.servicos import push
+        k = push.gerar_chaves()
+        print("# Guarde no ambiente do servidor (nunca no Git). Trocar as chaves exige reativar as notificações nos aparelhos.")
+        print(f"EJMF_VAPID_CHAVE_PUBLICA={k['publica']}")
+        print(f"EJMF_VAPID_CHAVE_PRIVADA={k['privada']}")
+        return 0
 
     with fabrica_sessao()() as db:
         if a.cmd == "semear":
