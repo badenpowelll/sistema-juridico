@@ -10,6 +10,12 @@
 - Um manifesto: versão do banco (revisão do Alembic), linhas por tabela, SHA-256 e tamanho de cada arquivo, SHA-256 do
   dump e o último hash da cadeia de auditoria.
 
+## Versão do cliente do PostgreSQL
+`pg_dump` e `pg_restore` têm de ser da **mesma versão principal do servidor** (hoje 16). Um cliente mais novo grava
+comandos que o servidor antigo não conhece (o 17 em diante grava `SET transaction_timeout`) e a cópia não restaura; um
+mais antigo nem conecta. O EJMF confere isso antes de copiar e de restaurar e recusa com a instrução. A imagem Docker e
+o CI instalam o `postgresql-client-16` do repositório oficial do PostgreSQL; fora deles, use `EJMF_PG_BIN_DIR`.
+
 ## Cifra
 - AES-256-GCM em blocos de 1 MiB; cada bloco autentica a própria posição e se é o último. Arquivo trocado, cortado,
   reordenado ou aberto com a chave errada é recusado.

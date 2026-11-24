@@ -16,6 +16,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import secrets
 import shutil
 import struct
@@ -181,6 +182,27 @@ def _bin(nome: str) -> str:
     return caminho
 
 
+def _versao_cliente(nome: str) -> int:
+    r = subprocess.run([_bin(nome), "--version"], capture_output=True, text=True, timeout=30)
+    m = re.search(r"\(PostgreSQL\)\s+(\d+)", r.stdout or "")
+    if r.returncode != 0 or not m:
+        raise ErroCopia(f"Não foi possível ler a versão do {nome}", 500)
+    return int(m.group(1))
+
+
+def conferir_versao(conn, nome: str) -> None:
+    """pg_dump e pg_restore têm de ser da mesma versão principal do servidor.
+
+    Um pg_dump mais novo grava comandos que o servidor antigo não conhece (por exemplo, o 17 em diante grava
+    `SET transaction_timeout`), e a cópia não restaura no mesmo servidor; um mais antigo nem conecta.
+    """
+    servidor = int(conn.execute(text("show server_version_num")).scalar_one()) // 10000
+    cliente = _versao_cliente(nome)
+    if cliente != servidor:
+        raise ErroCopia(f"{nome} {cliente} não corresponde ao PostgreSQL {servidor} do servidor: instale o cliente "
+                        f"{servidor} (postgresql-client-{servidor}) ou aponte EJMF_PG_BIN_DIR para ele", 500)
+
+
 def _tabelas(conn) -> list[str]:
     return [r[0] for r in conn.execute(text(
         "select tablename from pg_tables where schemaname = 'public' order by tablename"))]
@@ -214,6 +236,7 @@ def criar_arquivo(url_banco: str, arquivos_dir: str, destino: Path, k: bytes, no
     try:
         with motor.connect() as conn:
             conn.execute(text("set transaction isolation level repeatable read, read only"))
+            conferir_versao(conn, "pg_dump")
             snapshot = conn.execute(text("select pg_export_snapshot()")).scalar_one()
             cont = contagens(conn)
             revisao = conn.execute(text("select version_num from alembic_version")).scalar()
@@ -317,6 +340,12 @@ def _url_banco(url: str, nome: str) -> str:
 
 
 def restaurar_banco(dump: Path, url_destino: str) -> None:
+    motor = create_engine(url_destino)
+    try:
+        with motor.connect() as conn:
+            conferir_versao(conn, "pg_restore")
+    finally:
+        motor.dispose()
     args, env = _libpq(url_destino)
     r = subprocess.run([_bin("pg_restore"), *args, "-d", make_url(url_destino).database, "--no-owner", "--no-privileges",
                         "--exit-on-error", str(dump)], env=env, capture_output=True, text=True, timeout=3600)

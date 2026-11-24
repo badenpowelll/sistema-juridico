@@ -10,6 +10,7 @@
 - Limite de tentativas no PostgreSQL, compartilhado por todos os processos da API (login, portal, rotas públicas e MCP).
 - Política de conteúdo (CSP) e HSTS em produção no site; pip-audit e npm audit no CI.
 - Teste de isolamento entre escritórios e teste de carga repetido com as centrais das fases 3 a 11 e a cópia com restauração.
+- `pg_dump`/`pg_restore` precisam ser da mesma versão principal do servidor: o EJMF confere antes de copiar e de restaurar; a imagem e o CI instalam o `postgresql-client-16` do PGDG (`EJMF_PG_BIN_DIR`).
 - HOMOLOGACAO.md: roteiro de homologação profissional com os 14 cenários de aceitação; BACKUP.md e OPERATIONS.md reescritos com os procedimentos.
 
 ## [Fase 10] — 2026-11-24

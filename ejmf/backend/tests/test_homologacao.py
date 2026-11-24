@@ -143,6 +143,20 @@ def test_formato_em_blocos_detecta_reordenacao():
         io.BufferedReader(copias.LeitorCifrado(io.BytesIO(trocado), k)).read()
 
 
+def test_cliente_do_postgresql_de_outra_versao_e_recusado(db, pasta, monkeypatch):
+    # o cliente instalado aqui é da mesma versão do servidor; outro número tem de parar a cópia com instrução clara
+    conn = db.connection()
+    copias.conferir_versao(conn, "pg_dump")
+    servidor = int(conn.execute(text("show server_version_num")).scalar_one()) // 10000
+    monkeypatch.setattr(copias, "_versao_cliente", lambda nome: servidor + 2)
+    with pytest.raises(copias.ErroCopia) as e:
+        copias.conferir_versao(conn, "pg_dump")
+    assert f"postgresql-client-{servidor}" in str(e.value) and "EJMF_PG_BIN_DIR" in str(e.value)
+    esc = obter_escritorio(db).id
+    c = copias.executar(db, esc, origem="manual")
+    assert c.situacao == "falhou" and "não corresponde" in (c.erro or "")
+
+
 def test_retencao_diarias_semanais_e_mensais():
     hoje = date(2026, 11, 24)
     datas = [(uuid.uuid4(), hoje - timedelta(days=i)) for i in range(400)]

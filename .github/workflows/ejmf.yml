@@ -38,7 +38,15 @@ jobs:
       - name: Backend — ferramentas de OCR, conversão e cópias (Tesseract, Poppler, LibreOffice, cliente do PostgreSQL)
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-por poppler-utils libreoffice-writer-nogui postgresql-client
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-por poppler-utils libreoffice-writer-nogui
+          # pg_dump/pg_restore da mesma versão do servidor (16): o cliente da distribuição pode ser mais novo e gravar
+          # comandos que o servidor 16 não conhece. Vem do repositório oficial do PostgreSQL (PGDG).
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-16
+          echo "EJMF_PG_BIN_DIR=/usr/lib/postgresql/16/bin" >> "$GITHUB_ENV"
       - name: Backend — dependências
         working-directory: ejmf/backend
         run: pip install -e ".[dev]"
