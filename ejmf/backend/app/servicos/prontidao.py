@@ -112,11 +112,23 @@ def _recuperacao(db: Session, esc_id: uuid.UUID) -> list[dict]:
                        "apagar e preencha EJMF_BACKUP_S3_*"))
     try:
         modo = db.execute(text("show archive_mode")).scalar()
+        arq = db.execute(text("select archived_count, last_archived_time, failed_count, last_failed_time "
+                              "from pg_stat_archiver")).one()
     except Exception:  # noqa: BLE001
-        modo = None
-    itens.append(_item("wal", "Recuperação", "Arquivamento contínuo do WAL (RPO de 1 h)", OK if modo in ("on", "always") else ATENCAO,
-                       f"archive_mode={modo}", "Use o docker-compose.producao.yml, que liga o arquivamento e as cópias "
-                       "físicas diárias (ver BACKUP.md)"))
+        modo, arq = None, None
+    ligado = modo in ("on", "always")
+    falhando = bool(arq and arq.last_failed_time and (not arq.last_archived_time or arq.last_failed_time > arq.last_archived_time))
+    if not ligado:
+        detalhe = f"archive_mode={modo}: só a cópia diária (RPO de 24 h)"
+    elif falhando:
+        detalhe = f"O arquivamento está falhando desde {arq.last_failed_time:%d/%m %H:%M}"
+    else:
+        detalhe = (f"Ligado; {arq.archived_count} segmento(s) arquivado(s)"
+                   + (f", o último em {arq.last_archived_time:%d/%m %H:%M}" if arq and arq.last_archived_time else ""))
+    itens.append(_item("wal", "Recuperação", "Arquivamento contínuo do WAL (RPO de 1 h)",
+                       OK if ligado and not falhando else ATENCAO, detalhe,
+                       "Use o docker-compose.producao.yml, que liga o arquivamento e a cópia física diária; se estiver "
+                       "falhando, veja o espaço e as permissões da pasta do WAL (BACKUP.md)"))
     return itens
 
 
