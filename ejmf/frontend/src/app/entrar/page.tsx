@@ -1,9 +1,10 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Logotipo } from "@/componentes/Logotipo";
 import { Aviso, Botao, Campo } from "@/componentes/ui";
 import { enviar } from "@/lib/api";
+import { limparSobras } from "@/lib/pwa";
 import { marca } from "@/marca";
 
 export default function Entrar() {
@@ -11,6 +12,7 @@ export default function Entrar() {
   const [etapa, setEtapa] = useState<"senha" | "mfa">("senha");
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  useEffect(() => { void limparSobras(); }, []);
 
   async function enviarSenha(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

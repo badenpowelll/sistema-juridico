@@ -21,10 +21,20 @@ export async function limparAparelho() {
     reg?.active?.postMessage("limpar");
     const sub = await reg?.pushManager?.getSubscription();
     await sub?.unsubscribe();
-    // apaga os arquivos guardados e desliga o service worker; ele volta a ser registrado no próximo acesso ao painel
-    if ("caches" in window) await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+    // desliga o service worker e apaga os arquivos guardados; ele volta a ser registrado no próximo acesso ao painel
     await reg?.unregister();
+    await apagarCaches();
   } catch { /* navegador sem suporte: nada a limpar */ }
+}
+
+async function apagarCaches() {
+  if ("caches" in window) await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+}
+
+/** Na página de entrada: sem service worker registrado (saiu), apaga o que uma cópia em andamento ainda tenha gravado. */
+export async function limparSobras() {
+  if (!suportaSW()) return;
+  try { if (!(await navigator.serviceWorker.getRegistration())) await apagarCaches(); } catch { /* nada a limpar */ }
 }
 
 function chaveBytes(b64: string): Uint8Array<ArrayBuffer> {

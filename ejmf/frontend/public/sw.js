@@ -15,6 +15,8 @@ self.addEventListener("activate", (e) => {
     .then(() => self.clients.claim()));
 });
 
+let limpo = false; // depois de "limpar" (sair), nada mais é guardado por este service worker
+
 const estatico = (url) => url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icones/");
 
 self.addEventListener("fetch", (e) => {
@@ -24,7 +26,7 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return; // API: sempre direto na rede
   if (estatico(url)) {
     e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((r) => {
-      if (r.ok && r.type === "basic") { const copia = r.clone(); caches.open(VERSAO).then((c) => c.put(req, copia)); }
+      if (!limpo && r.ok && r.type === "basic") { const copia = r.clone(); caches.open(VERSAO).then((c) => c.put(req, copia)); }
       return r;
     })));
     return;
@@ -36,7 +38,9 @@ self.addEventListener("fetch", (e) => {
 });
 
 self.addEventListener("message", (e) => {
-  if (e.data === "limpar") e.waitUntil(caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))));
+  if (e.data !== "limpar") return;
+  limpo = true;
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))));
 });
 
 self.addEventListener("push", (e) => {
