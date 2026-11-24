@@ -6,7 +6,7 @@ import { api, dataHora } from "@/lib/api";
 import { ROTULO_PRIORIDADE, TOM_ESTADO } from "@/lib/rotulos";
 
 type Item = { id: string; titulo: string; prioridade: string; justificativa: string; acao: string | null; origem: string };
-type Indicador = { codigo: string; rotulo: string; valor: number | null; disponivel: boolean; fase?: number };
+type Indicador = { codigo: string; rotulo: string; valor: number | null; disponivel: boolean; fase?: number; link?: string };
 type IntegracaoResumo = { codigo: string; nome: string; estado: string; estado_rotulo: string; simulado: boolean; critica: boolean; ultimo_sucesso_em: string | null; ultimo_erro: string | null };
 type Painel = { gerado_em: string; saudacao: string; atencao_agora: Item[]; indicadores: Indicador[]; integracoes: IntegracaoResumo[] };
 
@@ -50,7 +50,8 @@ export default function CentralDeComando() {
           <div key={i.codigo} className="rounded-xl border border-borda bg-superficie p-4" data-indicador={i.codigo}>
             <div className="text-xs text-suave">{i.rotulo}</div>
             {i.disponivel ? (
-              <div className="mt-1 font-serif text-3xl font-semibold">{i.valor}</div>
+              i.link ? <Link href={i.link} className="mt-1 block font-serif text-3xl font-semibold hover:text-dourado">{(i.valor ?? 0).toLocaleString("pt-BR")}</Link>
+                : <div className="mt-1 font-serif text-3xl font-semibold">{(i.valor ?? 0).toLocaleString("pt-BR")}</div>
             ) : (
               <div className="mt-2 text-xs text-suave">Módulo previsto para a Fase {i.fase}</div>
             )}

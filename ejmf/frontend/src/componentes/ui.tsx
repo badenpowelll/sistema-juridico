@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 export function Cartao({ titulo, acao, children, className = "" }: { titulo?: ReactNode; acao?: ReactNode; children: ReactNode; className?: string }) {
   return (
@@ -48,4 +48,39 @@ export function Selo({ tom = "neutro", children }: { tom?: keyof typeof TONS | s
 
 export function Aviso({ tom = "perigo", children }: { tom?: string; children: ReactNode }) {
   return <div role="alert" className={`rounded-md border px-3 py-2 text-sm ${TONS[tom] ?? TONS.perigo}`}>{children}</div>;
+}
+
+export function Selecao({ rotulo, id, children, ...p }: SelectHTMLAttributes<HTMLSelectElement> & { rotulo: string; id: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-sm font-medium">{rotulo}</label>
+      <select id={id} {...p} className="rounded-md border border-borda bg-superficie px-3 py-2 text-sm text-texto">{children}</select>
+    </div>
+  );
+}
+
+export function AreaTexto({ rotulo, id, ...p }: TextareaHTMLAttributes<HTMLTextAreaElement> & { rotulo: string; id: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-sm font-medium">{rotulo}</label>
+      <textarea id={id} {...p} className="min-h-20 rounded-md border border-borda bg-superficie px-3 py-2 text-sm text-texto" />
+    </div>
+  );
+}
+
+export function Paginacao({ pagina, total, porPagina, aoMudar }: { pagina: number; total: number; porPagina: number; aoMudar: (p: number) => void }) {
+  const paginas = Math.max(1, Math.ceil(total / porPagina));
+  return (
+    <nav aria-label="Paginação" className="flex items-center justify-between gap-3 text-sm text-suave">
+      <span>{total.toLocaleString("pt-BR")} registro(s) · página {pagina} de {paginas.toLocaleString("pt-BR")}</span>
+      <div className="flex gap-2">
+        <Botao variante="secundario" disabled={pagina <= 1} onClick={() => aoMudar(pagina - 1)}>Anterior</Botao>
+        <Botao variante="secundario" disabled={pagina >= paginas} onClick={() => aoMudar(pagina + 1)}>Próxima</Botao>
+      </div>
+    </nav>
+  );
+}
+
+export function Vazio({ children }: { children: ReactNode }) {
+  return <p className="rounded-md border border-dashed border-borda px-4 py-6 text-center text-sm text-suave">{children}</p>;
 }

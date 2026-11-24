@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { Logotipo } from "@/componentes/Logotipo";
+import { PesquisaGlobal } from "@/componentes/PesquisaGlobal";
 import { SeletorTema } from "@/componentes/SeletorTema";
 import { api, enviar, ErroApi, type Eu } from "@/lib/api";
 
@@ -15,6 +16,9 @@ export const useEu = () => {
 
 const MENU = [
   { href: "/painel", rotulo: "Central de comando", perm: "painel:ler" },
+  { href: "/painel/processos", rotulo: "Processos", perm: "processos:ler" },
+  { href: "/painel/clientes", rotulo: "Clientes", perm: "clientes:ler" },
+  { href: "/painel/importacoes", rotulo: "Importação", perm: "importacoes:executar" },
   { href: "/painel/integracoes", rotulo: "Integrações", perm: "integracoes:ler" },
   { href: "/painel/departamentos", rotulo: "Departamentos", perm: "departamentos:ler" },
   { href: "/painel/configuracoes", rotulo: "Configurações", perm: "configuracoes:ler" },
@@ -59,7 +63,7 @@ export function CascoPainel({ children }: { children: ReactNode }) {
           </div>
           <nav id="menu-principal" aria-label="Principal" className={`${menuAberto ? "block" : "hidden"} px-2 pb-4 lg:block`}>
             {itens.map((m) => {
-              const ativo = caminho === m.href;
+              const ativo = m.href === "/painel" ? caminho === m.href : caminho === m.href || caminho.startsWith(m.href + "/");
               return (
                 <Link key={m.href} href={m.href} onClick={() => setMenuAberto(false)} aria-current={ativo ? "page" : undefined}
                   className={`block rounded-md px-3 py-2 text-sm ${ativo ? "bg-white/10 text-dourado-claro" : "text-white/85 hover:bg-white/5"}`}>
@@ -71,7 +75,10 @@ export function CascoPainel({ children }: { children: ReactNode }) {
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-borda bg-superficie px-5 py-3">
-            <div className="text-sm text-suave">Olá, <span className="font-medium text-texto">{eu.nome}</span></div>
+            <div className="flex min-w-0 flex-1 items-center gap-4">
+              <div className="hidden shrink-0 text-sm text-suave xl:block">Olá, <span className="font-medium text-texto">{eu.nome}</span></div>
+              <PesquisaGlobal />
+            </div>
             <div className="flex items-center gap-4">
               <SeletorTema />
               <button onClick={sair} className="text-sm text-suave underline-offset-4 hover:underline">Sair</button>
