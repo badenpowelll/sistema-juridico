@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { BuscaCliente } from "@/componentes/BuscaCliente";
 import { DocumentosVinculados } from "@/componentes/DocumentosVinculados";
+import { MemoriasVinculadas } from "@/componentes/MemoriasVinculadas";
 import { useEu } from "@/componentes/CascoPainel";
 import { NovoPrazo } from "@/componentes/NovoPrazo";
 import { PrazoResumo } from "@/componentes/PrazoResumo";
@@ -227,6 +228,7 @@ export default function ProntuarioProcesso() {
           </Cartao>
 
           <DocumentosVinculados processoId={id} />
+          <MemoriasVinculadas processoId={id} />
           <Cartao titulo="Próximos módulos">
             <ul className="flex flex-col gap-2 text-sm">
               {p.modulos_futuros.map((m) => (

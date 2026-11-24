@@ -33,6 +33,12 @@ export default function EditorMinuta() {
   }, []);
   const carregar = useCallback(() => api<DetalheMinuta>(`/minutas/${id}`).then(aplicar).catch((e) => setErro(e.message)), [id, aplicar]);
   useEffect(() => { carregar(); }, [carregar]);
+  const [citaveis, setCitaveis] = useState<{ id: string; rotulo: string; html: string }[]>([]);
+  useEffect(() => {
+    api<{ itens: { id: string; rotulo: string; html_citacao: string | null }[] }>("/jurisprudencia?homologadas=true")
+      .then((r) => setCitaveis(r.itens.filter((j) => j.html_citacao).map((j) => ({ id: j.id, rotulo: j.rotulo, html: j.html_citacao! }))))
+      .catch(() => setCitaveis([]));
+  }, []);
 
   const salvarAgora = useCallback(async (criarVersao = false) => {
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
@@ -137,7 +143,7 @@ export default function EditorMinuta() {
 
       <div className="grid gap-4 xl:grid-cols-[1fr_22rem]">
         <div className="flex flex-col gap-3">
-          <Editor key={`${m.id}-${rev}`} inicial={m.conteudo} rotulo="Texto da minuta" somenteLeitura={!m.pode_editar} aoMudar={mudou} />
+          <Editor key={`${m.id}-${rev}`} inicial={m.conteudo} rotulo="Texto da minuta" somenteLeitura={!m.pode_editar} aoMudar={mudou} citacoes={citaveis} />
           {m.pode_editar && (
             <form className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" aria-label="Cabeçalho e rodapé"
               onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget);
@@ -172,6 +178,19 @@ export default function EditorMinuta() {
             </Cartao>
           )}
 
+          {m.citacoes.length > 0 && (
+            <Cartao titulo={`Jurisprudência citada (${m.citacoes.length})`}>
+              <ul className="flex flex-col gap-2 text-sm" aria-label="Jurisprudência citada">
+                {m.citacoes.map((c) => (
+                  <li key={c.id} className="flex flex-col gap-1">
+                    <Link className="text-dourado hover:underline" href={`/painel/jurisprudencia?id=${c.id}`}>{c.rotulo}</Link>
+                    {c.ok ? <Selo tom="ok">Verificada e homologada</Selo> : <Selo tom="perigo">Bloqueia a aprovação: {c.situacao !== "ativa" ? "julgado descartado ou inexistente" : !c.homologada ? "não homologada" : "não verificada"}</Selo>}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-suave">A lista é conferida de novo na aprovação; ao aprovar, o texto de cada citação volta a ser o dado conferido.</p>
+            </Cartao>
+          )}
           <Cartao titulo={`Pendências (${m.pendentes.length})`}>
             {m.pendentes.length === 0 ? <p className="text-sm text-ok">Nenhuma pendência.</p> : (
               <div className="flex flex-col gap-3">

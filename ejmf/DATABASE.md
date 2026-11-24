@@ -110,4 +110,19 @@ Também nesta migração: `processos.portal_visivel` e o tipo de autor `cliente`
 | `comentarios_minuta` | Trecho, texto, autor e resolução. |
 | `assinaturas` | Provedor (`documenso`), `id_externo` único por provedor, `situacao` (preparada, enviando, enviada, parcial, concluida, recusada, cancelada, falha), participantes e eventos (JSON), mensagem, quem preparou e quem autorizou o envio, datas e erro. |
 
+## Fase 7 (`0007_conhecimento`)
+
+Cria a extensão `vector` (pgvector).
+
+| Tabela | Observações |
+|---|---|
+| `fontes_conhecimento` | Fontes oficiais por escritório: `codigo`, nome, `tipo` (legislacao, jurisprudencia, interna), `dominios` (JSON). O monitor e o verificador só consultam endereços HTTPS desses domínios. Semeadas: Planalto, LexML, normas.leg.br, Câmara, Senado, DOU, STF, STJ, TST, TSE, STM, TRT21, TJRN, TRF5 e CJF. |
+| `itens_biblioteca` | `tipo` (13 valores), título, identificador (número ou URN), esfera, órgão, ementa, departamento, fonte, `url_origem`, `licenca` (publico, licenciado, interno, referencia), `vigencia` (vigente, revogado, parcialmente_revogado, a_conferir, nao_se_aplica) com período e quem conferiu, `situacao` (ativo, alteracao_a_conferir, arquivado), `monitorar`, `versao_atual` (0 = sem texto conferido), datas de coleta e de consulta, erro da última consulta e assuntos. Índice trigrama no título. |
+| `versoes_item_biblioteca` | Texto por versão, `sha256`, endereço e data da coleta, `motivo` (cadastro, alteracao_detectada, manual, importacao), `situacao` (a_conferir, conferida, descartada) e quem conferiu. Nenhuma versão é apagada. |
+| `colecoes_conhecimento`, `itens_colecao` | Coleções do escritório (com departamento opcional) com itens da biblioteca e julgados. |
+| `favoritos_conhecimento` | Favoritos por usuário. |
+| `jurisprudencias` | Tribunal, número e número normalizado (único entre os ativos do mesmo tribunal), classe, órgão julgador, relator, datas de julgamento e publicação, ementa, `url_original`, fonte, `origem` (manual, importacao, sugestao_ia), `verificacao` (pendente, verificada, nao_localizada, fonte_indisponivel, divergente) com o detalhe da conferência (JSON), data da consulta, `sha256` da página conferida, homologação e descarte com motivo. |
+| `trechos_conhecimento` | Índice da pesquisa: `origem` (biblioteca, jurisprudencia, documento, memoria), item e versão, ordem, `cliente_id`, `processo_id`, `sigiloso`, texto, `vetorizador` e `vetor` (`vector(384)`, índice HNSW por cosseno) e `busca` (tsvector em português, gerada, índice GIN). Sem chave estrangeira para o item: o serviço refaz os trechos a cada mudança. |
+| `memorias` | `tipo` (decisao, orientacao, preferencia, fato), título, texto, cliente, processo, departamento, `origem` (pessoa, documento, sugestao_ia), referência, `situacao` (a_confirmar, confirmada, substituida, excluida), quem confirmou, `substituida_por` e motivo da exclusão. |
+
 As tabelas das fases seguintes são documentadas aqui quando a migração correspondente é criada.

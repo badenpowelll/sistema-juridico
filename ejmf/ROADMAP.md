@@ -11,7 +11,7 @@ Fases do superprompt (seção 47). Cada fase termina com testes reais, atualiza�
 | 4 | Agenda e secretaria | Google Calendar (OAuth, aguardando credenciais) com adaptador simulado; agenda dia/semana/mês; relatório 6h30 e de encerramento; central de prioridades e de aprovações | planejada |
 | 5 | Atendimento e CRM | Funil de 14 etapas; links de cadastro com token, validade e revogação; formulários por departamento; entrevista; portal do cliente isolado | concluída (WhatsApp real aguardando credenciais) |
 | 6 | Documentos | Upload seguro, original preservado, OCR (Tesseract), modelos parametrizados, DOCX/PDF, versões, minutas como rascunho, assinatura via Documenso (API) | concluída |
-| 7 | Conhecimento | Biblioteca versionada, jurisprudência com status de verificação, RAG com pgvector respeitando escopo | planejada |
+| 7 | Conhecimento | Biblioteca versionada, jurisprudência com status de verificação, RAG com pgvector respeitando escopo | concluída |
 | 8 | IA | Camada `ProvedorIA` (SDK LiteLLM), orquestrador com limites, catálogo das 40 funções, autonomia 0–4, custos | planejada |
 | 9 | Financeiro | Honorários, lançamentos, previsto/faturado/recebido, fluxo de caixa, rentabilidade; reaproveitar motor da calculadora | planejada |
 | 10 | PWA e experiência | Manifesto, service worker sem cache de documentos confidenciais, voz, notificações | planejada |

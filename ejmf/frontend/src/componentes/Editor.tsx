@@ -6,9 +6,11 @@ import { useEffect, useRef } from "react";
  * (só parágrafos, títulos, listas, citação, negrito, itálico, sublinhado, tachado e alinhamento). Para recomeçar com
  * outro conteúdo, troque a `key` do componente.
  */
-export function Editor({ inicial, aoMudar, somenteLeitura = false, rotulo, campos }: {
+export function Editor({ inicial, aoMudar, somenteLeitura = false, rotulo, campos, citacoes }: {
   inicial: string; aoMudar?: (html: string) => void; somenteLeitura?: boolean; rotulo: string;
   campos?: { campo: string; rotulo: string }[];
+  /** Julgados homologados que podem ser citados (o servidor confere de novo na aprovação). */
+  citacoes?: { id: string; rotulo: string; html: string }[];
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -42,6 +44,13 @@ export function Editor({ inicial, aoMudar, somenteLeitura = false, rotulo, campo
               onChange={(e) => { if (e.target.value) cmd("insertText", `{{${e.target.value}}}`); }}>
               <option value="">Inserir campo…</option>
               {campos.map((c) => <option key={c.campo} value={c.campo}>{c.rotulo}</option>)}
+            </select>
+          )}
+          {citacoes && citacoes.length > 0 && (
+            <select aria-label="Citar jurisprudência" className={`${campos && campos.length > 0 ? "" : "ml-auto "}max-w-64 rounded border border-borda bg-superficie px-2 py-1 text-sm`} value=""
+              onChange={(e) => { const c = citacoes.find((x) => x.id === e.target.value); if (c) cmd("insertHTML", `${c.html}&nbsp;`); }}>
+              <option value="">Citar jurisprudência…</option>
+              {citacoes.map((c) => <option key={c.id} value={c.id}>{c.rotulo}</option>)}
             </select>
           )}
         </div>

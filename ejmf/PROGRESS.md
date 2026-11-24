@@ -17,8 +17,10 @@
 
 - **Fase 6** — documentos: acervo com o original preservado, OCR em português, classificação, busca no conteúdo, duplicados, versões e comparação, quarentena de conteúdo ativo e sigilo; central de modelos homologados com campos só de dados confirmados; minutas com editor, salvamento automático, comentários, revisão e aprovação profissional; DOCX e PDF; assinatura pelo Documenso sem simulação (ADR-0010). Testes em TESTING.md (135 backend, 43 E2E).
 
+- **Fase 7** — conhecimento: biblioteca versionada com licença, vigência conferida pelo advogado, coleções e favoritos; monitor diário das fontes oficiais (versão nova a conferir, texto anterior preservado) e busca no LexML; jurisprudência conferida no site oficial do tribunal e homologada antes de ser citada; pesquisa híbrida com pgvector que filtra cliente, processo e sigilo antes de ordenar; memória permanente que só vale depois de confirmada (ADR-0011). Testes em TESTING.md (155 backend, 47 E2E).
+
 ## Em desenvolvimento
-- Nada. Próxima: Fase 7.
+- Nada. Próxima: Fase 8.
 
 ## Pendências que dependem do responsável
 - Dados institucionais: CNPJ, endereço, telefone, e-mail institucional, WhatsApp, domínio.
@@ -32,6 +34,8 @@
 - Conferir e homologar os modelos iniciais (procuração, declaração de hipossuficiência, contrato de honorários e recibo) em Documentos > Modelos; até lá nenhuma minuta é gerada a partir deles.
 - Documenso: conta (nuvem ou instância própria), `EJMF_DOCUMENSO_TOKEN`, `EJMF_DOCUMENSO_URL` (se for instância própria) e `EJMF_DOCUMENSO_WEBHOOK_SECRET`; cadastrar no Documenso o webhook `/api/v1/publico/documenso/webhook` com o mesmo segredo.
 - Configurar a cidade do escritório (`institucional.cidade`), usada no fecho "local e data" dos modelos.
+- Conferir a vigência das 4 normas iniciais (CF, CLT, CPC e Estatuto da Advocacia) em Conhecimento > Biblioteca, depois da primeira coleta do texto pelo monitor (precisa de rede com acesso ao Planalto).
+- Rodar o EJMF num servidor com acesso a planalto.gov.br, lexml.gov.br e aos sites dos tribunais para validar o monitor e o verificador contra as fontes reais.
 - Decidir o destino dos PRs antigos #1 e #2 do `sistema-juridico` (ADR-0003).
 
 ## Testes executados

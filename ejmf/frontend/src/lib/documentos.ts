@@ -56,6 +56,7 @@ export type DetalheMinuta = Minuta & {
   versoes: { numero: number; motivo: string; autor: string | null; criado_em: string }[];
   assinaturas: Assinatura[]; assinatura: { configurado: boolean; provedor: string; aviso: string | null };
   pdf_disponivel: boolean; pode_editar: boolean; pode_aprovar: boolean; pode_enviar_assinatura: boolean;
+  citacoes: { id: string; ok: boolean; rotulo: string; verificacao: string | null; homologada: boolean; situacao: string | null }[];
 };
 
 export const SITUACAO_DOC: Record<string, [string, string]> = {

@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [Fase 7] — 2026-11-24
+- Migração `0007_conhecimento`: extensão `vector` (pgvector), fontes oficiais, biblioteca e versões, coleções, favoritos, jurisprudência, trechos indexados (vetor + texto) e memória.
+- Biblioteca: normas, súmulas, temas, doutrina licenciada e materiais internos, com tipo, licença, esfera, departamento, assuntos, vigência conferida pelo advogado (com período e autor), versões com origem, data e SHA-256, comparação entre versões, coleções e favoritos. Obra protegida sem licença fica só como referência. Constituição, CLT, CPC e Estatuto da Advocacia entram sem texto, com o endereço oficial do Planalto e vigência a conferir.
+- Monitor legislativo: consulta diária às fontes oficiais cadastradas (só domínios da lista), texto riscado de dispositivos revogados separado, versão nova a conferir com notificação, texto anterior preservado e alertas de item desatualizado. Busca e importação no LexML.
+- Jurisprudência: cadastro com tribunal, número, classe, órgão, relator, datas, ementa e endereço do original (só site oficial do tribunal); verificador independente (número, ementa, relator e data, sem IA) com os estados verificada, pendente, não localizada, fonte indisponível e divergente; homologação pelo advogado; descarte com motivo (ADR-0011).
+- Citação em minuta: o editor insere só julgado homologado; a aprovação recusa citação não verificada ou não homologada e reescreve o texto da citação com os dados conferidos.
+- Pesquisa no conhecimento: híbrida (texto em português + semelhança de termos no pgvector), com trecho destacado e alertas, filtrando cliente, processo, sigilo e permissão antes de ordenar. Documentos do acervo entram no índice depois da extração e saem ao arquivar.
+- Memória do escritório: decisões, orientações, preferências e fatos, gerais ou de um cliente ou processo; sugestão só vale confirmada; correção sem apagar; exclusão controlada com motivo; exportação em JSON.
+- Telas: Pesquisa, Biblioteca (lista e item), Jurisprudência, Memória, citação na minuta e o quadro de memória na ficha do cliente e no processo. Novas permissões de conhecimento, biblioteca, jurisprudência e memória.
+
 ## [Fase 6] — 2026-11-24
 - Migração `0006_documentos_modelos`: documentos e versões (com índice de busca em português), modelos com versão, favoritos, minutas e suas versões, comentários e pedidos de assinatura.
 - Acervo de documentos: upload com o tipo checado pelo conteúdo e limite configurável (50 MB), o original nunca alterado, deduplicação pelo SHA-256, versões, comparação de texto entre versões, vínculo com cliente, processo e atendimento, arquivamento com motivo e documentos sigilosos.

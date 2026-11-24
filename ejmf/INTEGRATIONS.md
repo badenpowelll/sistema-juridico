@@ -16,6 +16,8 @@ Estados oficiais: **Implementada e validada · Implementada em ambiente de teste
 | Simulado — WhatsApp | Implementada em ambiente de testes | Só com `EJMF_CONECTORES_SIMULADOS=true`; conversas com nome "[SIMULADO]" e mensagens "simuladas", que nunca saem do sistema | 5 |
 | Assinatura eletrônica (Documenso) | Aguardando credenciais | Conta no Documenso (nuvem ou instância própria): `EJMF_DOCUMENSO_TOKEN`, `EJMF_DOCUMENSO_URL` e `EJMF_DOCUMENSO_WEBHOOK_SECRET`. Conector pronto; sobe para "em testes" no primeiro envio aceito ou webhook com o segredo. **Sem adaptador simulado** (ADR-0010) | 6 |
 | OCR e conversão (Tesseract, Poppler, LibreOffice) | Implementada e validada | Programas locais, sem serviço externo nem custo; instalados na imagem Docker e no CI | 6 |
+| Monitor legislativo (fontes oficiais e LexML) | Implementada em ambiente de testes | Sem credencial. Consulta diária (5h) só aos domínios oficiais cadastrados; busca no LexML pelo SRU público. Testado com respostas gravadas; a rede deste ambiente de desenvolvimento bloqueia planalto.gov.br e lexml.gov.br, então **não foi validado contra a fonte real** | 7 |
+| Verificador de jurisprudência | Implementada em ambiente de testes | Sem credencial. Baixa o original só do site oficial do tribunal (lista em `fontes_conhecimento`). Testado com páginas gravadas; **não validado contra os sites reais** (bloqueados na rede deste ambiente). Páginas montadas por JavaScript ou atrás de captcha ficam "fonte indisponível" | 7 |
 | Provedores de IA | Aguardando credenciais | Chaves e aprovação de tratamento de dados | 8 |
 | Armazenamento S3 (backups) | Aguardando credenciais | Conta em provedor escolhido | 11 |
 
@@ -56,4 +58,16 @@ Regra: um conector só sobe para "Implementada e validada" depois de teste contr
 - Word e Excel: python-docx e openpyxl (sem fórmulas nem macros). Texto e CSV: lidos direto.
 - Cada ferramenta roda num subprocesso sem shell, numa pasta temporária, com 120 s e 1 GB de memória no máximo. Sem o Tesseract instalado, o arquivo fica "OCR indisponível", sem texto inventado.
 - DOCX → PDF: LibreOffice sem interface, com perfil temporário e 120 s no máximo. Sem LibreOffice, a aprovação guarda o DOCX e a assinatura eletrônica fica indisponível para aquela minuta.
+
+## Monitor legislativo e LexML (Fase 7)
+- O monitor consulta, uma vez por dia a partir de `conhecimento.monitor_hora` (padrão 05:00), cada item marcado para monitorar. Só endereços HTTPS de domínios cadastrados em `fontes_conhecimento` saem da rede; redirecionamento para fora deles é recusado.
+- A página vira texto simples. O texto riscado (`<strike>`, `<s>`, `<del>`), como o Planalto marca dispositivos revogados, é separado e não entra no texto coletado; script, estilo e navegação também ficam de fora.
+- Texto diferente do último coletado (pelo SHA-256) vira versão nova **a conferir**; o texto em uso continua o anterior até alguém com `biblioteca:conferir` aceitar a versão. Ao aceitar, a vigência volta para "a conferir".
+- 401, 403 e 429 são tratados como "fonte indisponível": o EJMF não contorna bloqueio nem captcha. Falha de rede ou 5xx volta para a fila (3 tentativas) e o erro fica no item.
+- LexML: `https://www.lexml.gov.br/busca/SRU?operation=searchRetrieve&version=1.1&query=<CQL>`; o registro importado entra **sem texto** e com vigência a conferir, apontando para `https://www.lexml.gov.br/urn/<URN>`.
+
+## Verificador de jurisprudência (Fase 7)
+- O julgado é conferido contra a página original no site do tribunal: número do processo (só dígitos), cobertura da ementa (sequências de 4 palavras; mínimo em `conhecimento.cobertura_minima_ementa`, padrão 60%), relator (nome completo sem o título) e data de julgamento, quando informados. Tudo determinístico, sem IA.
+- Resultados: verificada; divergente (número achado, conteúdo não confere); não localizada (404 ou número ausente); fonte indisponível (rede, bloqueio, erro do tribunal, formato que não é HTML/texto); pendente (sem endereço).
+- Repositórios privados de jurisprudência não são aceitos como original.
 

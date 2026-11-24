@@ -143,7 +143,6 @@ def conferir(j: Jurisprudencia, texto: str, cobertura_minima: float = 0.6) -> tu
     numero_ok = norm in _numeros_da_pagina(texto) if norm.isdigit() else norm in normalizar_texto(texto).replace(" ", "")
     cob = cobertura_ementa(j.ementa, texto)
     checagens: dict = {"numero": numero_ok, "cobertura_ementa": cob, "cobertura_minima": cobertura_minima}
-    pag_norm = normalizar_texto(texto)
     if j.relator:
         sobrenome = _palavras(re.sub(r"(?i)^(min(istro|istra)?\.?|des(embargador|embargadora)?\.?|ju[ií]z(a)?)\s+", "", j.relator))
         nome = " ".join(sobrenome)  # nome completo, na ordem, sem o título (Min., Des., Juiz)

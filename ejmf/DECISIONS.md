@@ -23,3 +23,6 @@ Decisões estruturais ficam em ADRs (`docs/adr/`). Decisões menores e reversív
 | 2026-11-24 | Assinatura eletrônica só pelo Documenso real, sem adaptador simulado; envio é ato do advogado | Seção 25: não simular assinatura | 0010 |
 | 2026-11-24 | OCR e extração fora do processo da API (subprocesso com tempo e memória limitados); o original nunca é alterado | Segurança e prova | — |
 | 2026-11-24 | Arquivo com conteúdo ativo (JavaScript em PDF, macro em Office) vai para quarentena e não é aberto por nenhuma ferramenta até ser liberado | Segurança | — |
+| 2026-11-24 | Vetorizador local e determinístico (termos com *feature hashing*, 384 posições) até a Fase 8; pesquisa híbrida com o texto | Sem serviço externo nem custo; a coluna `vetorizador` permite reindexar depois | 0011 |
+| 2026-11-24 | Jurisprudência só entra em documento verificada no site oficial e homologada; referência de IA entra pendente | Seção 21: nunca aceitar referência da memória do modelo | 0011 |
+| 2026-11-24 | Texto novo da fonte oficial é versão a conferir; o anterior continua valendo | Não tratar texto antigo como atual nem aceitar mudança sem conferência | 0011 |

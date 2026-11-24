@@ -93,6 +93,23 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 | F6-12 | Documentos e contratos assinados visíveis no portal do cliente | P1 |
 | F6-13 | Varredura de vírus e cópia de segurança dos arquivos | Fase 11 |
 
+## Fase 7 — Conhecimento
+
+| ID | Item | Prioridade |
+|---|---|---|
+| F7-01 ✓ | Biblioteca versionada com tipos, licença, vigência conferida, coleções, favoritos e departamentos | P0 |
+| F7-02 ✓ | Monitor de fontes oficiais com versão a conferir, comparação e alerta de desatualização | P0 — validação real pendente (rede) |
+| F7-03 ✓ | Busca e importação pelo LexML (SRU) | P1 — validação real pendente (rede) |
+| F7-04 ✓ | Jurisprudência com verificador independente no site do tribunal e homologação pelo advogado | P0 — validação real pendente (rede) |
+| F7-05 ✓ | Pesquisa híbrida (texto + vetor pgvector) com escopo por cliente, processo, sigilo e permissão | P0 |
+| F7-06 ✓ | Documentos do acervo indexados depois da extração; saem do índice ao arquivar | P0 |
+| F7-07 ✓ | Citação de julgado na minuta só homologado, reconferida na aprovação | P0 |
+| F7-08 ✓ | Memória permanente: confirmação de sugestões, correção sem apagar, exclusão controlada e exportação | P0 |
+| F7-09 | Embeddings de um provedor aprovado (reindexar trechos com outro `vetorizador`) | Fase 8 |
+| F7-10 | Monitor por dispositivo (artigo) e diff estruturado da norma | P2 |
+| F7-11 | Leitura de páginas de tribunal montadas por JavaScript (hoje: fonte indisponível) | P2 |
+| F7-12 | Súmulas e temas importados em lote das páginas oficiais | P1 |
+
 ## Demais fases
 Itens detalhados ao abrir cada fase (ver ROADMAP). Itens registrados desde já:
 

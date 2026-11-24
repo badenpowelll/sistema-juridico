@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 import { marca } from "@/marca";
@@ -22,7 +23,7 @@ export const viewport: Viewport = {
 // Aplica o tema salvo antes da pintura para não piscar
 const scriptTema = `try{var t=localStorage.getItem('ejmf-tema');if(t==='claro'||t==='escuro')document.documentElement.dataset.tema=t}catch(e){}`;
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="pt-BR" className={`${titulo.variable} ${texto.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
