@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## [Fase 6] — 2026-11-24
+- Migração `0006_documentos_modelos`: documentos e versões (com índice de busca em português), modelos com versão, favoritos, minutas e suas versões, comentários e pedidos de assinatura.
+- Acervo de documentos: upload com o tipo checado pelo conteúdo e limite configurável (50 MB), o original nunca alterado, deduplicação pelo SHA-256, versões, comparação de texto entre versões, vínculo com cliente, processo e atendimento, arquivamento com motivo e documentos sigilosos.
+- Extração de texto e OCR em português (Tesseract) fora do processo da API, com tempo e memória limitados: PDF com texto é lido direto; PDF digitalizado e fotos passam pelo OCR, com a confiança registrada e leitura duvidosa sinalizada. O texto vira uma versão "texto extraído" ao lado do original.
+- Classificação por regras (21 categorias) pelo nome e pelo conteúdo; a pessoa pode corrigir.
+- Quarentena: PDF com JavaScript ou arquivo anexado e documento do Office com macro ou ActiveX não são abertos por nenhuma ferramenta até serem liberados, com motivo, por quem tem acesso a sigilosos.
+- Busca no título e no conteúdo, com o trecho encontrado destacado.
+- Central de modelos: modelos com campos de dados confirmados (`{{cliente.qualificacao}}`, `{{escritorio.oab}}`, `{{data.hoje}}`…) e campos manuais; versão, homologação pelo advogado e favoritos. Procuração, declaração de hipossuficiência, contrato de honorários e recibo entram como rascunho sugerido, para conferência (ADR-0010).
+- Minutas: editor no estilo Word (títulos, listas, citação recuada, alinhamento, negrito, itálico, sublinhado), salvamento automático com controle de conflito, cabeçalho e rodapé com número de página, pendências destacadas, comentários por trecho, revisão, devolução com motivo, versões e comparação.
+- Aprovação profissional: só sem pendências e sem comentários abertos; gera DOCX (A4, Times 12, margens de 3/2 cm) e PDF, guarda a versão final no acervo e trava o texto. Antes disso, os arquivos baixados saem marcados como RASCUNHO. Contrato aprovado move o atendimento para "contrato preparado".
+- Assinatura eletrônica pelo Documenso: preparação com participantes e papéis, envio autorizado pelo advogado, acompanhamento pelo webhook (abriu, assinou, concluído, recusado). Sem credenciais o envio fica bloqueado; nada é simulado. O envio move o atendimento para "assinatura pendente".
+- Documento aceito na conferência do atendimento entra no acervo, sem cópia do arquivo.
+- Telas: Documentos (acervo e detalhe), Modelos (biblioteca e editor), Minutas (lista e editor) e documentos vinculados na ficha do cliente e no processo; minutas em revisão no relatório diário.
+- Imagem Docker e CI com Tesseract (`por`), Poppler e LibreOffice; `.env.example` corrigido com os nomes `EJMF_GOOGLE_*` e `EJMF_WHATSAPP_*` e as variáveis do Documenso.
+
 ## [Fase 5] — 2026-11-24
 - Migração `0005_atendimento_crm`: atendimentos, links de cadastro, cadastros (cifrados), documentos recebidos, acesso e sessões do portal, pedidos do portal, conversas e mensagens; processos ganham "visível no portal"; a auditoria aceita o cliente como autor.
 - Funil de atendimento em 14 etapas, do primeiro contato ao arquivamento, com motivo obrigatório para encerrar ou reabrir e com avanço depois da conferência profissional reservado ao advogado.

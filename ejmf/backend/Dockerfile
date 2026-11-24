@@ -10,6 +10,7 @@ COPY app ./app
 RUN pip install .
 COPY alembic.ini ./
 COPY migracoes ./migracoes
+RUN mkdir -p /app/dados/arquivos && chown -R ejmf /app/dados
 USER ejmf
 EXPOSE 8000
 # Migrações sobem antes da API; o worker usa a mesma imagem com outro comando

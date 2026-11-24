@@ -76,6 +76,11 @@ async def enviar(arquivo: UploadFile = File(...), titulo: str | None = Form(None
     return {**docs.como_json(doc), "duplicado": dup}
 
 
+@rotas.get("/documentos/categorias")
+def categorias(ctx: Contexto = Depends(exigir("documentos:ler"))):
+    return docs.ROTULOS_CATEGORIA
+
+
 @rotas.get("/documentos/{did}")
 def detalhe(did: uuid.UUID, ctx: Contexto = Depends(exigir("documentos:ler"))):
     d = _doc(ctx, did)

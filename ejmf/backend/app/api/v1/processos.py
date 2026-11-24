@@ -153,7 +153,6 @@ def prontuario(processo_id: uuid.UUID, ctx: Contexto = Depends(exigir("processos
         dados["compromissos"] = [agenda.como_json(c, visualizador=ctx.usuario.id, processo=p) for c in cs]
     # módulos ainda não implementados aparecem como tal, nunca como "zero"
     dados["modulos_futuros"] = [
-        {"rotulo": "Documentos", "fase": 6},
         {"rotulo": "Financeiro", "fase": 9},
     ]
     return dados

@@ -74,7 +74,24 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 | F5-09 | Modelos de mensagem aprovados pela Meta (fora da janela de 24 h) | P1 — depende da conta Meta |
 | F5-10 | Redefinição de senha do portal por e-mail | P1 — depende do Gmail |
 | F5-11 | Varredura de vírus nos arquivos recebidos | P1 — Fase 11 |
-| F5-12 | Contrato e assinatura no funil (etapas "contrato preparado" e "assinatura pendente" hoje são manuais) | Fase 6 |
+| F5-12 ✓ | Contrato e assinatura no funil (contrato aprovado → "contrato preparado"; envio para assinatura → "assinatura pendente") | Fase 6 |
+
+## Fase 6 — Documentos
+| ID | Item | Prioridade |
+|---|---|---|
+| F6-01 ✓ | Upload seguro com original preservado, versões separadas, deduplicação e limite configurável | P0 |
+| F6-02 ✓ | Extração de texto e OCR em português, fora do processo da API, com confiança registrada | P0 |
+| F6-03 ✓ | Classificação por regras, busca no conteúdo com trecho, filtro por cliente e processo | P0 |
+| F6-04 ✓ | Quarentena de conteúdo ativo, sigilo, arquivamento com motivo | P0 |
+| F6-05 ✓ | Central de modelos com versão, homologação, favoritos e campos só de dados confirmados | P0 |
+| F6-06 ✓ | Editor de minutas: salvamento automático, cabeçalho/rodapé, página, comentários, versões e comparação | P0 |
+| F6-07 ✓ | Aprovação profissional, DOCX e PDF, versão final no acervo | P0 |
+| F6-08 ✓ | Assinatura pelo Documenso: preparo, envio autorizado, acompanhamento por webhook | P0 — validação real pendente das credenciais |
+| F6-09 | Baixar sozinho o PDF assinado do Documenso ao concluir | P1 — depende da conta real para confirmar o endpoint |
+| F6-10 | Posição dos campos de assinatura escolhida na tela (hoje: pé da última página) | P2 |
+| F6-11 | Transcrição de áudio e OCR de HEIC | Fase 8 |
+| F6-12 | Documentos e contratos assinados visíveis no portal do cliente | P1 |
+| F6-13 | Varredura de vírus e cópia de segurança dos arquivos | Fase 11 |
 
 ## Demais fases
 Itens detalhados ao abrir cada fase (ver ROADMAP). Itens registrados desde já:

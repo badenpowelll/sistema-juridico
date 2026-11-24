@@ -14,7 +14,8 @@ Estados oficiais: **Implementada e validada · Implementada em ambiente de teste
 | Simulado — Google Calendar | Implementada em ambiente de testes | Só com `EJMF_CONECTORES_SIMULADOS=true`; servidor falso em memória com eventos "[SIMULADO — dado fictício]". Não convive com a conta real | 4 |
 | WhatsApp Business (Cloud API) | Aguardando credenciais | Conta Meta Business verificada (CNPJ), número e `EJMF_WHATSAPP_TOKEN`, `EJMF_WHATSAPP_PHONE_NUMBER_ID`, `EJMF_WHATSAPP_APP_SECRET`, `EJMF_WHATSAPP_VERIFY_TOKEN`. Conector pronto; sobe para "em testes" no primeiro webhook assinado e para "validada" no primeiro envio aceito | 5 |
 | Simulado — WhatsApp | Implementada em ambiente de testes | Só com `EJMF_CONECTORES_SIMULADOS=true`; conversas com nome "[SIMULADO]" e mensagens "simuladas", que nunca saem do sistema | 5 |
-| Assinatura eletrônica (Documenso) | Não implementada | Instância própria | 6 |
+| Assinatura eletrônica (Documenso) | Aguardando credenciais | Conta no Documenso (nuvem ou instância própria): `EJMF_DOCUMENSO_TOKEN`, `EJMF_DOCUMENSO_URL` e `EJMF_DOCUMENSO_WEBHOOK_SECRET`. Conector pronto; sobe para "em testes" no primeiro envio aceito ou webhook com o segredo. **Sem adaptador simulado** (ADR-0010) | 6 |
+| OCR e conversão (Tesseract, Poppler, LibreOffice) | Implementada e validada | Programas locais, sem serviço externo nem custo; instalados na imagem Docker e no CI | 6 |
 | Provedores de IA | Aguardando credenciais | Chaves e aprovação de tratamento de dados | 8 |
 | Armazenamento S3 (backups) | Aguardando credenciais | Conta em provedor escolhido | 11 |
 
@@ -41,3 +42,18 @@ Regra: um conector só sobe para "Implementada e validada" depois de teste contr
 - Janela de atendimento: a equipe e a recepcionista só respondem até 24 h depois da última mensagem do contato. Fora dela a Meta só aceita modelos aprovados, ainda não configurados (BACKLOG F5-09).
 - O contato é ligado ao cliente pelo telefone só quando há um único cliente com aquele número.
 - Arquivos recebidos pelo WhatsApp não são baixados: a recepcionista pede o envio pelo link seguro.
+
+## Documenso (Fase 6)
+- API v2 (documentação oficial consultada em 24/11/2026): `POST {EJMF_DOCUMENSO_URL}/envelope/create` em multipart, com o campo `payload` (tipo DOCUMENT, título, `externalId` = id do pedido no EJMF, participantes com papel SIGNER, APPROVER, CC ou VIEWER, ordem e campos de assinatura e data) e o PDF em `files`; depois `POST /envelope/distribute` com o `envelopeId`. Chave da API no cabeçalho `Authorization`.
+- Os campos de assinatura e data ficam no pé da última página, dois por linha, só para quem assina.
+- Cada envio é uma tarefa da fila (`assinatura.enviar`), com até 3 tentativas; numa nova tentativa o envelope já criado é reaproveitado. 401 marca o pedido como "falha" e a integração volta para "Aguardando credenciais".
+- Webhook em `/api/v1/publico/documenso/webhook`: o segredo chega no cabeçalho `X-Documenso-Secret` e é comparado em tempo constante; sem segredo configurado, tudo é recusado (403). Eventos tratados: DOCUMENT_SENT, DOCUMENT_OPENED, DOCUMENT_SIGNED, DOCUMENT_RECIPIENT_COMPLETED, DOCUMENT_COMPLETED, DOCUMENT_REJECTED e DOCUMENT_CANCELLED. O pedido é achado pelo `externalId` ou pelo id do envelope; evento de outro envelope é ignorado.
+- Conclusão, recusa e cancelamento geram notificação para quem pode enviar assinaturas. O PDF assinado é guardado como nova versão manualmente (F6-09).
+
+## OCR e extração (Fase 6)
+- PDF: `pdftotext` primeiro; com menos de 40 caracteres por página, a página vira imagem (`pdftoppm`, 200 dpi, tons de cinza) e passa pelo Tesseract em português. Até 30 páginas por arquivo (`documentos.ocr_max_paginas`).
+- Imagens (PNG, JPG, TIFF, WebP): Tesseract direto. Confiança média abaixo de 45 (`documentos.ocr_confianca_minima`) marca "leitura duvidosa".
+- Word e Excel: python-docx e openpyxl (sem fórmulas nem macros). Texto e CSV: lidos direto.
+- Cada ferramenta roda num subprocesso sem shell, numa pasta temporária, com 120 s e 1 GB de memória no máximo. Sem o Tesseract instalado, o arquivo fica "OCR indisponível", sem texto inventado.
+- DOCX → PDF: LibreOffice sem interface, com perfil temporário e 120 s no máximo. Sem LibreOffice, a aprovação guarda o DOCX e a assinatura eletrônica fica indisponível para aquela minuta.
+

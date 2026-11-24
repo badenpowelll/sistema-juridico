@@ -15,6 +15,8 @@
 - **Atendimento (Fase 5):** o cadastro fica cifrado; abrir o cadastro de um atendimento fica registrado na auditoria. O relato é guardado como o cliente escreveu, sem correção ou interpretação. Arquivos enviados ficam fora do Git e do código.
 - **Portal (Fase 5):** o cliente vê só os processos que a equipe liberou, só andamentos oficiais e audiências futuras; anotações internas, prazos e publicações nunca aparecem. O CPF aparece mascarado.
 - **WhatsApp (Fase 5):** a recepcionista não informa dados de processo pelo chat (ADR-0009) e não guarda arquivos recebidos por ele.
+- **Documentos (Fase 6):** o original fica guardado sem alteração, com o SHA-256, porque pode ser prova; o texto do OCR é uma versão separada e pode conter erros de leitura. Documentos sigilosos só aparecem para quem tem a permissão. O arquivo de um cliente recebido no atendimento entra no acervo ligado só a ele. Os campos dos modelos usam apenas dados confirmados pelo cliente ou pela equipe; o CPF é lido cifrado na hora de gerar e não fica copiado nos registros da minuta. O OCR roda no próprio servidor: nenhum documento é enviado a serviço externo para leitura.
+- **Assinatura (Fase 6):** o Documenso recebe só o PDF aprovado e o nome e e-mail dos participantes indicados pela equipe.
 - **Isolamento:** dados de um cliente nunca aparecem para outro; a recuperação semântica (RAG) filtra por escopo antes da busca.
 - **Desenvolvimento:** apenas dados sintéticos. Planilhas reais de trabalhadores (pasta `saidas/` do projeto) **não** entram no EJMF nem no Git.
 - **Provedores de IA:** só aprovados pelo responsável, com retenção de dados verificada; dados sensíveis mascarados quando possível.

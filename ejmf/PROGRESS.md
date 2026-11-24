@@ -15,8 +15,10 @@
 
 - **Fase 5** — atendimento e CRM: funil de 14 etapas, link seguro de cadastro (token em hash, validade, revogação e registro de uso), formulários por departamento, cadastro cifrado com relato original preservado e cronologia declarada/documentada, recebimento e conferência de documentos, portal do cliente isolado, recepcionista virtual que não informa dados pelo chat (ADR-0009) e WhatsApp Business com simulador identificado. Testes em TESTING.md (120 backend, 39 E2E).
 
+- **Fase 6** — documentos: acervo com o original preservado, OCR em português, classificação, busca no conteúdo, duplicados, versões e comparação, quarentena de conteúdo ativo e sigilo; central de modelos homologados com campos só de dados confirmados; minutas com editor, salvamento automático, comentários, revisão e aprovação profissional; DOCX e PDF; assinatura pelo Documenso sem simulação (ADR-0010). Testes em TESTING.md (135 backend, 43 E2E).
+
 ## Em desenvolvimento
-- Fase 6 — documentos.
+- Nada. Próxima: Fase 7.
 
 ## Pendências que dependem do responsável
 - Dados institucionais: CNPJ, endereço, telefone, e-mail institucional, WhatsApp, domínio.
@@ -27,7 +29,9 @@
 - Homologar as 5 regras de contagem em Prazos > Regras e calendário (todas começam "não homologadas"; sem isso nenhum prazo fica confirmado).
 - Cadastrar os feriados e suspensões locais (TJRN, TRT21, TRF5, Natal) e confirmar, a cada ano, Carnaval, Paixão e Corpus Christi em cada tribunal.
 - Colocar a chave pública do DataJud em `DATAJUD_API_KEY` e rodar o EJMF num servidor no Brasil (o DJEN responde 403 fora do país).
-- Homologação dos modelos documentais (Fase 6).
+- Conferir e homologar os modelos iniciais (procuração, declaração de hipossuficiência, contrato de honorários e recibo) em Documentos > Modelos; até lá nenhuma minuta é gerada a partir deles.
+- Documenso: conta (nuvem ou instância própria), `EJMF_DOCUMENSO_TOKEN`, `EJMF_DOCUMENSO_URL` (se for instância própria) e `EJMF_DOCUMENSO_WEBHOOK_SECRET`; cadastrar no Documenso o webhook `/api/v1/publico/documenso/webhook` com o mesmo segredo.
+- Configurar a cidade do escritório (`institucional.cidade`), usada no fecho "local e data" dos modelos.
 - Decidir o destino dos PRs antigos #1 e #2 do `sistema-juridico` (ADR-0003).
 
 ## Testes executados
@@ -40,7 +44,10 @@ Ver TESTING.md.
 - A saudação do painel usa o fuso America/Fortaleza; de madrugada mostra "Bom dia".
 - O DJEN não foi validado contra a fonte real (403 fora do Brasil); a certidão é guardada só pelo hash, sem baixar o PDF.
 - Os relatórios ainda não saem por e-mail nem WhatsApp: aparecem no painel e nas notificações até as integrações serem validadas.
-- Os arquivos recebidos ficam no disco do servidor (`EJMF_ARQUIVOS_DIR`), ainda sem cópia de segurança nem varredura de vírus (Fases 6 e 11).
+- Os arquivos recebidos ficam no disco do servidor (`EJMF_ARQUIVOS_DIR`), ainda sem cópia de segurança nem varredura de vírus (Fase 11). A quarentena da Fase 6 pega conteúdo ativo (script, macro), não vírus em geral.
+- O PDF assinado ainda não é baixado sozinho do Documenso: ao concluir, o sistema avisa e alguém guarda o arquivo como nova versão.
+- O OCR lê até 30 páginas por arquivo (configurável); fotos HEIC não passam pelo OCR. Transcrição de áudio fica para a Fase 8.
+- O editor usa os comandos de edição do navegador; colar de outro programa traz só a formatação permitida (o restante é limpo ao salvar).
 - O portal não tem "esqueci a senha": o escritório gera um novo convite.
 - O limite de requisições das rotas públicas fica em memória do processo, como o do login.
 - Feriados locais não vêm semeados: até serem cadastrados, um prazo do TJRN pode vencer num dia sem expediente local (o motor erra para antes, nunca para depois).
@@ -49,4 +56,4 @@ Ver TESTING.md.
 Ver INTEGRATIONS.md.
 
 ## Próxima atividade recomendada
-Implementar a Fase 6 (documentos), começando por detalhar os itens F6 no BACKLOG e aproveitando o armazenamento de arquivos da Fase 5.
+Implementar a Fase 7, começando por detalhar os itens F7 no BACKLOG a partir da especificação.

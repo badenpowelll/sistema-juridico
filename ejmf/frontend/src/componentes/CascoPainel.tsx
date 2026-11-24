@@ -24,6 +24,8 @@ const MENU = [
   { href: "/painel/aprovacoes", rotulo: "Aprovações", perm: "aprovacoes:ler" },
   { href: "/painel/processos", rotulo: "Processos", perm: "processos:ler" },
   { href: "/painel/clientes", rotulo: "Clientes", perm: "clientes:ler" },
+  { href: "/painel/documentos", rotulo: "Documentos", perm: "documentos:ler" },
+  { href: "/painel/minutas", rotulo: "Minutas", perm: "minutas:ler" },
   { href: "/painel/publicacoes", rotulo: "Publicações", perm: "publicacoes:ler" },
   { href: "/painel/prazos", rotulo: "Prazos", perm: "prazos:ler" },
   { href: "/painel/relatorios", rotulo: "Relatórios", perm: "relatorios:ler" },

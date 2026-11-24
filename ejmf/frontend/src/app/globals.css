@@ -26,3 +26,14 @@ body { font-family: var(--font-sans); }
 .pular-conteudo { position: absolute; left: -9999px; }
 .pular-conteudo:focus { left: 1rem; top: 1rem; z-index: 50; background: var(--ejmf-superficie); padding: .5rem 1rem; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* Folha do editor de documentos (fase 6): aparência de página impressa */
+.folha h2 { font-size: 1.25rem; font-weight: 700; margin: 0.75rem 0; }
+.folha h3 { font-size: 1.05rem; font-weight: 700; margin: 0.6rem 0; }
+.folha p { margin: 0 0 0.6rem; text-align: justify; }
+.folha ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 0.6rem; }
+.folha ol { list-style: decimal; padding-left: 1.5rem; margin-bottom: 0.6rem; }
+.folha blockquote { margin: 0 0 0.6rem 4cm; font-size: 0.92em; }
+.folha [data-pendente] { background: #fde68a; color: #7c2d12; font-weight: 700; padding: 0 2px; border-radius: 2px; }
+.folha [data-campo] { background: #e0f2fe; border-radius: 2px; }
+.folha:focus { outline: 2px solid var(--ejmf-foco); outline-offset: 4px; }

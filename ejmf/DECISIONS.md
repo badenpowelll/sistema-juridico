@@ -19,3 +19,7 @@ Decisões estruturais ficam em ADRs (`docs/adr/`). Decisões menores e reversív
 | 2026-11-24 | PRs #1 e #2 antigos do `sistema-juridico` ficam abertos, sem merge | Cabe ao Baden fechar; ideias reaproveitadas listadas no ADR-0003 | 0003 |
 | 2026-11-24 | Recepcionista virtual por regras, sem informar dados de processo pelo chat | Sigilo: o WhatsApp identifica um número, não uma pessoa | 0009 |
 | 2026-11-24 | Cadastro do cliente cifrado e relato guardado como escrito, com hash | Prova e fidelidade ao que o cliente declarou | — |
+| 2026-11-24 | Modelos só geram documento depois de homologados; campos só com dado confirmado; pendência bloqueia a aprovação | Efeito jurídico do documento | 0010 |
+| 2026-11-24 | Assinatura eletrônica só pelo Documenso real, sem adaptador simulado; envio é ato do advogado | Seção 25: não simular assinatura | 0010 |
+| 2026-11-24 | OCR e extração fora do processo da API (subprocesso com tempo e memória limitados); o original nunca é alterado | Segurança e prova | — |
+| 2026-11-24 | Arquivo com conteúdo ativo (JavaScript em PDF, macro em Office) vai para quarentena e não é aberto por nenhuma ferramenta até ser liberado | Segurança | — |

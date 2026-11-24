@@ -14,10 +14,10 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.modelos import Compromisso, ExecucaoIntegracao, Integracao, Pendencia, Prazo, Processo, Publicacao, Relatorio, Tarefa
+from app.modelos import Compromisso, ExecucaoIntegracao, Integracao, Minuta, Pendencia, Prazo, Processo, Publicacao, Relatorio, Tarefa
 from app.servicos import agenda, contingencia, fila, notificacoes, prazos as svc_prazos, prioridades
 
-FUTUROS = [("Documentos aguardando revisão", 6), ("Clientes aguardando retorno", 5), ("Pendências financeiras", 9)]
+FUTUROS = [("Clientes aguardando retorno", 5), ("Pendências financeiras", 9)]
 
 
 def _prazo(pz: Prazo, numero: str) -> dict:
@@ -117,6 +117,8 @@ def _diario(db: Session, esc_id: uuid.UUID, dia: date, agora: datetime) -> dict:
         Tarefa.escritorio_id == esc_id, Tarefa.concluida_em >= madrugada_ini, Tarefa.concluida_em < madrugada_fim)
         .group_by(Tarefa.estado)).all()
     conflitos = agenda.conflitos(agenda.no_periodo(db, esc_id, agenda.inicio_do_dia(dia), agenda.inicio_do_dia(dia + timedelta(days=1))))
+    em_revisao = db.execute(select(func.count()).select_from(Minuta).where(
+        Minuta.escritorio_id == esc_id, Minuta.situacao == "em_revisao")).scalar_one()
     top = db.execute(select(Pendencia).where(Pendencia.escritorio_id == esc_id, Pendencia.situacao != "concluida",
                                              Pendencia.classe.in_(("atencao_imediata", "alta")))
                      .order_by(Pendencia.pontuacao.desc()).limit(7)).scalars().all()
@@ -125,6 +127,8 @@ def _diario(db: Session, esc_id: uuid.UUID, dia: date, agora: datetime) -> dict:
     partes = [f"{len(hoje_pz)} prazo(s) vencendo hoje" + (f" ({len(nao_conf)} sem homologação)" if nao_conf else ""),
               f"{len(audiencias)} audiência(s)", f"{len(reunioes)} reunião(ões) ou atendimento(s)",
               f"{pendentes} publicação(ões) por conferir"]
+    if em_revisao:
+        partes.append(f"{em_revisao} minuta(s) aguardando revisão")
     if falhas:
         partes.append(f"{len(falhas)} fonte(s) comprometida(s)")
     return {
@@ -144,6 +148,7 @@ def _diario(db: Session, esc_id: uuid.UUID, dia: date, agora: datetime) -> dict:
             "falhas_integracao": falhas,
             "prioridades": [{"titulo": p.titulo, "classe": p.classe, "classe_rotulo": prioridades.CLASSES[p.classe],
                              "justificativa": p.justificativa, "link": p.link} for p in top],
+            "minutas_em_revisao": em_revisao,
             "modulos_futuros": [{"rotulo": r, "fase": f} for r, f in FUTUROS],
         },
         "avisos": (["Há prazo vencendo hoje sem homologação: confira o vencimento antes de cumprir."] if nao_conf else []) +

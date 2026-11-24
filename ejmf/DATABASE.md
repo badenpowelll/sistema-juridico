@@ -97,4 +97,17 @@ Também nesta migração: `prazos.google_event_id` e `prazos.google_vencimento`.
 
 Também nesta migração: `processos.portal_visivel` e o tipo de autor `cliente` na auditoria.
 
+## Fase 6 (`0006_documentos_modelos`)
+
+| Tabela | Observações |
+|---|---|
+| `documentos` | Título, `categoria` (21 valores) e quem classificou (`regra`/`pessoa`), vínculos com cliente, processo e atendimento, `origem` (upload, recebido, gerado, assinado), `situacao` (ativo, arquivado, quarentena) e motivo, `sigiloso`, `sha256` do original (deduplicação por escritório), `versao_atual`, documento recebido e minuta de origem. Índice trigrama no título. |
+| `versoes_documento` | `numero` único por documento, `tipo` (original, texto_extraido, nova_versao, pdf_gerado, assinado), `derivada_de`, arquivo (nome, tipo, tamanho, `sha256`, `caminho` em `EJMF_ARQUIVOS_DIR`), páginas, `texto`, `extracao` (pendente, concluida, ilegivel, sem_texto, nao_aplicavel, falha, indisponivel), método, confiança do OCR e erro. Coluna `busca` (tsvector em português, gerada) com índice GIN. |
+| `modelos_documento` | `codigo` + `versao` únicos, título, categoria, departamento, conteúdo HTML restrito, cabeçalho, rodapé, `situacao` (rascunho, homologado, substituido, arquivado), sugerido pelo sistema, quem homologou e quando. |
+| `modelos_favoritos` | Favorito por usuário e código do modelo. |
+| `minutas` | Título, modelo e versão usados, categoria, vínculos, conteúdo, cabeçalho, rodapé, `campos` (valor e fonte de cada campo, sem o CPF), `pendentes`, `situacao` (rascunho, em_revisao, aprovada, arquivada), versão atual, revisão pedida, aprovação e documento final. |
+| `versoes_minuta` | Cópia do conteúdo por versão, com motivo (criação, automática, manual, aprovação, devolução) e autor. |
+| `comentarios_minuta` | Trecho, texto, autor e resolução. |
+| `assinaturas` | Provedor (`documenso`), `id_externo` único por provedor, `situacao` (preparada, enviando, enviada, parcial, concluida, recusada, cancelada, falha), participantes e eventos (JSON), mensagem, quem preparou e quem autorizou o envio, datas e erro. |
+
 As tabelas das fases seguintes são documentadas aqui quando a migração correspondente é criada.

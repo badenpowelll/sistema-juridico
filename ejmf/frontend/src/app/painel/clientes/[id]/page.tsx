@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { useEu } from "@/componentes/CascoPainel";
+import { DocumentosVinculados } from "@/componentes/DocumentosVinculados";
 import { PortalCliente } from "@/componentes/PortalCliente";
 import { Aviso, Botao, Campo, Cartao, Selo, Vazio } from "@/componentes/ui";
 import { api, dataHora, enviar } from "@/lib/api";
@@ -91,6 +92,7 @@ export default function FichaCliente() {
       </div>
       <div className="grid gap-5 lg:grid-cols-2">
         <PortalCliente clienteId={id} email={c.email} />
+        <DocumentosVinculados clienteId={id} />
       </div>
     </div>
   );
