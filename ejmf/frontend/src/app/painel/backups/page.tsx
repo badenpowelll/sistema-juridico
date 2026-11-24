@@ -7,6 +7,7 @@ type Copia = {
   id: string; situacao: string; origem: string; iniciada_em: string; concluida_em: string | null; arquivo: string | null;
   tamanho: number | null; sha256: string | null; chave_id: string | null; erro: string | null; teste_situacao: string | null;
   testada_em: string | null; expirada_em: string | null;
+  externa_situacao: "pendente" | "enviada" | "falhou" | null; externa_em: string | null; externa_erro: string | null;
   manifesto: { revisao: string; total_linhas: number; arquivos: number; arquivos_bytes: number; banco_tamanho: number } | null;
   teste_detalhes: { erro?: string; segundos?: number; linhas?: number; tabelas?: number; arquivos_conferidos?: number;
     auditoria_integra?: boolean } | null;
@@ -14,11 +15,15 @@ type Copia = {
 type Estado = {
   configurada: boolean; comprometido: boolean; motivos: string[]; ultima_concluida_em: string | null; ultimo_teste_em: string | null;
   ultimo_teste: string | null; retencao: { diarias: number; semanais: number; mensais: number }; hora: string; teste_dias: number;
-  externa: string; espaco_livre_bytes: number | null; copias: Copia[]; pode_executar: boolean;
+  externa: { configurada: boolean; texto: string; bucket?: string; ultima_enviada_em?: string | null; falhas?: number };
+  espaco_livre_bytes: number | null; copias: Copia[]; pode_executar: boolean;
 };
 
 const SITUACAO: Record<string, [string, string]> = {
   executando: ["Em andamento", "info"], concluida: ["Concluída", "ok"], falhou: ["Falhou", "perigo"], expirada: ["Apagada pela retenção", "neutro"],
+};
+const EXTERNA: Record<string, [string, string]> = {
+  pendente: ["Envio externo pendente", "info"], enviada: ["No armazenamento externo", "ok"], falhou: ["Envio externo falhou", "perigo"],
 };
 const ORIGEM: Record<string, string> = { agendador: "Agendada", pessoa: "Pedida na tela", funcao: "Função virtual" };
 
@@ -72,7 +77,9 @@ export default function CopiasDeSeguranca() {
             <dt className="text-suave">Última cópia</dt><dd>{e.ultima_concluida_em ? dataHora(e.ultima_concluida_em) : "nenhuma"}</dd>
             <dt className="text-suave">Último teste</dt><dd>{e.ultimo_teste_em ? `${dataHora(e.ultimo_teste_em)} (${e.ultimo_teste === "aprovado" ? "aprovado" : "reprovado"})` : "nunca"}</dd>
             <dt className="text-suave">Espaço livre</dt><dd>{tamanho(e.espaco_livre_bytes)}</dd>
-            <dt className="text-suave">Cópia em outro provedor</dt><dd>{e.externa}</dd>
+            <dt className="text-suave">Cópia em outro provedor</dt>
+            <dd data-externa={e.externa.configurada ? "configurada" : "aguardando"}>{e.externa.texto}
+              {e.externa.ultima_enviada_em ? ` · última em ${dataHora(e.externa.ultima_enviada_em)}` : ""}</dd>
           </dl>
           {!e.configurada && (
             <p className="mt-3 text-sm text-suave">Para ligar: no servidor, rode <code>python -m app.cli gerar-chave-backup</code>, coloque a chave em
@@ -91,6 +98,7 @@ export default function CopiasDeSeguranca() {
                   <span className="font-medium">{dataHora(c.iniciada_em)}</span>
                   <Selo tom={SITUACAO[c.situacao]?.[1] ?? "neutro"}>{SITUACAO[c.situacao]?.[0] ?? c.situacao}</Selo>
                   {c.teste_situacao && <Selo tom={c.teste_situacao === "aprovado" ? "ok" : "perigo"}>Restauração {c.teste_situacao}</Selo>}
+                  {c.externa_situacao && <Selo tom={EXTERNA[c.externa_situacao][1]}>{EXTERNA[c.externa_situacao][0]}</Selo>}
                   <span className="text-xs text-suave">{ORIGEM[c.origem] ?? c.origem}</span>
                   {e.pode_executar && c.situacao === "concluida" && (
                     <Botao variante="secundario" disabled={ocupado} onClick={() => pedir(`/backups/${c.id}/testar`)}>Testar restauração</Botao>
@@ -101,6 +109,7 @@ export default function CopiasDeSeguranca() {
                 {c.teste_detalhes && !c.teste_detalhes.erro && <p className="text-xs">Restaurada em {c.teste_detalhes.segundos} s: {c.teste_detalhes.tabelas} tabelas, {c.teste_detalhes.linhas?.toLocaleString("pt-BR")} registros e {c.teste_detalhes.arquivos_conferidos} arquivo(s) conferidos; cadeia de auditoria {c.teste_detalhes.auditoria_integra ? "íntegra" : "com problema"}.</p>}
                 {c.teste_detalhes?.erro && <p className="text-xs text-perigo">Teste: {c.teste_detalhes.erro}</p>}
                 {c.erro && <p className="text-xs text-perigo">{c.erro}</p>}
+                {c.externa_situacao === "falhou" && c.externa_erro && <p className="text-xs text-perigo">Cópia externa: {c.externa_erro}</p>}
               </li>
             ))}
           </ul>

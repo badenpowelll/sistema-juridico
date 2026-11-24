@@ -42,6 +42,7 @@ const MENU = [
   { href: "/painel/automacoes", rotulo: "Automações", perm: "automacoes:ler" },
   { href: "/painel/contingencia", rotulo: "Contingência", perm: "contingencia:ler" },
   { href: "/painel/backups", rotulo: "Cópias de segurança", perm: "backups:ler" },
+  { href: "/painel/producao", rotulo: "Prontidão para produção", perm: "producao:ler" },
   { href: "/painel/integracoes", rotulo: "Integrações", perm: "integracoes:ler" },
   { href: "/painel/departamentos", rotulo: "Departamentos", perm: "departamentos:ler" },
   { href: "/painel/configuracoes", rotulo: "Configurações", perm: "configuracoes:ler" },
