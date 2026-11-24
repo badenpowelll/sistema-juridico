@@ -19,7 +19,7 @@
 
 - **Fase 7** — conhecimento: biblioteca versionada com licença, vigência conferida pelo advogado, coleções e favoritos; monitor diário das fontes oficiais (versão nova a conferir, texto anterior preservado) e busca no LexML; jurisprudência conferida no site oficial do tribunal e homologada antes de ser citada; pesquisa híbrida com pgvector que filtra cliente, processo e sigilo antes de ordenar; memória permanente que só vale depois de confirmada (ADR-0011). Testes em TESTING.md (155 backend, 47 E2E).
 
-- **Fase 8** — IA: camada própria de provedores (Claude pelo SDK oficial, compatível com OpenAI e simulado identificado), central de IA com modelos aprovados pelo advogado, preços, tetos e custos; orquestrador com permissões calculadas no código, limites de chamadas, tempo e orçamento, e retomada; as 40 funções catalogadas (12 executáveis, saídas validadas contra o material, nível 3 pela central de aprovações); assistente por texto que não altera nada sem confirmação; automações testadas antes de ativar; servidor MCP só de leitura (ADR-0012). Testes em TESTING.md.
+- **Fase 8** — IA: camada própria de provedores (Claude pelo SDK oficial, compatível com OpenAI e simulado identificado), central de IA com modelos aprovados pelo advogado, preços, tetos e custos; orquestrador com permissões calculadas no código, limites de chamadas, tempo e orçamento, e retomada; as 40 funções catalogadas (12 executáveis, saídas validadas contra o material, nível 3 pela central de aprovações); assistente por texto que não altera nada sem confirmação; automações testadas antes de ativar; servidor MCP só de leitura (ADR-0012). Testes em TESTING.md (184 backend, 49 E2E).
 
 ## Em desenvolvimento
 - Nada. Próxima: Fase 9 (financeiro).

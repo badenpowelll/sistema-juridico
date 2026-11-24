@@ -36,7 +36,7 @@ export default function Assistente() {
   async function mandar(t: string) {
     if (t.trim().length < 2) return;
     setErro(null); setEnviando(true);
-    try { await enviar("/assistente", "POST", { texto: t }); setTexto(""); setVersao((v) => v + 1); }
+    try { await enviar("/assistente", "POST", { texto: t }); setTexto((atual) => (atual === t ? "" : atual)); setVersao((v) => v + 1); }
     catch (x) { setErro((x as Error).message); } finally { setEnviando(false); }
   }
 
