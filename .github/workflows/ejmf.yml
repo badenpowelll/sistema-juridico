@@ -35,6 +35,10 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: ejmf/frontend/package-lock.json
+      - name: Backend — ferramentas de OCR e conversão (Tesseract, Poppler, LibreOffice)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-por poppler-utils libreoffice-writer-nogui
       - name: Backend — dependências
         working-directory: ejmf/backend
         run: pip install -e ".[dev]"

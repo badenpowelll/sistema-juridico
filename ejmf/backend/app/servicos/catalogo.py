@@ -50,6 +50,17 @@ PERMISSOES: dict[str, tuple[str, int]] = {
     "conversas:ler": ("Ver as conversas do WhatsApp e da recepcionista virtual", 0),
     "conversas:responder": ("Responder ao contato e assumir ou devolver a conversa", 2),
     "portal:gerenciar": ("Convidar clientes ao portal, revogar acesso e liberar processos", 3),
+    "documentos:ler": ("Consultar o acervo de documentos e pesquisar no texto", 0),
+    "documentos:gerenciar": ("Enviar documentos, novas versões, classificar e vincular a cliente e processo", 2),
+    "documentos:arquivar": ("Arquivar e desarquivar documentos", 3),
+    "documentos:sigilosos": ("Ver documentos marcados como sigilosos e liberar arquivos em quarentena", 4),
+    "modelos:ler": ("Consultar os modelos de documentos", 0),
+    "modelos:gerenciar": ("Criar e editar modelos (sempre como rascunho)", 3),
+    "modelos:homologar": ("Homologar modelos para uso na produção de documentos", 4),
+    "minutas:ler": ("Consultar minutas e documentos em produção", 0),
+    "minutas:editar": ("Gerar minutas a partir de modelos homologados, editar, comentar e pedir revisão", 2),
+    "minutas:aprovar": ("Aprovar ou devolver minutas (aprovação profissional)", 4),
+    "assinaturas:enviar": ("Autorizar o envio de documento aprovado para assinatura eletrônica", 4),
 }
 
 PERFIS: dict[str, dict] = {
@@ -68,7 +79,8 @@ PERFIS: dict[str, dict] = {
                        "prazos:ler", "prazos:gerenciar", "contingencia:ler", "integracoes:sincronizar",
                        "agenda:ler", "agenda:gerenciar", "prioridades:ler", "prioridades:gerenciar",
                        "aprovacoes:ler", "relatorios:ler", "relatorios:gerar",
-                       "atendimentos:ler", "atendimentos:gerenciar", "conversas:ler", "conversas:responder"],
+                       "atendimentos:ler", "atendimentos:gerenciar", "conversas:ler", "conversas:responder",
+                       "documentos:ler", "documentos:gerenciar", "modelos:ler", "minutas:ler", "minutas:editar"],
     },
     "cliente": {
         "nome": "Cliente (portal)",
@@ -106,8 +118,13 @@ OBS_WHATSAPP = ("Conector da Cloud API implementado (envio de texto, webhook com
 # Observações antigas trocadas pela nova quando o estado não mudou
 OBSERVACOES_ANTIGAS = {"whatsapp": ("Conta Meta Business verificada pendente. Fase 5.", OBS_WHATSAPP)}
 
-# Integrações que mudam de estado com a Fase 3 (só se ainda estiverem como "não implementada")
-ATUALIZACOES_INTEGRACOES = {"djen": ("ambiente_testes", OBS_DJEN), "datajud": ("aguardando_credenciais", OBS_DATAJUD)}
+OBS_ASSINATURA = ("Conector da API v2 do Documenso implementado (envelope com o PDF aprovado, envio aos participantes e "
+                  "webhook). Falta a conta ou instância própria e as variáveis EJMF_DOCUMENSO_TOKEN, EJMF_DOCUMENSO_URL "
+                  "e EJMF_DOCUMENSO_WEBHOOK_SECRET. Não há adaptador simulado: assinatura nunca é simulada.")
+
+# Integrações que mudam de estado com uma fase (só se ainda estiverem como "não implementada")
+ATUALIZACOES_INTEGRACOES = {"djen": ("ambiente_testes", OBS_DJEN), "datajud": ("aguardando_credenciais", OBS_DATAJUD),
+                            "assinatura": ("aguardando_credenciais", OBS_ASSINATURA)}
 
 # (codigo, nome, categoria, estado, crítica, observação)
 INTEGRACOES = [
@@ -130,7 +147,7 @@ INTEGRACOES = [
     ("whatsapp", "WhatsApp Business (Cloud API)", "comunicacao", "aguardando_credenciais", False, OBS_WHATSAPP),
     ("whatsapp_simulado", "Simulado — WhatsApp (dados sintéticos)", "comunicacao", "ambiente_testes", False,
      "Simulador do WhatsApp dentro do painel para testar a recepcionista virtual. Nenhuma mensagem sai do EJMF."),
-    ("assinatura", "Assinatura eletrônica (Documenso)", "documentos", "nao_implementada", False, "Fase 6."),
+    ("assinatura", "Assinatura eletrônica (Documenso)", "documentos", "aguardando_credenciais", False, OBS_ASSINATURA),
     ("ia", "Provedores de IA", "ia", "aguardando_credenciais", False,
      "Chaves e aprovação de tratamento de dados pendentes. Fase 8."),
     ("backup", "Backup externo (S3 compatível)", "infraestrutura", "aguardando_credenciais", True,
@@ -178,6 +195,10 @@ CONFIGURACOES: dict[str, tuple[object, bool, str]] = {
                                "automático: cuido de cadastro, documentos e agendamento. Dúvidas jurídicas são "
                                "respondidas pelo advogado.", False, "Saudação da recepcionista virtual"),
     "portal.convite_validade_horas": (72, False, "Validade do convite para o portal (horas)"),
+    "institucional.cidade": (None, False, "Cidade do escritório (local e data dos documentos)"),
+    "documentos.arquivo_max_mb": (50, False, "Tamanho máximo de cada documento enviado pela equipe (MB)"),
+    "documentos.ocr_max_paginas": (30, False, "Páginas lidas por OCR em cada PDF digitalizado"),
+    "documentos.ocr_confianca_minima": (45, False, "Confiança média do OCR abaixo da qual o documento é marcado como ilegível"),
 }
 
 # Formulários de cadastro por departamento (somente o necessário). Podem ser ajustados em
@@ -289,4 +310,57 @@ REGRAS_PRAZO = [
 CONFIGURACOES_OBRIGATORIAS = [
     "institucional.cnpj", "institucional.email", "institucional.telefone",
     "institucional.endereco", "institucional.whatsapp",
+]
+
+
+# ------------------------------------------------------------------ Fase 6: modelos iniciais
+# Sugestões de partida: entram como RASCUNHO e só geram minutas depois de homologadas pelo advogado.
+AVISO_MODELO_INICIAL = "Modelo inicial sugerido pelo sistema. Confira o texto e homologue antes de usar."
+_ASSINATURA_CLIENTE = '<p style="text-align: center">______________________________<br>{{cliente.nome}}</p>'
+_LOCAL_DATA = '<p style="text-align: right">{{escritorio.cidade}}, {{data.hoje}}.</p>'
+MODELOS_INICIAIS = [
+    ("procuracao_ad_judicia", "Procuração ad judicia et extra", "procuracao",
+     '<h2 style="text-align: center">PROCURAÇÃO AD JUDICIA ET EXTRA</h2>'
+     "<p><strong>OUTORGANTE:</strong> {{cliente.qualificacao}}.</p>"
+     "<p><strong>OUTORGADO:</strong> {{escritorio.advogado}}, advogado inscrito na {{escritorio.oab}}, com escritório "
+     "profissional em {{escritorio.endereco}}.</p>"
+     "<p><strong>PODERES:</strong> pelo presente instrumento, o(a) outorgante nomeia e constitui seu bastante procurador "
+     "o outorgado, a quem confere os poderes da cláusula <em>ad judicia et extra</em> para o foro em geral, em qualquer "
+     "juízo, instância ou tribunal, podendo propor as ações competentes e defendê-lo(a) nas contrárias, seguindo umas e "
+     "outras até final decisão, usando os recursos legais e acompanhando-os, conferindo-lhe ainda os poderes especiais "
+     "para confessar, reconhecer a procedência do pedido, transigir, desistir, renunciar ao direito sobre o qual se funda "
+     "a ação, receber, dar quitação e firmar compromisso, nos termos do art. 105 do Código de Processo Civil, "
+     "especialmente para {{manual.finalidade}}.</p>" + _LOCAL_DATA + _ASSINATURA_CLIENTE),
+    ("declaracao_hipossuficiencia", "Declaração de hipossuficiência econômica", "declaracao",
+     '<h2 style="text-align: center">DECLARAÇÃO DE HIPOSSUFICIÊNCIA ECONÔMICA</h2>'
+     "<p>Eu, {{cliente.qualificacao}}, declaro, para os fins do art. 99, § 3º, do Código de Processo Civil, que não "
+     "tenho condições de arcar com as custas do processo e os honorários advocatícios sem prejuízo do meu sustento e do "
+     "de minha família, razão pela qual requeiro os benefícios da gratuidade da justiça.</p>"
+     "<p>Declaro estar ciente de que a falsidade desta declaração pode acarretar as sanções civis, administrativas e "
+     "penais cabíveis.</p>" + _LOCAL_DATA + _ASSINATURA_CLIENTE),
+    ("contrato_honorarios", "Contrato de prestação de serviços advocatícios e honorários", "contrato",
+     '<h2 style="text-align: center">CONTRATO DE PRESTAÇÃO DE SERVIÇOS ADVOCATÍCIOS</h2>'
+     "<p><strong>CONTRATANTE:</strong> {{cliente.qualificacao}}.</p>"
+     "<p><strong>CONTRATADO:</strong> {{escritorio.advogado}}, advogado inscrito na {{escritorio.oab}}, com escritório "
+     "profissional em {{escritorio.endereco}}.</p>"
+     "<p><strong>CLÁUSULA 1ª — DO OBJETO.</strong> O contratado prestará ao contratante serviços advocatícios para "
+     "{{manual.objeto}}.</p>"
+     "<p><strong>CLÁUSULA 2ª — DOS HONORÁRIOS.</strong> Pelos serviços, o contratante pagará ao contratado "
+     "{{manual.honorarios}}, da seguinte forma: {{manual.forma_pagamento}}.</p>"
+     "<p><strong>CLÁUSULA 3ª — DOS HONORÁRIOS DE SUCUMBÊNCIA.</strong> Os honorários de sucumbência pertencem ao "
+     "contratado, nos termos do art. 23 da Lei nº 8.906/1994, sem prejuízo dos honorários contratados.</p>"
+     "<p><strong>CLÁUSULA 4ª — DAS DESPESAS.</strong> Custas, taxas, perícias e demais despesas do processo correm "
+     "por conta do contratante, salvo deferimento da gratuidade da justiça.</p>"
+     "<p><strong>CLÁUSULA 5ª — DA REVOGAÇÃO E DA RENÚNCIA.</strong> Revogado o mandato ou havendo renúncia, são "
+     "devidos os honorários proporcionais aos serviços já prestados.</p>"
+     "<p><strong>CLÁUSULA 6ª — DO FORO.</strong> Fica eleito o foro de {{manual.foro}} para dirimir questões "
+     "deste contrato.</p>"
+     "<p>E, por estarem de acordo, as partes assinam este contrato.</p>" + _LOCAL_DATA + _ASSINATURA_CLIENTE +
+     '<p style="text-align: center">______________________________<br>{{escritorio.advogado}} — {{escritorio.oab}}</p>'),
+    ("recibo_honorarios", "Recibo de honorários", "recibo",
+     '<h2 style="text-align: center">RECIBO</h2>'
+     "<p>Recebi de {{cliente.nome}}, inscrito(a) no CPF/CNPJ sob o nº {{cliente.documento}}, a importância de "
+     "{{manual.valor}}, referente a {{manual.referente}}, dando por este recibo plena quitação do valor recebido.</p>"
+     + _LOCAL_DATA +
+     '<p style="text-align: center">______________________________<br>{{escritorio.advogado}} — {{escritorio.oab}}</p>'),
 ]

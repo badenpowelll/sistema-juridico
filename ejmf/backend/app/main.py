@@ -7,7 +7,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from app.api.v1 import administracao, atendimento, autenticacao, controladoria, importacoes, painel, processos, publico, secretaria
+from app.api.v1 import (
+    administracao, atendimento, autenticacao, controladoria, documentos, importacoes, painel, processos, publico, secretaria,
+)
 from app.core.banco import fabrica_sessao
 from app.core.config import obter_config
 from app.core.logs import configurar_logs, trace_id_atual
@@ -15,7 +17,7 @@ from app.core.logs import configurar_logs, trace_id_atual
 log = logging.getLogger("ejmf.http")
 _METODOS_INSEGUROS = {"POST", "PUT", "PATCH", "DELETE"}
 # o webhook da Meta vem de fora e é autenticado pela assinatura X-Hub-Signature-256
-_ISENTOS_CSRF = {"/api/v1/saude", "/api/v1/publico/whatsapp/webhook"}
+_ISENTOS_CSRF = {"/api/v1/saude", "/api/v1/publico/whatsapp/webhook", "/api/v1/publico/documenso/webhook"}
 
 
 def criar_app() -> FastAPI:
@@ -70,6 +72,8 @@ def criar_app() -> FastAPI:
     app.include_router(secretaria.rotas, prefix="/api/v1")
     app.include_router(atendimento.rotas, prefix="/api/v1")
     app.include_router(publico.rotas, prefix="/api/v1")
+    app.include_router(documentos.rotas, prefix="/api/v1")
+    app.include_router(documentos.publicas, prefix="/api/v1")
     return app
 
 

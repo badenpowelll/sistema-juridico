@@ -16,7 +16,7 @@ from app.core.banco import fabrica_sessao
 from app.core.config import obter_config
 from app.core.logs import configurar_logs
 from app.modelos import Configuracao
-from app.servicos import conversas, fila, relatorios, sincronizacao  # noqa: F401  (conversas registra o envio do WhatsApp)
+from app.servicos import assinaturas, conversas, documentos, fila, relatorios, sincronizacao  # noqa: F401  (registram executores da fila)
 from app.servicos.semente import obter_escritorio
 
 log = logging.getLogger("ejmf.worker")

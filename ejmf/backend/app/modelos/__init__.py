@@ -907,3 +907,191 @@ class Mensagem(Base):
     erro: Mapped[str | None] = mapped_column(Text)
     original: Mapped[Any | None] = mapped_column(JSONB)
     criado_em: Mapped[datetime] = _criado()
+
+
+# ============================================================ Fase 6 — documentos, modelos, minutas e assinaturas
+
+CATEGORIAS_DOCUMENTO = (
+    "identidade", "cpf", "comprovante_residencia", "procuracao", "contrato", "declaracao", "peticao", "decisao",
+    "sentenca", "laudo", "contracheque", "ctps", "rescisao", "extrato", "recibo", "comprovante", "correspondencia",
+    "foto", "audio", "planilha", "outro",
+)
+
+
+class Documento(Base):
+    """Documento do acervo. O arquivo original (versão 1) nunca muda; texto extraído e novas versões são registros próprios."""
+    __tablename__ = "documentos"
+    __table_args__ = (
+        CheckConstraint("situacao in ('ativo','arquivado','quarentena')"),
+        CheckConstraint("origem in ('upload','recebido','gerado','assinado')"),
+        Index("ix_documentos_hash", "escritorio_id", "sha256"),
+        Index("ix_documentos_cliente", "cliente_id"),
+        Index("ix_documentos_processo", "processo_id"),
+        Index("ix_documentos_titulo_trgm", "titulo", postgresql_using="gin", postgresql_ops={"titulo": "gin_trgm_ops"}),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    titulo: Mapped[str] = mapped_column(String(300), nullable=False)
+    categoria: Mapped[str] = mapped_column(String(40), nullable=False, server_default=text("'outro'"))
+    categoria_por: Mapped[str] = mapped_column(String(10), nullable=False, server_default=text("'regra'"))  # regra | pessoa
+    cliente_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clientes.id", ondelete="SET NULL"))
+    processo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("processos.id", ondelete="SET NULL"))
+    atendimento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("atendimentos.id", ondelete="SET NULL"))
+    origem: Mapped[str] = mapped_column(String(20), nullable=False)
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'ativo'"))
+    motivo_situacao: Mapped[str | None] = mapped_column(Text)
+    sigiloso: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)  # do original
+    versao_atual: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
+    documento_recebido_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("documentos_recebidos.id", ondelete="SET NULL"))
+    minuta_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class VersaoDocumento(Base):
+    """Uma versão do documento: o original, o texto extraído (OCR), uma nova versão enviada ou o PDF gerado/assinado."""
+    __tablename__ = "versoes_documento"
+    __table_args__ = (
+        UniqueConstraint("documento_id", "numero"),
+        CheckConstraint("tipo in ('original','texto_extraido','nova_versao','pdf_gerado','assinado')"),
+        CheckConstraint("extracao in ('pendente','concluida','ilegivel','sem_texto','nao_aplicavel','falha','indisponivel')"),
+        Index("ix_versoes_documento_busca", "busca", postgresql_using="gin"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    documento_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documentos.id", ondelete="CASCADE"), nullable=False)
+    numero: Mapped[int] = mapped_column(Integer, nullable=False)
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False)
+    derivada_de: Mapped[int | None] = mapped_column(Integer)  # número da versão de onde o texto saiu
+    nome_arquivo: Mapped[str | None] = mapped_column(String(255))
+    tipo_mime: Mapped[str | None] = mapped_column(String(100))
+    tamanho: Mapped[int | None] = mapped_column(BigInteger)
+    sha256: Mapped[str | None] = mapped_column(String(64))
+    caminho: Mapped[str | None] = mapped_column(String(300))
+    paginas: Mapped[int | None] = mapped_column(Integer)
+    texto: Mapped[str | None] = mapped_column(Text)
+    extracao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'nao_aplicavel'"))
+    metodo: Mapped[str | None] = mapped_column(String(20))  # texto_nativo | ocr | docx | planilha | texto
+    confianca: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    erro: Mapped[str | None] = mapped_column(Text)
+    busca: Mapped[Any] = mapped_column(TSVECTOR, Computed("to_tsvector('portuguese'::regconfig, coalesce(texto, ''))", persisted=True))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class ModeloDocumento(Base):
+    """Modelo parametrizado. Só modelos homologados geram minutas; editar um homologado cria nova versão em rascunho."""
+    __tablename__ = "modelos_documento"
+    __table_args__ = (
+        UniqueConstraint("escritorio_id", "codigo", "versao"),
+        CheckConstraint("situacao in ('rascunho','homologado','substituido','arquivado')"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    codigo: Mapped[str] = mapped_column(String(60), nullable=False)
+    versao: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
+    titulo: Mapped[str] = mapped_column(String(200), nullable=False)
+    categoria: Mapped[str] = mapped_column(String(40), nullable=False)
+    departamento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("departamentos.id", ondelete="SET NULL"))
+    descricao: Mapped[str | None] = mapped_column(Text)
+    conteudo: Mapped[str] = mapped_column(Text, nullable=False)  # HTML restrito com {{campos}}
+    cabecalho: Mapped[str | None] = mapped_column(String(500))
+    rodape: Mapped[str | None] = mapped_column(String(500))
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'rascunho'"))
+    sugerido_pelo_sistema: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    homologado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    homologado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class ModeloFavorito(Base):
+    __tablename__ = "modelos_favoritos"
+    usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), primary_key=True)
+    codigo: Mapped[str] = mapped_column(String(60), primary_key=True)
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+
+
+class Minuta(Base):
+    """Documento em produção a partir de um modelo homologado. É sempre rascunho até a aprovação profissional."""
+    __tablename__ = "minutas"
+    __table_args__ = (CheckConstraint("situacao in ('rascunho','em_revisao','aprovada','arquivada')"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    titulo: Mapped[str] = mapped_column(String(300), nullable=False)
+    modelo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("modelos_documento.id", ondelete="SET NULL"))
+    modelo_codigo: Mapped[str | None] = mapped_column(String(60))
+    modelo_versao: Mapped[int | None] = mapped_column(Integer)
+    categoria: Mapped[str] = mapped_column(String(40), nullable=False)
+    cliente_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clientes.id", ondelete="SET NULL"), index=True)
+    processo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("processos.id", ondelete="SET NULL"), index=True)
+    atendimento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("atendimentos.id", ondelete="SET NULL"), index=True)
+    conteudo: Mapped[str] = mapped_column(Text, nullable=False)
+    cabecalho: Mapped[str | None] = mapped_column(String(500))
+    rodape: Mapped[str | None] = mapped_column(String(500))
+    campos: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))  # campo -> {valor, fonte}
+    pendentes: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'rascunho'"))
+    versao_atual: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
+    revisao_pedida_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    revisao_pedida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    aprovada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    aprovada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    documento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("documentos.id", ondelete="SET NULL"))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    atualizado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class VersaoMinuta(Base):
+    __tablename__ = "versoes_minuta"
+    __table_args__ = (UniqueConstraint("minuta_id", "numero"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    minuta_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("minutas.id", ondelete="CASCADE"), nullable=False)
+    numero: Mapped[int] = mapped_column(Integer, nullable=False)
+    conteudo: Mapped[str] = mapped_column(Text, nullable=False)
+    motivo: Mapped[str] = mapped_column(String(20), nullable=False)  # criacao | automatica | manual | aprovacao | devolucao
+    autor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class ComentarioMinuta(Base):
+    __tablename__ = "comentarios_minuta"
+    id: Mapped[uuid.UUID] = _uuid()
+    minuta_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("minutas.id", ondelete="CASCADE"), nullable=False, index=True)
+    autor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    trecho: Mapped[str | None] = mapped_column(String(500))
+    texto: Mapped[str] = mapped_column(Text, nullable=False)
+    resolvido_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    resolvido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class Assinatura(Base):
+    """Pedido de assinatura eletrônica num provedor externo. O EJMF nunca simula nem faz a assinatura."""
+    __tablename__ = "assinaturas"
+    __table_args__ = (
+        CheckConstraint("situacao in ('preparada','enviando','enviada','parcial','concluida','recusada','cancelada','falha')"),
+        Index("uq_assinaturas_externo", "provedor", "id_externo", unique=True, postgresql_where=text("id_externo is not null")),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    minuta_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("minutas.id", ondelete="CASCADE"), nullable=False, index=True)
+    documento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("documentos.id", ondelete="SET NULL"))
+    provedor: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'documenso'"))
+    id_externo: Mapped[str | None] = mapped_column(String(200))
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'preparada'"))
+    participantes: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    eventos: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    mensagem: Mapped[str | None] = mapped_column(Text)
+    preparada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    autorizada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    enviada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    concluida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    erro: Mapped[str | None] = mapped_column(Text)
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

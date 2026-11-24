@@ -1,6 +1,9 @@
 FROM python:3.13-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
+# OCR em português (Tesseract), extração de PDF (Poppler) e DOCX→PDF (LibreOffice sem interface)
+RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-por poppler-utils \
+        libreoffice-writer-nogui fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 RUN useradd --create-home --uid 10001 ejmf
 COPY pyproject.toml ./
 COPY app ./app

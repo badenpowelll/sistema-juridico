@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from datetime import date
 
 from app.modelos import (
-    Configuracao, Departamento, DiaCalendario, Escritorio, Integracao, Perfil, Permissao, RegraPrazo, Tribunal,
+    Configuracao, Departamento, DiaCalendario, Escritorio, Integracao, ModeloDocumento, Perfil, Permissao, RegraPrazo,
+    Tribunal,
 )
 from app.servicos import auditoria, catalogo, tribunais
 from app.servicos.calendario import feriados_nacionais
@@ -23,7 +24,7 @@ def obter_escritorio(sessao: Session) -> Escritorio:
 def semear(sessao: Session) -> dict[str, int]:
     esc = obter_escritorio(sessao)
     criados = {"permissoes": 0, "perfis": 0, "departamentos": 0, "integracoes": 0, "configuracoes": 0, "tribunais": 0,
-               "regras_prazo": 0, "dias_calendario": 0, "integracoes_atualizadas": 0}
+               "regras_prazo": 0, "dias_calendario": 0, "integracoes_atualizadas": 0, "modelos": 0}
 
     trib = {t.codigo for t in sessao.execute(select(Tribunal)).scalars()}
     for t in tribunais.catalogo():
@@ -89,6 +90,14 @@ def semear(sessao: Session) -> dict[str, int]:
         if chave not in confs:
             sessao.add(Configuracao(escritorio_id=esc.id, chave=chave, valor=valor, sensivel=sensivel))
             criados["configuracoes"] += 1
+
+    modelos = set(sessao.execute(select(ModeloDocumento.codigo).where(ModeloDocumento.escritorio_id == esc.id)).scalars())
+    for codigo, titulo, categoria, conteudo in catalogo.MODELOS_INICIAIS:
+        if codigo not in modelos:
+            sessao.add(ModeloDocumento(escritorio_id=esc.id, codigo=codigo, versao=1, titulo=titulo, categoria=categoria,
+                                       conteudo=conteudo, descricao=catalogo.AVISO_MODELO_INICIAL, situacao="rascunho",
+                                       sugerido_pelo_sistema=True, rodape="Página {{pagina}}"))
+            criados["modelos"] += 1
 
     sessao.flush()
     if any(criados.values()):

@@ -10,12 +10,10 @@ Regras:
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import re
 import secrets
 import uuid
-import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -30,7 +28,7 @@ from app.modelos import (
     ETAPAS_ATENDIMENTO, Atendimento, CadastroAtendimento, Cliente, Departamento, DocumentoRecebido, LinkCadastro,
     Processo, Usuario,
 )
-from app.servicos import auditoria, catalogo, clientes, notificacoes
+from app.servicos import armazenamento, auditoria, catalogo, clientes, notificacoes
 from app.servicos import prazos as svc_prazos
 from app.servicos.identificadores import cpf_valido
 
@@ -460,65 +458,8 @@ def criar_cliente(db: Session, ator: auditoria.Ator, at: Atendimento) -> tuple[C
 
 # ------------------------------------------------------------------ documentos recebidos
 
-@dataclass
-class TipoArquivo:
-    mime: str
-    extensao: str
-
-
-def detectar_tipo(conteudo_: bytes, nome: str) -> TipoArquivo | None:
-    """Tipo pelo conteúdo (assinatura), nunca só pela extensão. Executáveis e desconhecidos são recusados."""
-    c = conteudo_[:64]
-    ext = Path(nome).suffix.lower()
-    if c.startswith(b"%PDF-"):
-        return TipoArquivo("application/pdf", ".pdf")
-    if c.startswith(b"\x89PNG\r\n\x1a\n"):
-        return TipoArquivo("image/png", ".png")
-    if c.startswith(b"\xff\xd8\xff"):
-        return TipoArquivo("image/jpeg", ".jpg")
-    if c.startswith((b"II*\x00", b"MM\x00*")):
-        return TipoArquivo("image/tiff", ".tif")
-    if c[:4] == b"RIFF" and c[8:12] == b"WEBP":
-        return TipoArquivo("image/webp", ".webp")
-    if c[:4] == b"RIFF" and c[8:12] == b"WAVE":
-        return TipoArquivo("audio/wav", ".wav")
-    if c.startswith(b"OggS"):
-        return TipoArquivo("audio/ogg", ".ogg")
-    if c.startswith(b"ID3") or c[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2"):
-        return TipoArquivo("audio/mpeg", ".mp3")
-    if c[4:8] == b"ftyp":
-        marca = c[8:12]
-        if marca in (b"heic", b"heix", b"mif1"):
-            return TipoArquivo("image/heic", ".heic")
-        return TipoArquivo("audio/mp4" if ext in (".m4a", ".aac") else "video/mp4", ".m4a" if ext in (".m4a", ".aac") else ".mp4")
-    if c.startswith(b"PK\x03\x04"):
-        try:
-            with zipfile.ZipFile(io.BytesIO(conteudo_)) as z:
-                nomes = z.namelist()
-                if len(nomes) > 2000 or any(i.flag_bits & 0x1 for i in z.infolist()):
-                    return None  # muitos itens ou cifrado
-                if any(n.startswith("word/") for n in nomes):
-                    return TipoArquivo("application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".docx")
-                if any(n.startswith("xl/") for n in nomes):
-                    return TipoArquivo("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".xlsx")
-        except zipfile.BadZipFile:
-            return None
-        return None
-    if ext in (".txt", ".csv"):
-        try:
-            texto = conteudo_.decode("utf-8")
-        except UnicodeDecodeError:
-            return None
-        if "\x00" in texto:
-            return None
-        return TipoArquivo("text/csv" if ext == ".csv" else "text/plain", ext)
-    return None
-
-
-def _nome_seguro(nome: str) -> str:
-    base = Path(nome or "arquivo").name
-    base = re.sub(r"[^\w.\- ()À-ÿ]", "_", base).strip(" .") or "arquivo"
-    return base[:200]
+detectar_tipo = armazenamento.detectar_tipo
+_nome_seguro = armazenamento.nome_seguro
 
 
 def receber_arquivo(db: Session, at: Atendimento | None, *, nome: str, dados: bytes, origem: str,
@@ -549,12 +490,7 @@ def receber_arquivo(db: Session, at: Atendimento | None, *, nome: str, dados: by
     if total >= maximo:
         raise ErroAtendimento(f"Limite de {maximo} arquivos atingido; fale com o escritório", 409)
     doc_id = uuid.uuid4()
-    rel = Path(str(esc_id)) / f"{agora():%Y}" / f"{agora():%m}" / doc_id.hex
-    destino = Path(obter_config().arquivos_dir) / rel
-    destino.parent.mkdir(parents=True, exist_ok=True)
-    tmp = destino.with_suffix(".parcial")
-    tmp.write_bytes(dados)
-    tmp.replace(destino)
+    rel = armazenamento.gravar(esc_id, doc_id, dados)
     if previsto and at is not None:
         links = db.execute(select(LinkCadastro.formulario).where(LinkCadastro.atendimento_id == at.id)).scalars().all()
         validos = {d["id"] for f in links for d in f.get("documentos", [])}
@@ -599,6 +535,9 @@ def conferir_documento(db: Session, ator: auditoria.Ator, doc: DocumentoRecebido
     doc.conferido_por, doc.conferido_em = usuario.id, agora()
     auditoria.registrar(db, ator, "documento_recebido." + ("aceitar" if aceitar else "recusar"), entidade="atendimento",
                         entidade_id=doc.atendimento_id, alteracoes={"documento_id": str(doc.id), "motivo": doc.motivo})
+    if aceitar:
+        from app.servicos import documentos
+        documentos.incorporar_recebido(db, ator, doc, usuario)  # o arquivo aceito passa a integrar o acervo
     if not aceitar and doc.atendimento_id:
         at = db.get(Atendimento, doc.atendimento_id)
         if at and at.etapa == "documentos_recebidos" and doc.documento_previsto:
@@ -611,11 +550,10 @@ def conferir_documento(db: Session, ator: auditoria.Ator, doc: DocumentoRecebido
 
 
 def caminho_arquivo(doc: DocumentoRecebido) -> Path:
-    base = Path(obter_config().arquivos_dir).resolve()
-    p = (base / doc.caminho).resolve()
-    if base not in p.parents:
-        raise ErroAtendimento("Caminho inválido", 400)
-    return p
+    try:
+        return armazenamento.caminho(doc.caminho)
+    except ValueError as e:
+        raise ErroAtendimento(str(e), 400) from e
 
 
 # ------------------------------------------------------------------ JSON

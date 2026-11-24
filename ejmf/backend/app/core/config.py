@@ -42,6 +42,13 @@ class Config(BaseSettings):
     whatsapp_app_secret: str | None = None
     whatsapp_verify_token: str | None = None
     whatsapp_api_url: str = "https://graph.facebook.com/v23.0"
+    # Assinatura eletrônica (Documenso, API v2): só por variável de ambiente; vazio = "Aguardando credenciais"
+    documenso_token: str | None = None
+    documenso_url: str = "https://app.documenso.com/api/v2"
+    documenso_webhook_secret: str | None = None
+    # Ferramentas locais de processamento (OCR e conversão para PDF)
+    tesseract_bin: str = "tesseract"
+    soffice_bin: str = "soffice"
     # Endereço público usado nos links enviados a clientes (cadastro, portal)
     url_publica: str = "http://localhost:3000"
     # Onde ficam os arquivos enviados por clientes (fora do Git; ver BACKUP.md)
