@@ -16,7 +16,7 @@ from app.modelos import (
     CATEGORIAS_DOCUMENTO, Assinatura, Cliente, ComentarioMinuta, Minuta, ModeloDocumento, Processo, Usuario, VersaoDocumento,
     VersaoMinuta,
 )
-from app.servicos import armazenamento, assinaturas, auditoria, catalogo, documentos as docs, producao
+from app.servicos import armazenamento, assinaturas, auditoria, catalogo, documentos as docs, jurisprudencia, producao
 from app.servicos.conectores import documenso
 from app.servicos.semente import obter_escritorio
 
@@ -344,6 +344,7 @@ def _minuta_completa(ctx: Contexto, m: Minuta) -> dict:
                         for v in versoes],
             "assinaturas": [assinaturas.como_json(a, nomes) for a in assinaturas.listar(ctx.db, m)],
             "assinatura": assinaturas.disponivel(), "pdf_disponivel": producao.conversao_pdf_disponivel(),
+            "citacoes": jurisprudencia.situacao_citacoes(ctx.db, m.escritorio_id, m.conteudo),
             "pode_editar": (m.situacao == "rascunho" and "minutas:editar" in p) or (m.situacao == "em_revisao" and "minutas:aprovar" in p),
             "pode_aprovar": "minutas:aprovar" in p, "pode_enviar_assinatura": "assinaturas:enviar" in p}
 

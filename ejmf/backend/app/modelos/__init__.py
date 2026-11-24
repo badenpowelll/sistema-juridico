@@ -1095,3 +1095,210 @@ class Assinatura(Base):
     erro: Mapped[str | None] = mapped_column(Text)
     criado_em: Mapped[datetime] = _criado()
     atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+# ====================================================================== Fase 7 — conhecimento
+
+from pgvector.sqlalchemy import Vector  # noqa: E402
+
+DIMENSAO_VETOR = 384
+TIPOS_BIBLIOTECA = ("constituicao", "lei", "lei_complementar", "codigo", "decreto", "medida_provisoria", "regulamento",
+                    "sumula", "sumula_vinculante", "tema", "orientacao_jurisprudencial", "doutrina", "interno")
+
+
+class FonteConhecimento(Base):
+    """Origem autorizada de normas e julgados. Só domínios desta lista são consultados pelos verificadores."""
+    __tablename__ = "fontes_conhecimento"
+    __table_args__ = (UniqueConstraint("escritorio_id", "codigo"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    codigo: Mapped[str] = mapped_column(String(40), nullable=False)
+    nome: Mapped[str] = mapped_column(String(200), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False)  # legislacao | jurisprudencia | interna
+    dominios: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    oficial: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    ativa: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    observacao: Mapped[str | None] = mapped_column(Text)
+
+
+class ItemBiblioteca(Base):
+    """Norma, súmula, doutrina licenciada ou material interno, com vigência, origem e versões."""
+    __tablename__ = "itens_biblioteca"
+    __table_args__ = (
+        CheckConstraint("vigencia in ('vigente','revogado','parcialmente_revogado','a_conferir','nao_se_aplica')"),
+        CheckConstraint("situacao in ('ativo','alteracao_a_conferir','arquivado')"),
+        CheckConstraint("licenca in ('publico','licenciado','interno','referencia')"),
+        Index("ix_biblioteca_titulo_trgm", "titulo", postgresql_using="gin", postgresql_ops={"titulo": "gin_trgm_ops"}),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(30), nullable=False)
+    titulo: Mapped[str] = mapped_column(String(400), nullable=False)
+    identificador: Mapped[str | None] = mapped_column(String(200))  # ex.: Lei 13.467/2017; urn:lex:...
+    esfera: Mapped[str | None] = mapped_column(String(20))  # federal | estadual | municipal | interna
+    orgao: Mapped[str | None] = mapped_column(String(200))
+    ementa: Mapped[str | None] = mapped_column(Text)
+    departamento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("departamentos.id", ondelete="SET NULL"))
+    fonte_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("fontes_conhecimento.id", ondelete="SET NULL"))
+    url_origem: Mapped[str | None] = mapped_column(String(1000))
+    licenca: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'publico'"))
+    vigencia: Mapped[str] = mapped_column(String(30), nullable=False, server_default=text("'a_conferir'"))
+    vigencia_desde: Mapped[date | None] = mapped_column(Date)
+    vigencia_ate: Mapped[date | None] = mapped_column(Date)
+    vigencia_conferida_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    vigencia_conferida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    situacao: Mapped[str] = mapped_column(String(30), nullable=False, server_default=text("'ativo'"))
+    monitorar: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    versao_atual: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    coletado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # última versão conferida
+    verificado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # última checagem da fonte
+    erro_verificacao: Mapped[str | None] = mapped_column(Text)
+    assuntos: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class VersaoItemBiblioteca(Base):
+    """Texto de um item num momento. Alteração detectada na fonte vira versão nova, a conferir; a anterior é preservada."""
+    __tablename__ = "versoes_item_biblioteca"
+    __table_args__ = (
+        UniqueConstraint("item_id", "numero"),
+        CheckConstraint("motivo in ('cadastro','alteracao_detectada','manual','importacao')"),
+        CheckConstraint("situacao in ('a_conferir','conferida','descartada')"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("itens_biblioteca.id", ondelete="CASCADE"), nullable=False, index=True)
+    numero: Mapped[int] = mapped_column(Integer, nullable=False)
+    texto: Mapped[str] = mapped_column(Text, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    url_coleta: Mapped[str | None] = mapped_column(String(1000))
+    coletado_em: Mapped[datetime] = _criado()
+    motivo: Mapped[str] = mapped_column(String(30), nullable=False)
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'a_conferir'"))
+    conferida_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    conferida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    autor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+
+
+class Colecao(Base):
+    __tablename__ = "colecoes_conhecimento"
+    __table_args__ = (UniqueConstraint("escritorio_id", "nome"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    nome: Mapped[str] = mapped_column(String(200), nullable=False)
+    descricao: Mapped[str | None] = mapped_column(Text)
+    departamento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("departamentos.id", ondelete="SET NULL"))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class ItemColecao(Base):
+    __tablename__ = "itens_colecao"
+    colecao_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("colecoes_conhecimento.id", ondelete="CASCADE"), primary_key=True)
+    tipo: Mapped[str] = mapped_column(String(20), primary_key=True)  # biblioteca | jurisprudencia
+    ref_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    adicionado_em: Mapped[datetime] = _criado()
+
+
+class FavoritoConhecimento(Base):
+    __tablename__ = "favoritos_conhecimento"
+    usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), primary_key=True)
+    tipo: Mapped[str] = mapped_column(String(20), primary_key=True)
+    ref_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    criado_em: Mapped[datetime] = _criado()
+
+
+class Jurisprudencia(Base):
+    """Julgado com o status de verificação contra o original. Sem verificação e homologação, não entra em documento final."""
+    __tablename__ = "jurisprudencias"
+    __table_args__ = (
+        CheckConstraint("verificacao in ('pendente','verificada','nao_localizada','fonte_indisponivel','divergente')"),
+        CheckConstraint("situacao in ('ativa','descartada')"),
+        Index("uq_jurisprudencia_numero", "escritorio_id", "tribunal", "numero_normalizado", unique=True,
+              postgresql_where=text("situacao = 'ativa'")),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    tribunal: Mapped[str] = mapped_column(String(20), nullable=False)  # sigla: STF, STJ, TST, TRT21…
+    numero: Mapped[str] = mapped_column(String(120), nullable=False)
+    numero_normalizado: Mapped[str] = mapped_column(String(120), nullable=False)
+    classe: Mapped[str | None] = mapped_column(String(120))
+    orgao_julgador: Mapped[str | None] = mapped_column(String(200))
+    relator: Mapped[str | None] = mapped_column(String(200))
+    data_julgamento: Mapped[date | None] = mapped_column(Date)
+    data_publicacao: Mapped[date | None] = mapped_column(Date)
+    ementa: Mapped[str] = mapped_column(Text, nullable=False)
+    url_original: Mapped[str | None] = mapped_column(String(1000))
+    fonte_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("fontes_conhecimento.id", ondelete="SET NULL"))
+    origem: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'manual'"))  # manual | importacao | sugestao_ia
+    assuntos: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    verificacao: Mapped[str] = mapped_column(String(30), nullable=False, server_default=text("'pendente'"))
+    verificacao_detalhe: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    verificada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    consultado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # data da consulta ao original
+    sha256_original: Mapped[str | None] = mapped_column(String(64))
+    homologada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    homologada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'ativa'"))
+    motivo_descarte: Mapped[str | None] = mapped_column(Text)
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class TrechoConhecimento(Base):
+    """Pedaço indexado para busca textual e por similaridade. O escopo (cliente, processo, sigilo) é filtrado antes da busca."""
+    __tablename__ = "trechos_conhecimento"
+    __table_args__ = (
+        CheckConstraint("origem in ('biblioteca','jurisprudencia','documento','memoria')"),
+        Index("ix_trechos_origem", "origem", "ref_id"),
+        Index("ix_trechos_escopo", "escritorio_id", "cliente_id", "processo_id"),
+        Index("ix_trechos_vetor", "vetor", postgresql_using="hnsw", postgresql_ops={"vetor": "vector_cosine_ops"}),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    origem: Mapped[str] = mapped_column(String(20), nullable=False)
+    ref_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    versao: Mapped[int | None] = mapped_column(Integer)
+    ordem: Mapped[int] = mapped_column(Integer, nullable=False)
+    cliente_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    processo_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    sigiloso: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    texto: Mapped[str] = mapped_column(Text, nullable=False)
+    vetorizador: Mapped[str] = mapped_column(String(40), nullable=False)
+    vetor: Mapped[Any] = mapped_column(Vector(DIMENSAO_VETOR), nullable=False)
+    busca: Mapped[Any] = mapped_column(TSVECTOR, Computed("to_tsvector('portuguese'::regconfig, texto)", persisted=True))
+    criado_em: Mapped[datetime] = _criado()
+
+
+Index("ix_trechos_busca", TrechoConhecimento.busca, postgresql_using="gin")
+
+
+class Memoria(Base):
+    """Memória do escritório: decisões, orientações e preferências. Sugestão de IA só vale depois de confirmada por pessoa."""
+    __tablename__ = "memorias"
+    __table_args__ = (
+        CheckConstraint("tipo in ('decisao','orientacao','preferencia','fato')"),
+        CheckConstraint("origem in ('pessoa','documento','sugestao_ia')"),
+        CheckConstraint("situacao in ('a_confirmar','confirmada','substituida','excluida')"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False)
+    titulo: Mapped[str] = mapped_column(String(300), nullable=False)
+    texto: Mapped[str] = mapped_column(Text, nullable=False)
+    cliente_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clientes.id", ondelete="CASCADE"))
+    processo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("processos.id", ondelete="CASCADE"))
+    departamento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("departamentos.id", ondelete="SET NULL"))
+    origem: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'pessoa'"))
+    referencia: Mapped[str | None] = mapped_column(String(500))  # documento, ata, mensagem de onde veio
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'confirmada'"))
+    confirmada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    confirmada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    substituida_por: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    motivo_exclusao: Mapped[str | None] = mapped_column(Text)
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

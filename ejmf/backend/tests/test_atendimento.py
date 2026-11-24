@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import select
 
 from app.modelos import (
-    AcessoPortal, Aprovacao, Atendimento, CadastroAtendimento, Compromisso, Conversa, Departamento, Integracao,
+    Aprovacao, Atendimento, CadastroAtendimento, Compromisso, Conversa, Departamento, Integracao,
     LinkCadastro, Mensagem, Tarefa,
 )
 from app.servicos import conversas, fila

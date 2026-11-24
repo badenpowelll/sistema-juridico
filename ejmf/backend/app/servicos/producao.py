@@ -56,7 +56,7 @@ RE_CAMPO = re.compile(r"\{\{\s*([a-z_]+(?:\.[a-z_]+)?)\s*\}\}")
 RE_MANUAL = re.compile(r"^manual\.[a-z_]{2,40}$")
 RE_PENDENTE = re.compile(r'<span data-pendente="([a-z_.]+)">[^<]*</span>')
 TAGS = {"p", "h1", "h2", "h3", "strong", "b", "em", "i", "u", "s", "br", "ul", "ol", "li", "blockquote", "span"}
-ATRIBUTOS = {"span": {"data-campo", "data-pendente"}, "p": {"style"}, "h1": {"style"}, "h2": {"style"},
+ATRIBUTOS = {"span": {"data-campo", "data-pendente", "data-jurisprudencia"}, "p": {"style"}, "h1": {"style"}, "h2": {"style"},
              "h3": {"style"}, "li": {"style"}}
 
 
@@ -474,6 +474,13 @@ def aprovar(db: Session, ator: auditoria.Ator, m: Minuta, usuario: Usuario, perm
         raise ErroProducao("Ainda há campos pendentes: " + ", ".join(p["rotulo"] for p in m.pendentes), 422)
     if comentarios_abertos(db, m):
         raise ErroProducao("Resolva os comentários abertos antes de aprovar", 409)
+    from app.servicos import jurisprudencia
+    citacoes = jurisprudencia.situacao_citacoes(db, m.escritorio_id, m.conteudo)
+    if ruins := [c for c in citacoes if not c["ok"]]:
+        raise ErroProducao("Há jurisprudência citada sem verificação no original ou sem homologação: "
+                           + "; ".join(c["rotulo"] for c in ruins), 422)
+    if citacoes:  # o texto de cada citação volta a ser o dado conferido (ninguém altera número ou relator à mão)
+        m.conteudo = jurisprudencia.normalizar_citacoes(db, m.escritorio_id, m.conteudo)
     m.situacao, m.aprovada_por, m.aprovada_em = "aprovada", usuario.id, agora()
     _nova_versao(db, m, usuario, "aprovacao")
     docx = exportar_docx(m, rascunho=False)

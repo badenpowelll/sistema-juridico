@@ -61,6 +61,15 @@ PERMISSOES: dict[str, tuple[str, int]] = {
     "minutas:editar": ("Gerar minutas a partir de modelos homologados, editar, comentar e pedir revisão", 2),
     "minutas:aprovar": ("Aprovar ou devolver minutas (aprovação profissional)", 4),
     "assinaturas:enviar": ("Autorizar o envio de documento aprovado para assinatura eletrônica", 4),
+    "conhecimento:ler": ("Pesquisar na biblioteca, na jurisprudência e no conhecimento do escritório", 0),
+    "biblioteca:gerenciar": ("Cadastrar normas e materiais, importar do LexML, organizar coleções e consultar a fonte", 2),
+    "biblioteca:conferir": ("Conferir versões coletadas e declarar a vigência das normas", 4),
+    "jurisprudencia:gerenciar": ("Cadastrar julgados e pedir a verificação no original", 2),
+    "jurisprudencia:homologar": ("Homologar julgado verificado para uso em documentos", 4),
+    "memoria:ler": ("Consultar a memória do escritório (decisões, orientações e preferências)", 0),
+    "memoria:gerenciar": ("Registrar e corrigir memórias", 2),
+    "memoria:confirmar": ("Confirmar memórias sugeridas automaticamente ou extraídas de documentos", 3),
+    "memoria:excluir": ("Excluir memória (exclusão controlada, com motivo)", 4),
 }
 
 PERFIS: dict[str, dict] = {
@@ -80,7 +89,9 @@ PERFIS: dict[str, dict] = {
                        "agenda:ler", "agenda:gerenciar", "prioridades:ler", "prioridades:gerenciar",
                        "aprovacoes:ler", "relatorios:ler", "relatorios:gerar",
                        "atendimentos:ler", "atendimentos:gerenciar", "conversas:ler", "conversas:responder",
-                       "documentos:ler", "documentos:gerenciar", "modelos:ler", "minutas:ler", "minutas:editar"],
+                       "documentos:ler", "documentos:gerenciar", "modelos:ler", "minutas:ler", "minutas:editar",
+                       "conhecimento:ler", "biblioteca:gerenciar", "jurisprudencia:gerenciar", "memoria:ler",
+                       "memoria:gerenciar"],
     },
     "cliente": {
         "nome": "Cliente (portal)",
@@ -122,6 +133,13 @@ OBS_ASSINATURA = ("Conector da API v2 do Documenso implementado (envelope com o 
                   "webhook). Falta a conta ou instância própria e as variáveis EJMF_DOCUMENSO_TOKEN, EJMF_DOCUMENSO_URL "
                   "e EJMF_DOCUMENSO_WEBHOOK_SECRET. Não há adaptador simulado: assinatura nunca é simulada.")
 
+OBS_MONITOR = ("Monitor legislativo implementado: consulta diária só a domínios oficiais cadastrados (Planalto, LexML, "
+               "Câmara, Senado, DOU), guarda cada coleta como versão a conferir. Testado com respostas gravadas; neste "
+               "ambiente de desenvolvimento a rede bloqueia esses sites, então ainda não foi validado contra a fonte real.")
+OBS_VERIFICADOR = ("Verificador de jurisprudência implementado: baixa o original só do site oficial do tribunal e confere "
+                   "número, ementa, relator e data. Testado com páginas gravadas; ainda não validado contra os sites "
+                   "reais (bloqueados na rede deste ambiente).")
+
 # Integrações que mudam de estado com uma fase (só se ainda estiverem como "não implementada")
 ATUALIZACOES_INTEGRACOES = {"djen": ("ambiente_testes", OBS_DJEN), "datajud": ("aguardando_credenciais", OBS_DATAJUD),
                             "assinatura": ("aguardando_credenciais", OBS_ASSINATURA)}
@@ -148,6 +166,10 @@ INTEGRACOES = [
     ("whatsapp_simulado", "Simulado — WhatsApp (dados sintéticos)", "comunicacao", "ambiente_testes", False,
      "Simulador do WhatsApp dentro do painel para testar a recepcionista virtual. Nenhuma mensagem sai do EJMF."),
     ("assinatura", "Assinatura eletrônica (Documenso)", "documentos", "aguardando_credenciais", False, OBS_ASSINATURA),
+    ("monitor_legislativo", "Monitor legislativo (fontes oficiais e LexML)", "conhecimento", "ambiente_testes", False,
+     OBS_MONITOR),
+    ("verificador_jurisprudencia", "Verificador de jurisprudência (sites dos tribunais)", "conhecimento",
+     "ambiente_testes", False, OBS_VERIFICADOR),
     ("ia", "Provedores de IA", "ia", "aguardando_credenciais", False,
      "Chaves e aprovação de tratamento de dados pendentes. Fase 8."),
     ("backup", "Backup externo (S3 compatível)", "infraestrutura", "aguardando_credenciais", True,
@@ -198,6 +220,9 @@ CONFIGURACOES: dict[str, tuple[object, bool, str]] = {
     "institucional.cidade": (None, False, "Cidade do escritório (local e data dos documentos)"),
     "documentos.arquivo_max_mb": (50, False, "Tamanho máximo de cada documento enviado pela equipe (MB)"),
     "documentos.ocr_max_paginas": (30, False, "Páginas lidas por OCR em cada PDF digitalizado"),
+    "conhecimento.monitor_hora": ("05:00", False, "Horário da consulta diária às fontes oficiais monitoradas"),
+    "conhecimento.dias_reverificacao": (30, False, "Dias sem consulta à fonte depois dos quais o item é marcado como desatualizado"),
+    "conhecimento.cobertura_minima_ementa": (0.6, False, "Fração mínima da ementa que precisa estar no original para o julgado ser verificado"),
     "documentos.ocr_confianca_minima": (45, False, "Confiança média do OCR abaixo da qual o documento é marcado como ilegível"),
 }
 
@@ -363,4 +388,39 @@ MODELOS_INICIAIS = [
      "{{manual.valor}}, referente a {{manual.referente}}, dando por este recibo plena quitação do valor recebido.</p>"
      + _LOCAL_DATA +
      '<p style="text-align: center">______________________________<br>{{escritorio.advogado}} — {{escritorio.oab}}</p>'),
+]
+
+
+# Fontes oficiais consultadas pelo monitor e pelo verificador (só estes domínios saem da rede)
+FONTES_CONHECIMENTO = [
+    ("planalto", "Presidência da República — Legislação (Planalto)", "legislacao", ["planalto.gov.br"]),
+    ("lexml", "LexML Brasil", "legislacao", ["lexml.gov.br"]),
+    ("normas_leg", "Normas.leg.br (Congresso Nacional)", "legislacao", ["normas.leg.br"]),
+    ("camara", "Câmara dos Deputados — Legislação", "legislacao", ["camara.leg.br"]),
+    ("senado", "Senado Federal — Legislação", "legislacao", ["senado.leg.br"]),
+    ("dou", "Diário Oficial da União (Imprensa Nacional)", "legislacao", ["in.gov.br"]),
+    ("stf", "Supremo Tribunal Federal", "jurisprudencia", ["stf.jus.br"]),
+    ("stj", "Superior Tribunal de Justiça", "jurisprudencia", ["stj.jus.br"]),
+    ("tst", "Tribunal Superior do Trabalho", "jurisprudencia", ["tst.jus.br"]),
+    ("tse", "Tribunal Superior Eleitoral", "jurisprudencia", ["tse.jus.br"]),
+    ("stm", "Superior Tribunal Militar", "jurisprudencia", ["stm.jus.br"]),
+    ("trt21", "TRT da 21ª Região (RN)", "jurisprudencia", ["trt21.jus.br"]),
+    ("tjrn", "Tribunal de Justiça do RN", "jurisprudencia", ["tjrn.jus.br"]),
+    ("trf5", "TRF da 5ª Região", "jurisprudencia", ["trf5.jus.br"]),
+    ("tnu", "Conselho da Justiça Federal (TNU)", "jurisprudencia", ["cjf.jus.br"]),
+]
+
+AVISO_ITEM_INICIAL = ("Item sugerido pelo sistema, sem texto: use \"Consultar a fonte agora\" para coletar o texto "
+                      "oficial e confira a vigência antes de usar.")
+
+# (tipo, título, identificador, endereço oficial). Entram sem texto e com vigência a conferir.
+BIBLIOTECA_INICIAL = [
+    ("constituicao", "Constituição da República Federativa do Brasil de 1988", "CF/1988",
+     "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm"),
+    ("codigo", "Consolidação das Leis do Trabalho (CLT) — Decreto-Lei nº 5.452/1943", "Decreto-Lei 5.452/1943",
+     "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm"),
+    ("codigo", "Código de Processo Civil — Lei nº 13.105/2015", "Lei 13.105/2015",
+     "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm"),
+    ("lei", "Estatuto da Advocacia e da OAB — Lei nº 8.906/1994", "Lei 8.906/1994",
+     "https://www.planalto.gov.br/ccivil_03/leis/l8906.htm"),
 ]

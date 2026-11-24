@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from datetime import date
 
 from app.modelos import (
-    Configuracao, Departamento, DiaCalendario, Escritorio, Integracao, ModeloDocumento, Perfil, Permissao, RegraPrazo,
+    Configuracao, Departamento, DiaCalendario, Escritorio, FonteConhecimento, Integracao, ItemBiblioteca, ModeloDocumento, Perfil, Permissao, RegraPrazo,
     Tribunal,
 )
 from app.servicos import auditoria, catalogo, tribunais
@@ -98,6 +98,21 @@ def semear(sessao: Session) -> dict[str, int]:
                                        conteudo=conteudo, descricao=catalogo.AVISO_MODELO_INICIAL, situacao="rascunho",
                                        sugerido_pelo_sistema=True, rodape="Página {{pagina}}"))
             criados["modelos"] += 1
+
+    fontes = {f.codigo: f for f in sessao.execute(select(FonteConhecimento).where(FonteConhecimento.escritorio_id == esc.id)).scalars()}
+    for codigo, nome, tipo, dominios in catalogo.FONTES_CONHECIMENTO:
+        if codigo not in fontes:
+            fontes[codigo] = FonteConhecimento(escritorio_id=esc.id, codigo=codigo, nome=nome, tipo=tipo, dominios=dominios)
+            sessao.add(fontes[codigo])
+            criados["fontes_conhecimento"] = criados.get("fontes_conhecimento", 0) + 1
+    sessao.flush()
+    itens = set(sessao.execute(select(ItemBiblioteca.identificador).where(ItemBiblioteca.escritorio_id == esc.id)).scalars())
+    for tipo, titulo, ident, url in catalogo.BIBLIOTECA_INICIAL:
+        if ident not in itens:
+            sessao.add(ItemBiblioteca(escritorio_id=esc.id, tipo=tipo, titulo=titulo, identificador=ident, esfera="federal",
+                                      url_origem=url, licenca="publico", vigencia="a_conferir", monitorar=True,
+                                      fonte_id=fontes["planalto"].id, ementa=catalogo.AVISO_ITEM_INICIAL))
+            criados["biblioteca"] = criados.get("biblioteca", 0) + 1
 
     sessao.flush()
     if any(criados.values()):

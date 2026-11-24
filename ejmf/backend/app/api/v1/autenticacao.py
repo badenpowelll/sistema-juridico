@@ -13,7 +13,7 @@ from app.core.logs import trace_id_atual
 from app.modelos import Sessao
 from app.servicos import auditoria
 from app.servicos.autenticacao import (
-    ErroAutenticacao, agora, confirmar_mfa, eh_admin, login, permissoes_do_usuario, revogar_sessoes,
+    ErroAutenticacao, agora, confirmar_mfa, eh_admin, login, revogar_sessoes,
 )
 
 rotas = APIRouter(prefix="/auth", tags=["autenticação"])

@@ -13,14 +13,12 @@ from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.modelos import (
-    Aprovacao, Compromisso, CredencialIntegracao, Integracao, Notificacao, Pendencia, Prazo, Processo, Relatorio, Tarefa,
+    Aprovacao, Compromisso, CredencialIntegracao, Integracao, Pendencia, Prazo, Relatorio, Tarefa,
 )
-from app.servicos import agenda, agenda_google, prazos as svc_prazos, prioridades, relatorios, sincronizacao
+from app.servicos import agenda_google, prazos as svc_prazos, prioridades, relatorios
 from app.servicos.conectores import google_simulado
-from app.servicos.conectores.base import CredencialRecusada
 from app.servicos.semente import obter_escritorio
 from tests import sinteticos as s
-from tests.conftest import SENHA, criar
 
 FZ = ZoneInfo("America/Fortaleza")
 

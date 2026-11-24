@@ -21,7 +21,7 @@ from app.modelos import (
     CATEGORIAS_DOCUMENTO, Atendimento, Cliente, Documento, DocumentoRecebido, Processo, Tarefa, Usuario,
     VersaoDocumento,
 )
-from app.servicos import armazenamento, auditoria, extracao, fila
+from app.servicos import armazenamento, auditoria, conhecimento, extracao, fila
 from app.servicos import prazos as svc_prazos
 from app.servicos.identificadores import normalizar_texto
 
@@ -205,6 +205,8 @@ def _tarefa_extrair(db: Session, t: Tarefa) -> dict:
         db.add(tv)
         if doc.categoria_por == "regra" and doc.categoria in ("outro", "foto"):
             doc.categoria = classificar(v.nome_arquivo or doc.titulo, res.texto, v.tipo_mime or "")
+        db.flush()
+        conhecimento.sincronizar_documento(db, doc)
     auditoria.registrar(db, auditoria.Ator("sistema", None, "Processamento de documentos", doc.escritorio_id),
                         "documento.extrair", entidade="documento", entidade_id=doc.id, origem="worker",
                         alteracoes={"versao": v.numero, "situacao": res.situacao, "metodo": res.metodo,
@@ -238,6 +240,8 @@ def alterar(db: Session, ator: auditoria.Ator, doc: Documento, mud: dict) -> Doc
         setattr(doc, k, v)
     if "categoria" in mud:
         doc.categoria_por = "pessoa"
+    if {"cliente_id", "processo_id", "sigiloso", "titulo"} & set(mud):
+        conhecimento.sincronizar_documento(db, doc)
     auditoria.registrar(db, ator, "documento.alterar", entidade="documento", entidade_id=doc.id,
                         alteracoes={"antes": antes, "depois": {k: (str(v) if v is not None else None) for k, v in mud.items()}})
     return doc
@@ -254,6 +258,7 @@ def arquivar(db: Session, ator: auditoria.Ator, doc: Documento, arquivar_: bool,
         if doc.situacao != "arquivado":
             raise ErroDocumento("O documento não está arquivado", 409)
         doc.situacao, doc.motivo_situacao = "ativo", None
+    conhecimento.sincronizar_documento(db, doc)
     auditoria.registrar(db, ator, "documento." + ("arquivar" if arquivar_ else "desarquivar"), entidade="documento",
                         entidade_id=doc.id, alteracoes={"motivo": motivo})
     return doc

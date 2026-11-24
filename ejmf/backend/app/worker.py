@@ -16,7 +16,9 @@ from app.core.banco import fabrica_sessao
 from app.core.config import obter_config
 from app.core.logs import configurar_logs
 from app.modelos import Configuracao
-from app.servicos import assinaturas, conversas, documentos, fila, relatorios, sincronizacao  # noqa: F401  (registram executores da fila)
+from app.servicos import (  # noqa: F401  (registram executores da fila)
+    assinaturas, biblioteca, conversas, documentos, fila, relatorios, sincronizacao,
+)
 from app.servicos.semente import obter_escritorio
 
 log = logging.getLogger("ejmf.worker")
@@ -43,7 +45,8 @@ def ciclo(agora_local: datetime | None = None) -> dict:
     agora_local = agora_local or datetime.now(ZoneInfo(obter_config().fuso_horario))
     with fabrica_sessao()() as db:
         esc = obter_escritorio(db)
-        agendadas = sincronizacao.agendar(db, esc.id, agora_local) + relatorios.agendar(db, esc.id, agora_local)
+        agendadas = (sincronizacao.agendar(db, esc.id, agora_local) + relatorios.agendar(db, esc.id, agora_local)
+                     + biblioteca.agendar(db, esc.id, agora_local))
         retomadas = fila.recuperar_travadas(db)
         db.commit()
         processadas = fila.processar(db)
