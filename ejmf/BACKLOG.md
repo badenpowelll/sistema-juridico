@@ -46,6 +46,20 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 | F3-08 ✓ | Alertas configuráveis (15/7/5/3/2/1/0 dias) | P1 |
 | F3-09 ✓ | Central de contingência (estado por fonte, último sucesso, "monitoramento comprometido") | P0 |
 
+## Fase 4 — Agenda e secretaria
+| ID | Item | Prioridade |
+|---|---|---|
+| F4-01 ✓ | Compromissos (audiência, reunião, atendimento, lembrete, bloqueio, trabalho concentrado, pessoal) com conflito, sobrecarga e disponibilidade | P0 |
+| F4-02 ✓ | Agenda dia, semana e mês; compromissos no prontuário | P0 |
+| F4-03 ✓ | Google Calendar: OAuth com PKCE, tokens cifrados, sincronização incremental bidirecional, regras de não apagar e aprovação de audiência | P0 — validação real pendente das credenciais |
+| F4-04 ✓ | Google simulado identificado para testes | P1 |
+| F4-05 ✓ | Central de prioridades com classes, justificativa e ações | P0 |
+| F4-06 ✓ | Central de aprovações | P0 |
+| F4-07 ✓ | Relatório diário (6h30) e de encerramento | P0 |
+| F4-08 ✓ | Notificações internas | P1 |
+| F4-09 | Envio dos relatórios por e-mail e WhatsApp | P1 — depende de Gmail (Fase 4, credenciais) e WhatsApp (Fase 5) |
+| F4-10 | Delegação a funções virtuais | Fase 8 |
+
 ## Demais fases
 Itens detalhados ao abrir cada fase (ver ROADMAP). Itens registrados desde já:
 

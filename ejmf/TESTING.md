@@ -55,4 +55,13 @@ Importação de 5.100 linhas (2% com problema): analisar 0,22 s, validar 0,84 s,
 
 Verificação manual do cenário E2E: 16/11/2026 (segunda) é a disponibilização; a publicação é 17/11; a contagem começa em 18/11; 20/11 (Dia da Consciência Negra, Lei 14.759/2023) não conta; o 15º dia útil é 09/12/2026.
 
+### Fase 4 — 2026-11-24 (mesmo ambiente)
+| Comando | Resultado |
+|---|---|
+| `cd backend && pytest -q` | **109 passed**. Os 8 novos (`tests/test_secretaria.py`): agenda com conflito, sobrecarga (limite de horas e de audiências por dia), disponibilidade e validações (audiência exige processo; tipo "externo" não é criado à mão); compromisso pessoal oculto para os outros; operador pede cancelamento de audiência e o advogado aprova; Google simulado de ida e volta (sem duplicar, eventos de fora nunca apagados, audiência movida no Google só muda com aprovação, rejeição devolve o horário do EJMF, evento excluído no Google vira pendência, token de sincronização expirado (410) refaz a carga completa); OAuth real com PKCE simulado por `httpx.MockTransport` (state validado, tokens cifrados, prazo homologado enviado como evento de dia inteiro, renovação do token, 401 volta para "Aguardando credenciais", revogação ao desconectar); prioridades (classes, justificativa, item crítico não adiável, item automático fecha sozinho); relatórios diário e de encerramento (idempotentes, entregas por canal); agendador (6h30, 18h00 e prioridades a cada 5 min, sem duplicar) |
+| `alembic upgrade head` / `downgrade -1` / `upgrade head` e `alembic check` (migração `0004_agenda_secretaria`) | ida e volta sem erro; modelos e migração sem diferença |
+| `cd frontend && npm run lint && npx tsc --noEmit && npm run build` | sem erros |
+| `cd frontend && npx playwright test --trace off` | **35 passed, 1 skipped** (3 cenários novos × desktop e celular: reunião e audiência em conflito com aviso, visões dia, semana e mês, operador pede o cancelamento da audiência e o advogado aprova na central de aprovações, compromisso no prontuário; Google simulado com eventos "[SIMULADO" somente leitura e sem duplicar na segunda sincronização; pendência manual com justificativa, "aguardando cliente", delegação a função virtual recusada até a Fase 8, relatório diário gerado na hora e notificação no sino) |
+| Google Calendar real | não testado contra a conta real: falta o projeto do Google Cloud (`EJMF_GOOGLE_CLIENT_ID`, `EJMF_GOOGLE_CLIENT_SECRET`, `EJMF_GOOGLE_REDIRECT_URI`). Estado "Aguardando credenciais" |
+
 CI: `.github/workflows/ejmf.yml` roda os mesmos testes (backend + E2E) em cada PR que toca `ejmf/`.

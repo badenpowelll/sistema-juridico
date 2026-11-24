@@ -10,7 +10,8 @@ Estados oficiais: **Implementada e validada · Implementada em ambiente de teste
 | Domicílio Judicial Eletrônico | Aguardando autorização | Acesso gov.br/certificado do titular | — |
 | PJe / eproc / e-SAJ / PROJUDI | Não implementada | Convênios/MNI; sem contornar captcha | — |
 | Gmail institucional | Aguardando credenciais | Projeto Google Cloud + OAuth do escritório | 4 |
-| Google Calendar | Aguardando credenciais | Idem | 4 |
+| Google Calendar | Aguardando credenciais | Projeto Google Cloud do escritório: `EJMF_GOOGLE_CLIENT_ID`, `EJMF_GOOGLE_CLIENT_SECRET`, `EJMF_GOOGLE_REDIRECT_URI` (…/api/v1/agenda/google/retorno). Conector pronto; sobe para "em testes" ao conectar e para "validada" na primeira sincronização real | 4 |
+| Simulado — Google Calendar | Implementada em ambiente de testes | Só com `EJMF_CONECTORES_SIMULADOS=true`; servidor falso em memória com eventos "[SIMULADO — dado fictício]". Não convive com a conta real | 4 |
 | WhatsApp Business (Cloud API) | Aguardando credenciais | Conta Meta Business verificada (CNPJ) | 5 |
 | Assinatura eletrônica (Documenso) | Não implementada | Instância própria | 6 |
 | Provedores de IA | Aguardando credenciais | Chaves e aprovação de tratamento de dados | 8 |
@@ -24,3 +25,11 @@ Regra: um conector só sobe para "Implementada e validada" depois de teste contr
 - Falhas: 429 respeita o `Retry-After`; 403, 5xx e tempo esgotado reagendam com espera exponencial (1 min a 1 h). Três falhas seguidas abrem o circuito por 15 min, dobrando até 6 h, e a fonte vira "Indisponível". Credencial ausente ou recusada não é tentada de novo.
 - Promoção: a primeira sincronização real com sucesso sobe a fonte para "Implementada e validada". Adaptador simulado nunca sobe.
 - Contingência: sem sucesso há mais de 26 h (`controladoria.horas_sem_sucesso_alerta`), a fonte é tratada como "monitoramento comprometido" no painel e na Central de contingência, com o procedimento manual. Ausência de informação não é ausência de acontecimentos.
+
+## Google Calendar (Fase 4)
+- Escopo único: `https://www.googleapis.com/auth/calendar.events.owned` (só eventos das agendas da conta conectada). OAuth "authorization code" com PKCE S256, `access_type=offline` e `prompt=consent`; o state vale 10 min e é ligado ao usuário que iniciou.
+- Sincronização a cada 15 min pelo worker (ou "Sincronizar agora"), incremental por `syncToken`; resposta 410 refaz a carga completa. Usa o mesmo circuit breaker e registro de execução dos outros conectores.
+- O EJMF só altera ou apaga eventos que ele criou (marcados com `extendedProperties.private.ejmf_id`). Eventos de fora entram como compromissos "externos", somente leitura; eventos privados aparecem como "Ocupado".
+- Audiência movida no Google vira pedido de aprovação; se rejeitado, o horário do EJMF volta para o Google. Outros compromissos movidos no Google são aplicados com histórico. Evento do EJMF apagado no Google não cancela nada: vira pendência.
+- Prazos só vão ao Google depois de homologados (evento de dia inteiro); se deixam de estar homologados, o evento sai.
+- Token recusado (401) volta o estado para "Aguardando credenciais". Desconectar revoga o token e não apaga nada no Google.

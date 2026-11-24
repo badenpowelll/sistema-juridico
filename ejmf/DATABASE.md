@@ -68,4 +68,17 @@ escritorios ─┬─< calendario
 
 Também nesta migração: `integracoes.falhas_consecutivas` e `circuito_aberto_ate`; `movimentacoes.chave_externa` (única quando preenchida) para não duplicar andamentos do DataJud.
 
+## Fase 4 (`0004_agenda_secretaria`)
+
+| Tabela | Observações |
+|---|---|
+| `compromissos` | `tipo` (audiencia, reuniao, atendimento, compromisso, lembrete, bloqueio, trabalho_concentrado, pessoal, externo), `titulo`, `inicio`/`fim` com fuso, `dia_inteiro`, `modalidade`, `local`, `link_virtual`, `processo_id` (obrigatório em audiência), `responsavel_id`, `participantes`, `situacao` (agendado, realizado, cancelado), `resultado`, motivo de cancelamento, `origem` (ejmf, google), `google_event_id` (único quando preenchido), `removido_no_google`, `simulado`. |
+| `credenciais_integracao` | Uma por escritório e integração: `dados_cifrados` (Fernet: tokens OAuth) e `estado` JSON (syncToken, state e verificador PKCE temporários, conta). Nunca devolvida pela API. |
+| `pendencias` | Itens da central de prioridades: `origem` (sistema, manual), `chave` única para os automáticos, `classe`, `pontuacao`, `justificativa`, `critica`, responsável, prazo, `adiada_ate`, resolução. |
+| `aprovacoes` | Pedidos que esperam decisão humana: `tipo`, entidade, `dados`, quem pediu, `situacao` (pendente, aprovada, rejeitada, devolvida, cancelada), quem decidiu e motivo. |
+| `relatorios` | `tipo` (diario, encerramento) e `referencia` únicos por escritório; `conteudo` JSON e `entregas` por canal. |
+| `notificacoes` | Por usuário, com `chave` única opcional (não repete o mesmo aviso), `nivel`, `link` e `lida_em`. |
+
+Também nesta migração: `prazos.google_event_id` e `prazos.google_vencimento`.
+
 As tabelas das fases seguintes são documentadas aqui quando a migração correspondente é criada.

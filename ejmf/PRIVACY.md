@@ -11,6 +11,7 @@
 - **Importação (Fase 2):** o arquivo enviado não é guardado; ficam só as linhas necessárias para conferência e reversão.
 - **Publicações (Fase 3):** o texto e o original ficam guardados porque são prova; leituras internas ficam registradas por pessoa. O sistema nunca registra ciência oficial sozinho.
 - **Dados simulados (Fase 3):** o adaptador simulado gera só dados fictícios, marcados no texto, no banco (`simulado`) e na tela.
+- **Agenda (Fase 4):** compromisso pessoal aparece como "Compromisso pessoal", sem título, local ou descrição, para quem não é o dono nem o responsável; o mesmo vale nos relatórios. Eventos marcados como privados no Google entram como "Ocupado". Só os eventos da agenda escolhida são lidos.
 - **Isolamento:** dados de um cliente nunca aparecem para outro; a recuperação semântica (RAG) filtra por escopo antes da busca.
 - **Desenvolvimento:** apenas dados sintéticos. Planilhas reais de trabalhadores (pasta `saidas/` do projeto) **não** entram no EJMF nem no Git.
 - **Provedores de IA:** só aprovados pelo responsável, com retenção de dados verificada; dados sensíveis mascarados quando possível.

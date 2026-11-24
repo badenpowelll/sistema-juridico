@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [Fase 4] — 2026-11-24
+- Migração `0004_agenda_secretaria`: compromissos, credenciais de integração cifradas, pendências, aprovações, relatórios e notificações; prazos ganham o vínculo com o evento do Google.
+- Agenda com visões dia, semana e mês: audiências (sempre ligadas a processo), reuniões, atendimentos, lembretes, bloqueios, trabalho concentrado e compromissos pessoais (visíveis só para o dono). Avisa conflito de horário e sobrecarga do dia (limites configuráveis), mostra disponibilidade e guarda o histórico de reagendamentos.
+- Cancelar audiência exige o advogado; o operador faz um pedido que vai para a central de aprovações.
+- Google Calendar: OAuth com PKCE e escopo mínimo (`calendar.events.owned`), tokens cifrados, sincronização incremental a cada 15 min, prazos homologados enviados como eventos de dia inteiro. Eventos de fora entram como "externos" somente leitura e nunca são apagados; audiência movida no Google só muda no EJMF com aprovação. Sem credenciais fica "Aguardando credenciais"; há um Google simulado identificado para testes.
+- Central de prioridades com dez classes, justificativa de cada posição e ações (adiar, delegar, solicitar informações, aguardar cliente ou terceiros, devolver, concluir, reabrir). Item crítico não pode ser adiado; item automático fecha sozinho quando a origem se resolve.
+- Central de aprovações: pedidos da equipe, prazos por homologar, regras não homologadas e possíveis suspensões; quem pediu não decide o próprio pedido.
+- Relatório diário às 6h30 e de encerramento às 18h00, com entrega no painel e nas notificações; e-mail e WhatsApp aparecem com o estado da integração e só enviam depois de validados.
+- Notificações no cabeçalho; agenda, prioridades, aprovações e relatórios no menu; compromissos no prontuário; audiências da semana e reuniões de hoje passam a ser indicadores reais do painel.
+
 ## [Fase 3] — 2026-11-24
 - Migração `0003_controladoria`: calendário, regras de prazo, publicações, leituras, prazos, alertas, execuções de integração e fila de tarefas.
 - Calendário forense: feriados nacionais (inclusive 20/11), datas da Justiça Federal (Lei 5.010 art. 62), recesso do art. 220 do CPC, e Carnaval, Paixão e Corpus Christi como "possível suspensão" a confirmar. Feriados locais cadastráveis por tribunal, UF ou segmento.
