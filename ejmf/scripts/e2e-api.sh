@@ -15,5 +15,7 @@ EJMF_SENHA_INICIAL="senha-e2e-sintetica" python -m app.cli criar-admin --email a
 EJMF_SENHA_INICIAL="senha-e2e-sintetica" python -m app.cli criar-admin --email operador.e2e@example.com --nome "Operador Sintético" --perfil operador >/dev/null
 EJMF_SENHA_INICIAL="senha-e2e-sintetica" python -m app.cli criar-admin --email mfa.e2e@example.com --nome "Usuário MFA Sintético" --perfil operador >/dev/null
 export EJMF_LOGIN_LIMITE_POR_MINUTO_IP=500  # todos os testes saem do mesmo IP
+export EJMF_URL_PUBLICA="http://localhost:3010"  # links de cadastro e convites do portal apontam para o Next do E2E
+EJMF_ARQUIVOS_DIR="$(mktemp -d)"; export EJMF_ARQUIVOS_DIR  # arquivos enviados nos testes ficam fora do repositório
 export EJMF_CONECTORES_SIMULADOS=true  # habilita só o adaptador "Simulado — DJEN" (dados fictícios)
 exec uvicorn app.main:app --port "$PORTA" --log-level warning
