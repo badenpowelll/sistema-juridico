@@ -49,7 +49,7 @@ export type DetalheFuncao = FuncaoIA & {
 };
 
 export type Comando = {
-  id: string; texto: string; tipo: string; situacao: string; intencao: string | null; execucao_id: string | null; criado_em: string;
+  id: string; texto: string; tipo: string; situacao: string; intencao: string | null; canal?: string; execucao_id: string | null; criado_em: string;
   resposta: { texto: string; link?: string; confirmar?: boolean; itens?: Record<string, unknown>[]; total?: number; origem?: string;
     aviso?: string; fontes?: { ferramenta: string; origem?: string; link?: string }[]; simulado?: boolean; ia?: boolean; exemplos?: string[];
     indisponivel?: boolean; atualizado_em?: string } | null;

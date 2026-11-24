@@ -11,6 +11,10 @@ export const metadata: Metadata = {
   title: { default: marca.nome, template: `%s · ${marca.sigla}` },
   description: `${marca.nome} — ${marca.slogan}. ${marca.responsavel}, ${marca.oab}.`,
   robots: { index: false, follow: false },
+  applicationName: marca.sigla,
+  appleWebApp: { capable: true, title: marca.sigla, statusBarStyle: "black-translucent" },
+  icons: { icon: "/icones/icone.svg", apple: "/icones/apple-touch-icon.png" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {

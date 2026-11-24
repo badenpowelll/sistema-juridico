@@ -4,8 +4,63 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useEu } from "@/componentes/CascoPainel";
 import { Aviso, Botao, Campo, Cartao, Selo } from "@/componentes/ui";
 import { api, dataHora, enviar } from "@/lib/api";
+import { ativarPush, estadoPush, nomeDoAparelho, suportaPush, type EstadoPush } from "@/lib/pwa";
 
 type SessaoInfo = { id: string; criado_em: string; ultimo_uso_em: string; ip: string | null; agente: string | null; atual: boolean };
+
+function Aparelhos() {
+  const [e, setE] = useState<EstadoPush | null>(null);
+  const [msg, setMsg] = useState<{ tom: string; texto: string } | null>(null);
+  const [urgentes, setUrgentes] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+  const carregar = () => estadoPush().then(setE).catch(() => {});
+  useEffect(() => { carregar(); }, []);
+  const suporta = typeof window !== "undefined" && suportaPush();
+  const esteAtivo = e?.aparelhos.some((a) => a.este_aparelho);
+
+  async function ativar() {
+    if (!e?.chave_publica) return;
+    setMsg(null); setOcupado(true);
+    try { await ativarPush(e.chave_publica, urgentes); setMsg({ tom: "ok", texto: "Notificações ativadas neste aparelho." }); carregar(); }
+    catch (x) { setMsg({ tom: "perigo", texto: (x as Error).message }); } finally { setOcupado(false); }
+  }
+  async function agir(fn: () => Promise<unknown>, ok: string) {
+    setMsg(null);
+    try { await fn(); setMsg({ tom: "ok", texto: ok }); carregar(); } catch (x) { setMsg({ tom: "perigo", texto: (x as Error).message }); }
+  }
+
+  return (
+    <Cartao titulo="Notificações no celular" acao={e && <Selo tom={e.disponivel ? "ok" : "alerta"}>{e.disponivel ? "Disponível" : "Aguardando configuração"}</Selo>}>
+      {msg && <div className="mb-3"><Aviso tom={msg.tom}>{msg.texto}</Aviso></div>}
+      {!e ? <p className="text-sm text-suave" aria-busy="true">Carregando…</p> : (<>
+        <p className="text-sm text-suave">{e.aviso} Encerrar a sessão de um aparelho encerra também as notificações dele.</p>
+        {e.disponivel && !esteAtivo && (suporta ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={urgentes} onChange={(x) => setUrgentes(x.target.checked)} /> Só alertas urgentes</label>
+            <Botao onClick={ativar} disabled={ocupado}>Ativar neste aparelho ({nomeDoAparelho()})</Botao>
+          </div>
+        ) : <p className="mt-3 text-sm">Este navegador não recebe notificações. No iPhone, instale o EJMF na tela de início (Compartilhar → Adicionar à Tela de Início) e abra por lá.</p>)}
+        {e.aparelhos.length > 0 && (
+          <ul className="mt-3 divide-y divide-borda" aria-label="Aparelhos com notificações">
+            {e.aparelhos.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                <div><span className="font-medium">{a.dispositivo ?? "Aparelho"}</span> {a.este_aparelho && <Selo tom="ok">Este aparelho</Selo>}
+                  <div className="text-xs text-suave">{a.so_urgentes ? "Só alertas urgentes" : "Todas as notificações"} · desde {dataHora(a.criado_em)}
+                    {a.ultimo_envio_em ? ` · último envio ${dataHora(a.ultimo_envio_em)}` : ""}</div></div>
+                <div className="flex flex-wrap gap-2">
+                  <Botao variante="secundario" onClick={() => agir(() => enviar(`/aparelhos/push/${a.id}`, "PATCH", { so_urgentes: !a.so_urgentes }), "Preferência salva.")}>
+                    {a.so_urgentes ? "Receber todas" : "Só urgentes"}</Botao>
+                  <Botao variante="secundario" onClick={() => agir(() => enviar(`/aparelhos/push/${a.id}/teste`, "POST"), "Aviso de teste enviado.")}>Testar</Botao>
+                  <Botao variante="perigo" onClick={() => agir(() => enviar(`/aparelhos/push/${a.id}`, "DELETE"), "Notificações desligadas neste aparelho.")}>Desligar</Botao>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </>)}
+    </Cartao>
+  );
+}
 
 export default function Seguranca() {
   const { eu, recarregar } = useEu();
@@ -65,13 +120,15 @@ export default function Seguranca() {
         <ul className="divide-y divide-borda">
           {sessoes.map((s) => (
             <li key={s.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-              <div><div>{s.agente ?? "Navegador"} {s.atual && <Selo tom="ok">Esta sessão</Selo>}</div>
+              <div><div>{s.agente ? nomeDoAparelho(s.agente) : "Navegador"} {s.atual && <Selo tom="ok">Esta sessão</Selo>}</div>
                 <div className="text-xs text-suave">IP {s.ip ?? "—"} · último uso {dataHora(s.ultimo_uso_em)}</div></div>
               {!s.atual && <Botao variante="secundario" onClick={() => revogar(s.id)}>Encerrar</Botao>}
             </li>
           ))}
         </ul>
       </Cartao>
+
+      <Aparelhos />
 
       <Cartao titulo="Trocar senha">
         <form onSubmit={trocarSenha} className="grid gap-3 sm:grid-cols-3 sm:items-end">

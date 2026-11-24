@@ -4,8 +4,11 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Aviso, Botao, Cartao, Selo } from "@/componentes/ui";
 import { api, dataHora, enviar } from "@/lib/api";
 import type { Comando } from "@/lib/ia";
+import { criarReconhecedor, falar } from "@/lib/pwa";
 
-type Historico = { itens: Comando[]; exemplos: string[] };
+type Voz = { permitida: boolean; pode_alterar: boolean; aviso: string };
+type Historico = { itens: Comando[]; exemplos: string[]; voz: Voz };
+const LER = "ejmf-ler-respostas";
 
 function Itens({ itens }: { itens: Record<string, unknown>[] }) {
   return (
@@ -29,15 +32,42 @@ export default function Assistente() {
   const [erro, setErro] = useState<string | null>(null);
   const [versao, setVersao] = useState(0);
   const fim = useRef<HTMLDivElement>(null);
+  const [ouvindo, setOuvindo] = useState(false);
+  const [ler, setLer] = useState(() => { try { return typeof window !== "undefined" && localStorage.getItem(LER) === "1"; } catch { return false; } });
+  const [temMicrofone] = useState(() => criarReconhecedor() !== null);
 
   useEffect(() => { api<Historico>("/assistente").then(setH).catch((e) => setErro(e.message)); }, [versao]);
   useEffect(() => { fim.current?.scrollIntoView({ block: "end" }); }, [h]);
 
-  async function mandar(t: string) {
+  async function mandar(t: string, canal: "texto" | "voz" = "texto") {
     if (t.trim().length < 2) return;
     setErro(null); setEnviando(true);
-    try { await enviar("/assistente", "POST", { texto: t }); setTexto((atual) => (atual === t ? "" : atual)); setVersao((v) => v + 1); }
-    catch (x) { setErro((x as Error).message); } finally { setEnviando(false); }
+    try {
+      const c = await enviar<Comando>("/assistente", "POST", { texto: t, canal });
+      setTexto((atual) => (atual === t ? "" : atual)); setVersao((v) => v + 1);
+      if (ler && c.resposta?.texto) falar(c.resposta.texto);
+    } catch (x) { setErro((x as Error).message); } finally { setEnviando(false); }
+  }
+
+  function ouvir() {
+    const r = criarReconhecedor();
+    if (!r) return;
+    r.onresult = (e) => { const t = e.results[0]?.[0]?.transcript?.trim() ?? ""; setTexto(t); if (t) mandar(t, "voz"); };
+    r.onerror = (e) => setErro(e.error === "not-allowed" ? "O navegador não deu acesso ao microfone." : "Não entendi. Tente de novo ou digite.");
+    r.onend = () => setOuvindo(false);
+    setOuvindo(true);
+    r.start();
+  }
+
+  async function permitirVoz(permitida: boolean) {
+    setErro(null);
+    try { await enviar("/assistente/voz", "PUT", { permitida }); setVersao((v) => v + 1); } catch (x) { setErro((x as Error).message); }
+  }
+
+  function alternarLeitura(v: boolean) {
+    setLer(v);
+    try { localStorage.setItem(LER, v ? "1" : "0"); } catch { /* sem armazenamento: vale só nesta página */ }
+    if (!v && typeof window !== "undefined") window.speechSynthesis?.cancel();
   }
 
   async function decidir(id: string, acao: "confirmar" | "cancelar") {
@@ -87,8 +117,17 @@ export default function Assistente() {
         <form className="mt-4 flex gap-2" aria-label="Comando ao assistente" onSubmit={(e: FormEvent) => { e.preventDefault(); mandar(texto); }}>
           <input aria-label="Seu comando" value={texto} onChange={(e) => setTexto(e.target.value)} maxLength={2000} placeholder="Ex.: prazos dos próximos 7 dias"
             className="flex-1 rounded-md border border-borda bg-superficie px-3 py-2 text-sm" />
+          {h?.voz.permitida && temMicrofone && (
+            <Botao type="button" variante="secundario" onClick={ouvir} disabled={ouvindo || enviando} aria-label="Falar o comando">{ouvindo ? "Ouvindo…" : "🎤 Falar"}</Botao>)}
           <Botao type="submit" disabled={enviando || texto.trim().length < 2}>{enviando ? "…" : "Enviar"}</Botao>
         </form>
+        <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-suave">
+          <label className="flex items-center gap-1"><input type="checkbox" checked={ler} onChange={(e) => alternarLeitura(e.target.checked)} /> Ler as respostas em voz alta (no próprio aparelho)</label>
+          {h?.voz.pode_alterar && (
+            <label className="flex items-center gap-1"><input type="checkbox" checked={h.voz.permitida} onChange={(e) => permitirVoz(e.target.checked)} /> Permitir comandos por voz no escritório</label>)}
+        </div>
+        {h?.voz.pode_alterar && <p className="mt-1 text-xs text-suave">{h.voz.aviso}</p>}
+        {h?.voz.permitida && !temMicrofone && <p className="mt-1 text-xs text-suave">Este navegador não tem reconhecimento de voz; digite o comando.</p>}
         {h && <div className="mt-3 flex flex-wrap gap-1" aria-label="Exemplos">{h.exemplos.map((x) => (
           <button key={x} type="button" onClick={() => mandar(x)} className="rounded-full border border-borda px-3 py-1 text-xs hover:bg-superficie-2">{x}</button>))}</div>}
       </Cartao>
