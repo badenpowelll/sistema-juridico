@@ -444,3 +444,17 @@ def test_funcoes_financeiras_por_regras_e_lembrete_pela_central(db, admin):
     ex2 = _ok(c.post("/api/v1/ia/funcoes/gestor_cobrancas/executar", json={"entrada": {"lancamento_id": lc2["id"]}}), 201)
     assert ex2["estado"] == "concluida" and ex2["aprovacao_id"] is None and "nível" in ex2["saida"]["aviso"]
     assert db.execute(select(Lancamento).where(Lancamento.id == uuid.UUID(lc2["id"]))).scalar_one().situacao == "previsto"
+
+
+def test_aviso_diario_de_vencidos_uma_vez_por_dia(db, admin):
+    from app.modelos import Notificacao
+    c, _ = admin
+    _lancar(c, valor="321.00", venc=date.today() - timedelta(days=3), descricao="Honorário vencido sintético")
+    _lancar(c, tipo="despesa", cat="custas_processuais", valor="12.00", venc=date.today())
+    esc = obter_escritorio(db)
+    assert fin.notificar_vencidos(db, esc.id) >= 2
+    db.commit()
+    hoje = fin.hoje().isoformat()
+    chaves = {n.chave for n in db.execute(select(Notificacao).where(Notificacao.chave.in_((f"fin-vencidas:{hoje}", f"fin-despesas:{hoje}")))).scalars()}
+    assert chaves == {f"fin-vencidas:{hoje}", f"fin-despesas:{hoje}"}
+    assert fin.notificar_vencidos(db, esc.id) == 0  # mesma chave no mesmo dia: nada repetido

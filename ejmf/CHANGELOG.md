@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [Fase 9] — 2026-11-24
+- Migração `0009_financeiro`: contas, categorias, contratos de honorários, lançamentos, recibos, extratos importados e suas linhas, lembretes de cobrança.
+- Financeiro sem acesso a banco e sem cobrança externa (ADR-0013): contas só com nome e saldo; recebido e pago registrados por pessoa com `financeiro:liquidar`, data nunca futura, conta e forma.
+- Lançamentos de receita e despesa com previsto, faturado, recebido/pago e cancelado; pagamento parcial cria lançamento com o saldo; estorno e cancelamento com motivo; reembolsável e visível no portal.
+- Contratos de honorários fixo, parcelado, mensal, êxito e misto: parcelas viram lançamentos previstos; êxito lançado sobre valor-base informado por pessoa; encerrar mantém e cancelar cancela as parcelas em aberto.
+- Recibos numerados (AAAA/NNNN) com valor por extenso e minuta pelo modelo "recibo de honorários" quando homologado.
+- Lembretes de pagamento só no portal: publicados por quem tem `financeiro:cobrar` ou pela central de aprovações.
+- Conciliação bancária por extrato OFX ou CSV importado, com sugestões por regras, lançar a partir da linha, ignorar com motivo e desfazer.
+- Relatórios: resumo mensal (previsto, faturado, recebido, despesas, resultado de caixa), posição do dia e inadimplência, fluxo de caixa realizado e projetado, rentabilidade por processo, cliente e departamento sem rateio, exportação CSV para Excel em pt-BR.
+- Ligações: indicadores de honorários a receber e receitas vencidas no painel (e clientes aguardando, documentos em revisão e custo de IA do mês), cartão financeiro no processo, "Honorários e pagamentos" no portal, seção financeira e clientes aguardando retorno no relatório diário, aviso diário de receitas vencidas, funções 26–30 por regras, ferramenta `honorarios_a_receber` e gatilho "honorário pendente".
+- Telas: Financeiro (visão geral e contas), Lançamentos (lista e detalhe), Contratos de honorários (lista e detalhe), Conciliação e Fluxo de caixa e rentabilidade. Novas permissões `financeiro:*`.
+
 ## [Fase 8] — 2026-11-24
 - Migração `0008_ia`: modelos de IA, configuração das 40 funções, instruções versionadas, execuções e passos, comandos do assistente, automações e suas execuções, tokens do MCP.
 - Camada de provedores própria (ADR-0012): Claude pelo SDK oficial da Anthropic (saída estruturada, ferramentas estritas, recusa, limite de taxa e sobrecarga tratados), qualquer serviço compatível com a API de chat da OpenAI e um adaptador simulado identificado ("[SIMULADO]", custo zero, só com `EJMF_IA_SIMULADO`). LiteLLM avaliado e descartado.

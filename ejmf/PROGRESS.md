@@ -21,8 +21,10 @@
 
 - **Fase 8** — IA: camada própria de provedores (Claude pelo SDK oficial, compatível com OpenAI e simulado identificado), central de IA com modelos aprovados pelo advogado, preços, tetos e custos; orquestrador com permissões calculadas no código, limites de chamadas, tempo e orçamento, e retomada; as 40 funções catalogadas (12 executáveis, saídas validadas contra o material, nível 3 pela central de aprovações); assistente por texto que não altera nada sem confirmação; automações testadas antes de ativar; servidor MCP só de leitura (ADR-0012). Testes em TESTING.md (184 backend, 49 E2E).
 
+- **Fase 9** — financeiro: contas (só nome e saldo), categorias, lançamentos de receita e despesa com previsto, faturado, recebido/pago e cancelado, pagamento parcial com saldo, estorno com motivo; contratos de honorários fixo, parcelado, mensal, êxito e misto; recibos numerados com valor por extenso; lembretes de pagamento só no portal e só autorizados; conciliação por extrato OFX/CSV importado; fluxo de caixa realizado e projetado, rentabilidade sem rateio, exportação CSV; financeiro no painel, no processo, no portal, no relatório diário, nas funções 26–30 e no gatilho "honorário pendente" (ADR-0013). Testes em TESTING.md (196 backend, 51 E2E).
+
 ## Em desenvolvimento
-- Nada. Próxima: Fase 9 (financeiro).
+- Nada. Próxima: Fase 10 (PWA e experiência).
 
 ## Pendências que dependem do responsável
 - Dados institucionais: CNPJ, endereço, telefone, e-mail institucional, WhatsApp, domínio.

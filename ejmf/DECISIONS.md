@@ -32,3 +32,6 @@ Decisões estruturais ficam em ADRs (`docs/adr/`). Decisões menores e reversív
 | 2026-11-24 | Automações com construtor interno e lista fechada de ações; n8n não adotado | Menos um serviço e nenhuma credencial do EJMF fora dele | 0012 |
 | 2026-11-24 | Servidor MCP só de leitura, com token pessoal e permissões atuais do dono | Uso do EJMF por clientes MCP sem abrir escrita | 0012 |
 | 2026-11-24 | Pedido de aprovação feito por função virtual fica em nome da função | Permite que quem pediu a execução decida a proposta, sem autoaprovação de pedido próprio | 0012 |
+| 2026-11-24 | Financeiro só registra: sem acesso a banco, boleto, Pix ou cobrança externa; extrato importado por pessoa | Especificação (§26) e IA não movimenta dinheiro | 0013 |
+| 2026-11-24 | Lembrete de pagamento só no portal, publicado com `financeiro:cobrar` ou pela central de aprovações | Cobrança é comunicação com o cliente e exige autorização | 0013 |
+| 2026-11-24 | Calculadora de rescisão não reaproveitada no financeiro; rentabilidade sem rateio de custos operacionais | Domínios diferentes; critério de rateio ainda não decidido pelo escritório | 0013 |

@@ -22,7 +22,7 @@
 | Processo sem atualização | dias (90), repetir a cada N dias (30) | processo, dias sem movimentação |
 | Prazo sem homologação | dias até o vencimento (5) | descrição, processo, vencimento, situação |
 | Falha de integração | — (uma vez por dia por fonte) | fonte, motivos |
-| Honorário pendente | indisponível até a Fase 9 | — |
+| Honorário pendente | dias de atraso (1), repetir a cada N dias (7) | cliente, descrição, valor, vencimento, dias de atraso, processo |
 | Backup não realizado | indisponível até a Fase 11 | — |
 
 Operadores: é igual a, é diferente de, contém, não contém, é maior que, é menor que.

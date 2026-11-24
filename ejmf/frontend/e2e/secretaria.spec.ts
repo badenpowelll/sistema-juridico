@@ -188,7 +188,8 @@ test("central de prioridades com justificativa, relatório diário e notificaç�
   await expect(adv.getByRole("heading", { name: /Relatório diário —/ })).toBeVisible();
   const rel = visivel(adv, "[data-relatorio-detalhe]");
   await expect(rel).toContainText("Prazos que vencem hoje");
-  await expect(rel).toContainText("Ainda não disponível");
+  await expect(rel).toContainText("Financeiro");
+  await expect(rel).toContainText("Receitas vencidas");
   await expect(rel).toContainText("whatsapp");
   await expect(rel).not.toContainText("whatsapp: entregue");
 

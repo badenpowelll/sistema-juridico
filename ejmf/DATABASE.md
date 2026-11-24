@@ -139,4 +139,19 @@ Cria a extensão `vector` (pgvector).
 | `automacao_execucoes` | Execuções de teste e reais com versão, evento, resultado e erro. Índice único (automação, chave) para as reais: nenhuma ocorrência é tratada duas vezes. |
 | `tokens_mcp` | Tokens pessoais do MCP: só o hash (único) e o prefixo, nome, validade, revogação, último uso e contagem. |
 
+## Fase 9 (`0009_financeiro`)
+
+Valores em `Numeric(14,2)` (reais); a API devolve texto decimal. Nada é apagado: cancelamento e estorno guardam motivo e vão à auditoria.
+
+| Tabela | Observações |
+|---|---|
+| `contas_financeiras` | Só nome, `tipo` (corrente, caixa, aplicacao, outra), saldo inicial e data do saldo inicial, `ativa`. Sem agência, número, senha ou credencial. |
+| `categorias_financeiras` | `codigo` único por escritório, nome, `tipo` (receita ou despesa), `honorario`, `operacional` (fica fora da rentabilidade por processo), `ativa`. 18 categorias semeadas. |
+| `contratos_honorarios` | `numero` AAAA/NNNN (sequencial com trava consultiva), cliente, processo, departamento, minuta, `modalidade` (fixo, parcelado, mensal, exito, misto), valor fixo, parcelas, primeiro vencimento, percentual de êxito (0–100), data, `portal_visivel`, `situacao` (vigente, encerrado, cancelado) com motivo. |
+| `lancamentos` | `tipo`, categoria, descrição, `valor` > 0, vencimento, competência, `situacao` (previsto, faturado — só receita —, liquidado, cancelado), cliente, processo, contrato, departamento, parcela e total, `origem_id` (saldo de pagamento parcial), `reembolsavel`, `portal_visivel`, faturado em, liquidado em (obrigatório quando liquidado), conta, forma, observação, motivo do cancelamento, quem liquidou e quem criou. Índice parcial dos lançamentos em aberto por vencimento. |
+| `recibos` | `numero` único, lançamento (um recibo emitido por lançamento, por índice parcial), valor, valor por extenso, referente a, minuta gerada (quando o modelo está homologado), `situacao` (emitido, cancelado) com motivo. |
+| `extratos_importados` | Conta, nome do arquivo, `formato` (ofx, csv), SHA-256 (único por conta: o mesmo arquivo não entra duas vezes), linhas novas e repetidas, quem importou. O arquivo não é guardado. |
+| `linhas_extrato` | Conta, extrato, data, valor (≠ 0; negativo é saída), descrição, `chave` única por conta (FITID do OFX ou hash da linha com contador de repetição), `situacao` (pendente, conciliada, ignorada), lançamento ligado, motivo, quem conciliou e quando. |
+| `lembretes_cobranca` | Lançamento, cliente, texto, `situacao` (aguardando_aprovacao, publicado, rejeitado, retirado), `origem` (pessoa, funcao), aprovação ligada, quem autorizou, publicado em. Só aparece no portal quando publicado. |
+
 As tabelas das fases seguintes são documentadas aqui quando a migração correspondente é criada.

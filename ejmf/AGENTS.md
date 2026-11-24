@@ -89,11 +89,11 @@ Campos completos por função (entradas, saídas, ferramentas, permissões, limi
 | 23 | Revisor estrutural | Por regras (orquestrador) | Regras sobre a minuta da Fase 6 e as citações da Fase 7. |
 | 24 | Organizador de evidências | Fase futura | Planejada; depende de revisão do fluxo de atendimento. |
 | 25 | Gestor de assinaturas | Serviço do sistema | Documenso da Fase 6 (aguardando credenciais). |
-| 26 | Gestor financeiro | Fase futura | Módulo financeiro: Fase 9. |
-| 27 | Controlador de honorários | Fase futura | Módulo financeiro: Fase 9. |
-| 28 | Gestor de cobranças | Fase futura | Módulo financeiro: Fase 9. |
-| 29 | Conciliador financeiro | Fase futura | Módulo financeiro: Fase 9. |
-| 30 | Analista de rentabilidade | Fase futura | Módulo financeiro: Fase 9. |
+| 26 | Gestor financeiro | Por regras (orquestrador) | Posição do dia e alertas (vencidos, despesas da semana, extrato por conciliar ou sem importação há 35 dias). Números saem dos lançamentos da Fase 9. |
+| 27 | Controlador de honorários | Por regras (orquestrador) | Atrasos por cliente (vencido e a vencer em 15 dias) e contratos com êxito de processo encerrado ainda sem lançamento. |
+| 28 | Gestor de cobranças | Por regras (orquestrador) | Prepara o texto do lembrete de uma receita vencida visível no portal; nível 3 vira pedido na central de aprovações (`financeiro:cobrar`). Só no portal: nada por e-mail ou WhatsApp. |
+| 29 | Conciliador financeiro | Por regras (orquestrador) | Lista linhas de extrato pendentes com sugestão única, várias ou nenhuma. Conciliar continua sendo ato de pessoa. |
+| 30 | Analista de rentabilidade | Por regras (orquestrador) | Resultado por processo e por departamento no período; custos operacionais à parte, sem rateio; custo de IA em US$. |
 | 31 | Cadastrador de clientes | Serviço do sistema | Links de cadastro da Fase 5. |
 | 32 | Assistente de WhatsApp | Serviço do sistema | Cloud API da Fase 5 (aguardando credenciais). |
 | 33 | Gestor do portal do cliente | Serviço do sistema | Portal da Fase 5; liberar processo é ato de pessoa. |

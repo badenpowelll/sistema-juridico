@@ -13,7 +13,7 @@ Fases do superprompt (seção 47). Cada fase termina com testes reais, atualiza�
 | 6 | Documentos | Upload seguro, original preservado, OCR (Tesseract), modelos parametrizados, DOCX/PDF, versões, minutas como rascunho, assinatura via Documenso (API) | concluída |
 | 7 | Conhecimento | Biblioteca versionada, jurisprudência com status de verificação, RAG com pgvector respeitando escopo | concluída |
 | 8 | IA | Camada própria de provedores (SDK oficial da Anthropic, API compatível com OpenAI, simulado; LiteLLM descartado no ADR-0012), orquestrador com limites, catálogo das 40 funções, autonomia 0–4, custos, assistente, automações, MCP só de leitura | concluída (provedores reais aguardando credenciais) |
-| 9 | Financeiro | Honorários, lançamentos, previsto/faturado/recebido, fluxo de caixa, rentabilidade; reaproveitar motor da calculadora | planejada |
+| 9 | Financeiro | Honorários, lançamentos, previsto/faturado/recebido, fluxo de caixa, rentabilidade, recibos, conciliação por extrato importado e lembretes só no portal (ADR-0013; a calculadora é de verbas rescisórias e não foi reaproveitada) | concluída |
 | 10 | PWA e experiência | Manifesto, service worker sem cache de documentos confidenciais, voz, notificações | planejada |
 | 11 | Homologação | Segurança, carga, restauração de backup, homologação profissional pelo Dr. Márcio | depende do responsável |
 | 12 | Produção | Implantação **somente com autorização** | depende do responsável |

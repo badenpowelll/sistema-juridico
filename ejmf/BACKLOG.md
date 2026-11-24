@@ -132,6 +132,22 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 | F8-16 | Funções 5, 24 e 38 (Gmail, evidências, backup) | Fases 9 a 11 |
 | F8-17 | Agendamento periódico de funções por regras pelo worker (hoje: sob demanda e por automação) | P2 |
 
+## Fase 9 — Financeiro
+
+| ID | Item | Prioridade |
+|---|---|---|
+| F9-01 ✓ | Contas (só nome e saldo), categorias semeadas e permissões por ato (`financeiro:*`) | P0 |
+| F9-02 ✓ | Lançamentos de receita e despesa: previsto, faturado, recebido/pago, cancelado; parcial com saldo; estorno com motivo | P0 |
+| F9-03 ✓ | Contratos de honorários fixo, parcelado, mensal, êxito e misto, com parcelas geradas e êxito sobre valor-base informado | P0 |
+| F9-04 ✓ | Recibos numerados com valor por extenso e minuta pelo modelo homologado | P0 |
+| F9-05 ✓ | Lembretes de pagamento só no portal e só autorizados (central de aprovações sem `financeiro:cobrar`) | P0 |
+| F9-06 ✓ | Conciliação por extrato OFX/CSV importado, sugestões por regras, desfazer | P0 |
+| F9-07 ✓ | Resumo mensal, posição do dia, fluxo de caixa realizado e projetado, rentabilidade sem rateio, exportação CSV | P0 |
+| F9-08 ✓ | Financeiro no painel, no processo, no portal e no relatório diário; funções 26–30 por regras; gatilho "honorário pendente" e aviso diário de vencidos | P0 |
+| F9-09 | Critério de rateio de custos operacionais entre processos | P2 — decisão do escritório |
+| F9-10 | Integração bancária (open finance) ou emissão de boleto/Pix | Fora do escopo sem autorização e contrato (ADR-0013) |
+| F9-11 | Edição de lançamento em aberto pela tela (a API já aceita PATCH) | P2 |
+
 ## Demais fases
 Itens detalhados ao abrir cada fase (ver ROADMAP). Itens registrados desde já:
 
@@ -144,5 +160,5 @@ Itens detalhados ao abrir cada fase (ver ROADMAP). Itens registrados desde já:
 | FUT-03 | Organizador de provas documentais | Conversa de origem |
 | FUT-04 | Estrutura multiempresa para eventual comercialização | Conversa de origem (ADR-0006 já prepara) |
 | FUT-05 | Aplicativo Android/iOS nativo | Conversa de origem |
-| FUT-06 | Integrar motor da calculadora de rescisão (`calculadora/`) como módulo de cálculos | Projeto existente |
+| FUT-06 | Integrar motor da calculadora de rescisão (`calculadora/`) como módulo de cálculos trabalhistas (não serve ao financeiro do escritório, ver ADR-0013) | Projeto existente |
 | FUT-07 | Sincronização com OneDrive (ideia do PR #2) | Projeto existente |
