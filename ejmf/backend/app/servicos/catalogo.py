@@ -15,6 +15,15 @@ PERMISSOES: dict[str, tuple[str, int]] = {
     "integracoes:ler": ("Ver o estado das integrações", 0),
     "integracoes:gerenciar": ("Alterar o estado das integrações", 3),
     "auditoria:ler": ("Consultar e verificar a auditoria", 0),
+    "processos:ler": ("Consultar processos, prontuário e linha do tempo", 0),
+    "processos:gerenciar": ("Cadastrar e alterar processos, partes e anotações", 2),
+    "processos:lote": ("Executar operações em lote sobre processos", 3),
+    "clientes:ler": ("Consultar clientes (CPF/CNPJ mascarado)", 0),
+    "clientes:gerenciar": ("Cadastrar e alterar clientes", 2),
+    "clientes:ver_documento": ("Ver CPF/CNPJ completo (acesso registrado na auditoria)", 3),
+    "importacoes:executar": ("Enviar, mapear, validar e executar importações", 2),
+    "importacoes:conferir": ("Resolver a fila de conferência de importações", 2),
+    "importacoes:reverter": ("Reverter uma importação concluída", 3),
 }
 
 PERFIS: dict[str, dict] = {
@@ -26,7 +35,9 @@ PERFIS: dict[str, dict] = {
     "operador": {
         "nome": "Operador administrativo",
         "descricao": "Apoio administrativo: consulta e operação, sem administrar acessos.",
-        "permissoes": ["painel:ler", "departamentos:ler", "configuracoes:ler", "integracoes:ler"],
+        "permissoes": ["painel:ler", "departamentos:ler", "configuracoes:ler", "integracoes:ler",
+                       "processos:ler", "processos:gerenciar", "clientes:ler", "clientes:gerenciar",
+                       "importacoes:executar", "importacoes:conferir"],
     },
     "cliente": {
         "nome": "Cliente (portal)",

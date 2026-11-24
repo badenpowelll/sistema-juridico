@@ -13,7 +13,7 @@ from app.modelos import Auditoria
 
 HASH_INICIAL = "0" * 64
 _CHAVES_SECRETAS = ("senha", "token", "segredo", "secret", "password", "chave", "api_key", "apikey")
-_CHAVES_PARCIAIS = ("cpf", "cnpj", "rg")
+_CHAVES_PARCIAIS = ("cpf", "cnpj", "rg", "documento")
 _LOCK_AUDITORIA = 74201  # pg_advisory_xact_lock: serializa a cadeia
 
 

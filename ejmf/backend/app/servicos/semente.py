@@ -3,9 +3,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modelos import (
-    Configuracao, Departamento, Escritorio, Integracao, Perfil, Permissao,
+    Configuracao, Departamento, Escritorio, Integracao, Perfil, Permissao, Tribunal,
 )
-from app.servicos import auditoria, catalogo
+from app.servicos import auditoria, catalogo, tribunais
 
 
 def obter_escritorio(sessao: Session) -> Escritorio:
@@ -19,7 +19,14 @@ def obter_escritorio(sessao: Session) -> Escritorio:
 
 def semear(sessao: Session) -> dict[str, int]:
     esc = obter_escritorio(sessao)
-    criados = {"permissoes": 0, "perfis": 0, "departamentos": 0, "integracoes": 0, "configuracoes": 0}
+    criados = {"permissoes": 0, "perfis": 0, "departamentos": 0, "integracoes": 0, "configuracoes": 0, "tribunais": 0}
+
+    trib = {t.codigo for t in sessao.execute(select(Tribunal)).scalars()}
+    for t in tribunais.catalogo():
+        if t["codigo"] not in trib:
+            sessao.add(Tribunal(codigo=t["codigo"], segmento=t["segmento"], sigla=t["sigla"], nome=t["nome"],
+                                uf=t["uf"], prioritario=t["prioritario"]))
+            criados["tribunais"] += 1
 
     existentes = {p.codigo: p for p in sessao.execute(select(Permissao)).scalars()}
     for codigo, (descricao, nivel) in catalogo.PERMISSOES.items():

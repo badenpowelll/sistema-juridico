@@ -9,8 +9,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import obter_config
-from app.modelos import Auditoria, Configuracao, Departamento, Integracao, Sessao, Usuario
-from app.servicos import catalogo
+from app.modelos import Auditoria, Configuracao, Departamento, Importacao, ImportacaoLinha, Integracao, Sessao, Usuario
+from app.servicos import catalogo, processos as svc_processos
 
 PRIORIDADES = [
     "atencao_imediata", "alta", "normal", "aguardando_informacoes", "aguardando_cliente",
@@ -31,7 +31,7 @@ ROTULOS_ESTADO = {
 
 # Indicadores dos módulos ainda não construídos: aparecem como "disponível na fase X", nunca como zero.
 INDICADORES_FUTUROS = [
-    ("processos_ativos", "Processos ativos", 2), ("publicacoes_pendentes", "Publicações pendentes de conferência", 3),
+    ("publicacoes_pendentes", "Publicações pendentes de conferência", 3),
     ("prazos_hoje", "Prazos homologados para hoje", 3), ("audiencias_semana", "Audiências da semana", 4),
     ("clientes_aguardando", "Clientes aguardando atendimento", 5), ("documentos_revisao", "Documentos aguardando revisão", 6),
     ("honorarios_receber", "Honorários a receber", 9), ("custos_ia_mes", "Custos de IA no mês", 8),
@@ -77,7 +77,23 @@ def atencao_agora(db: Session, usuario: Usuario) -> list[dict]:
         itens.append(_item("seguranca-bloqueios", f"{bloqueados} conta(s) bloqueada(s) por tentativas de acesso",
                            "alta", "Bloqueio automático após tentativas de senha inválidas.", "/painel/auditoria", "seguranca"))
 
-    # 3. Dados institucionais ainda não fornecidos
+    # 3. Importações: conferência pendente e execuções interrompidas
+    pendentes = db.execute(select(func.count()).select_from(ImportacaoLinha).join(Importacao).where(
+        Importacao.escritorio_id == esc_id, ImportacaoLinha.situacao == "conferencia",
+        Importacao.status.in_(("validado", "processando", "concluido")))).scalar_one()
+    if pendentes:
+        itens.append(_item("importacao-conferencia", f"{pendentes} linha(s) de importação aguardando conferência", "normal",
+                           "O sistema não associa clientes quando há dúvida (homônimos, CPF/CNPJ inválido). "
+                           "Confirme a quem pertence cada processo.", "/painel/importacoes/conferencia", "importacao"))
+    interrompidas = db.execute(select(func.count()).select_from(Importacao).where(
+        Importacao.escritorio_id == esc_id, Importacao.status == "processando",
+        Importacao.criado_em < agora - timedelta(minutes=10))).scalar_one()
+    if interrompidas:
+        itens.append(_item("importacao-interrompida", f"{interrompidas} importação(ões) interrompida(s)", "com_falha",
+                           "A execução parou antes do fim. Retome: só as linhas ainda não gravadas serão processadas, sem duplicar.",
+                           "/painel/importacoes", "importacao"))
+
+    # 4. Dados institucionais ainda não fornecidos
     vazios = db.execute(select(Configuracao.chave).where(
         Configuracao.escritorio_id == esc_id, Configuracao.chave.in_(catalogo.CONFIGURACOES_OBRIGATORIAS),
         (Configuracao.valor.is_(None)) | (func.jsonb_typeof(Configuracao.valor) == "null"))).scalars().all()
@@ -102,8 +118,10 @@ def resumo(db: Session, usuario: Usuario) -> dict:
         Auditoria.ocorrido_em > datetime.now(timezone.utc) - timedelta(hours=24))).scalar_one()
     sessoes_ativas = db.execute(select(func.count()).select_from(Sessao).join(Usuario, Usuario.id == Sessao.usuario_id).where(
         Usuario.escritorio_id == esc_id, Sessao.revogada_em.is_(None), Sessao.expira_em > datetime.now(timezone.utc))).scalar_one()
+    proc = svc_processos.resumo(db, esc_id)
     return {
         "gerado_em": agora_local.isoformat(),
+        "processos": proc,
         "saudacao": "Bom dia" if agora_local.hour < 12 else ("Boa tarde" if agora_local.hour < 18 else "Boa noite"),
         "atencao_agora": atencao_agora(db, usuario),
         "indicadores": [
@@ -114,6 +132,12 @@ def resumo(db: Session, usuario: Usuario) -> dict:
             {"codigo": "usuarios_ativos", "rotulo": "Usuários ativos", "valor": db.execute(
                 select(func.count()).select_from(Usuario).where(Usuario.escritorio_id == esc_id,
                                                                 Usuario.ativo.is_(True))).scalar_one(), "disponivel": True},
+            {"codigo": "processos_ativos", "rotulo": "Processos ativos", "valor": proc["por_status"].get("ativo", 0),
+             "disponivel": True, "link": "/painel/processos?status=ativo"},
+            {"codigo": "processos_total", "rotulo": "Processos cadastrados", "valor": proc["total"], "disponivel": True,
+             "link": "/painel/processos"},
+            {"codigo": "clientes_total", "rotulo": "Clientes cadastrados", "valor": proc["clientes"], "disponivel": True,
+             "link": "/painel/clientes"},
             {"codigo": "sessoes_ativas", "rotulo": "Sessões ativas", "valor": sessoes_ativas, "disponivel": True},
             {"codigo": "eventos_auditoria_24h", "rotulo": "Eventos auditados (24 h)", "valor": eventos_24h, "disponivel": True},
         ] + [{"codigo": c, "rotulo": r, "valor": None, "disponivel": False, "fase": f} for c, r, f in INDICADORES_FUTUROS],

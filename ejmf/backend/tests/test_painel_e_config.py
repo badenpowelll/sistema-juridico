@@ -72,8 +72,13 @@ def test_marca_publica_sem_dados_inventados(app_cliente):
 
 
 def test_saude(app_cliente):
+    import os
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    cfg = Config()
+    cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "..", "migracoes"))
     r = app_cliente().get("/api/v1/saude").json()
-    assert r["status"] == "ok" and r["migracao"] == "0001"
+    assert r["status"] == "ok" and r["migracao"] == ScriptDirectory.from_config(cfg).get_current_head()
 
 
 def test_openapi_disponivel(app_cliente):
