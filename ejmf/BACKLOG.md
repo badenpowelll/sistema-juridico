@@ -5,20 +5,20 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 ## Fase 1 — Fundação
 | ID | Item | Prioridade |
 |---|---|---|
-| F1-01 | Estrutura `backend/` (FastAPI) e `frontend/` (Next.js) | P0 |
-| F1-02 | Configuração por variáveis de ambiente, `.env.example`, validação na partida | P0 |
-| F1-03 | Migrações Alembic: escritórios, usuários, perfis, permissões, sessões, departamentos, configurações, integrações, auditoria | P0 |
-| F1-04 | Login/logout, sessões revogáveis, bloqueio por tentativas, rate limit | P0 |
-| F1-05 | MFA TOTP (cadastro, confirmação, desafio no login) | P1 |
-| F1-06 | RBAC com permissões `recurso:acao` checadas no servidor | P0 |
-| F1-07 | Auditoria encadeada + gatilho de imutabilidade + verificação | P0 |
-| F1-08 | Módulo central de marca (cores, tipografia, textos) no front e no back | P1 |
-| F1-09 | Painel: "O que exige minha atenção agora" + indicadores reais + estado das integrações | P1 |
-| F1-10 | Configurações institucionais editáveis (CNPJ, endereço etc. começam vazios) | P1 |
-| F1-11 | Departamentos configuráveis (18 + "Outras" semeados) | P1 |
-| F1-12 | Docker Compose (db pgvector, api, worker, web) | P0 |
-| F1-13 | Testes: unitários, integração com Postgres real, E2E do login ao painel | P0 |
-| F1-14 | CI no GitHub Actions (lint + testes) | P2 |
+| F1-01 ✓ | Estrutura `backend/` (FastAPI) e `frontend/` (Next.js) | P0 |
+| F1-02 ✓ | Configuração por variáveis de ambiente, `.env.example`, validação na partida | P0 |
+| F1-03 ✓ | Migrações Alembic: escritórios, usuários, perfis, permissões, sessões, departamentos, configurações, integrações, auditoria | P0 |
+| F1-04 ✓ | Login/logout, sessões revogáveis, bloqueio por tentativas, rate limit | P0 |
+| F1-05 ✓ | MFA TOTP (cadastro, confirmação, desafio no login) | P1 |
+| F1-06 ✓ | RBAC com permissões `recurso:acao` checadas no servidor | P0 |
+| F1-07 ✓ | Auditoria encadeada + gatilho de imutabilidade + verificação | P0 |
+| F1-08 ✓ | Módulo central de marca (cores, tipografia, textos) no front e no back | P1 |
+| F1-09 ✓ | Painel: "O que exige minha atenção agora" + indicadores reais + estado das integrações | P1 |
+| F1-10 ✓ | Configurações institucionais editáveis (CNPJ, endereço etc. começam vazios) | P1 |
+| F1-11 ✓ | Departamentos configuráveis (18 + "Outras" semeados) | P1 |
+| F1-12 ✓ | Docker Compose (db pgvector, api, worker, web) | P0 |
+| F1-13 ✓ | Testes: unitários, integração com Postgres real, E2E do login ao painel | P0 |
+| F1-14 ✓ | CI no GitHub Actions (lint + testes) | P2 |
 
 ## Fase 2 — Gestão processual
 | ID | Item | Prioridade |
