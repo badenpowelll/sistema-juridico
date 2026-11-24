@@ -545,7 +545,7 @@ def listar_automacoes(ctx: Contexto = Depends(exigir("automacoes:ler"))):
                          .order_by(Automacao.situacao, Automacao.nome)).scalars().all()
     return {"itens": [aut.como_json(a) for a in as_], **aut.catalogo_json(),
             "permissoes": sorted(cat_geral.PERMISSOES), "pode_gerenciar": "automacoes:gerenciar" in ctx.permissoes,
-            "pode_ativar": "automacoes:ativar" in ctx.permissoes}
+            "permite_ativar": "automacoes:ativar" in ctx.permissoes}
 
 
 @rotas.post("/automacoes", status_code=201)
@@ -565,7 +565,7 @@ def detalhe_automacao(aid: uuid.UUID, ctx: Contexto = Depends(exigir("automacoes
                            .order_by(ExecucaoAutomacao.criado_em.desc()).limit(30)).scalars().all()
     return {**aut.como_json(a), "execucoes": [aut.execucao_json(e) for e in execs], **aut.catalogo_json(),
             "permissoes": sorted(cat_geral.PERMISSOES), "pode_gerenciar": "automacoes:gerenciar" in ctx.permissoes,
-            "pode_ativar": "automacoes:ativar" in ctx.permissoes}
+            "permite_ativar": "automacoes:ativar" in ctx.permissoes}
 
 
 @rotas.put("/automacoes/{aid}")

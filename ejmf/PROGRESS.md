@@ -19,8 +19,10 @@
 
 - **Fase 7** — conhecimento: biblioteca versionada com licença, vigência conferida pelo advogado, coleções e favoritos; monitor diário das fontes oficiais (versão nova a conferir, texto anterior preservado) e busca no LexML; jurisprudência conferida no site oficial do tribunal e homologada antes de ser citada; pesquisa híbrida com pgvector que filtra cliente, processo e sigilo antes de ordenar; memória permanente que só vale depois de confirmada (ADR-0011). Testes em TESTING.md (155 backend, 47 E2E).
 
+- **Fase 8** — IA: camada própria de provedores (Claude pelo SDK oficial, compatível com OpenAI e simulado identificado), central de IA com modelos aprovados pelo advogado, preços, tetos e custos; orquestrador com permissões calculadas no código, limites de chamadas, tempo e orçamento, e retomada; as 40 funções catalogadas (12 executáveis, saídas validadas contra o material, nível 3 pela central de aprovações); assistente por texto que não altera nada sem confirmação; automações testadas antes de ativar; servidor MCP só de leitura (ADR-0012). Testes em TESTING.md.
+
 ## Em desenvolvimento
-- Nada. Próxima: Fase 8.
+- Nada. Próxima: Fase 9 (financeiro).
 
 ## Pendências que dependem do responsável
 - Dados institucionais: CNPJ, endereço, telefone, e-mail institucional, WhatsApp, domínio.
@@ -36,6 +38,8 @@
 - Configurar a cidade do escritório (`institucional.cidade`), usada no fecho "local e data" dos modelos.
 - Conferir a vigência das 4 normas iniciais (CF, CLT, CPC e Estatuto da Advocacia) em Conhecimento > Biblioteca, depois da primeira coleta do texto pelo monitor (precisa de rede com acesso ao Planalto).
 - Rodar o EJMF num servidor com acesso a planalto.gov.br, lexml.gov.br e aos sites dos tribunais para validar o monitor e o verificador contra as fontes reais.
+- IA: colocar a chave em `EJMF_ANTHROPIC_API_KEY` (ou o endereço e a chave de um serviço compatível), cadastrar o modelo na central de IA, conferir o preço e a política de retenção do fornecedor, aprovar o modelo, definir os tetos diário e mensal e ligar as funções desejadas com o nível escolhido. Até lá, só regras e o modelo simulado (em testes) funcionam.
+- Revisar as instruções iniciais das seis funções com IA (Inteligência artificial > Funções virtuais > ficha > Instruções).
 - Decidir o destino dos PRs antigos #1 e #2 do `sistema-juridico` (ADR-0003).
 
 ## Testes executados
@@ -54,10 +58,13 @@ Ver TESTING.md.
 - O editor usa os comandos de edição do navegador; colar de outro programa traz só a formatação permitida (o restante é limpo ao salvar).
 - O portal não tem "esqueci a senha": o escritório gera um novo convite.
 - O limite de requisições das rotas públicas fica em memória do processo, como o do login.
+- O Claude real não foi chamado neste ambiente (sem chave): o caminho está coberto por testes com o SDK oficial e respostas gravadas.
+- A estimativa de custo antes da chamada usa caracteres ÷ 3; o custo registrado depois usa os tokens informados pelo provedor.
+- As funções por regras rodam sob demanda ou por automação; ainda não há agenda periódica própria para elas (F8-17).
 - Feriados locais não vêm semeados: até serem cadastrados, um prazo do TJRN pode vencer num dia sem expediente local (o motor erra para antes, nunca para depois).
 
 ## Dependências externas
 Ver INTEGRATIONS.md.
 
 ## Próxima atividade recomendada
-Implementar a Fase 7, começando por detalhar os itens F7 no BACKLOG a partir da especificação.
+Implementar a Fase 9 (financeiro), começando por detalhar os itens F9 no BACKLOG a partir da especificação e reaproveitando o motor da `calculadora/` onde couber.

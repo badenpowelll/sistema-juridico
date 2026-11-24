@@ -42,7 +42,7 @@ Monólito modular + worker, um único PostgreSQL. Decisões em `docs/adr/`.
 | Ambientes separados | `EJMF_AMBIENTE=desenvolvimento|homologacao|producao`; produção exige `Secure` cookie, MFA e chave secreta forte. |
 | Troca de provedores sem reescrever | Interfaces `Conector`, `ProvedorIA`, `Armazenamento`, `Notificador`. |
 | Determinismo em datas críticas | Motor de prazos puro em Python, com regras versionadas no banco e memória de cálculo. Fase 3. |
-| IA nunca decide sozinha o crítico | Política de autonomia níveis 0–4 (seção 45) aplicada no orquestrador e nas rotas. Fase 8. |
+| IA nunca decide sozinha o crítico | Política de autonomia níveis 0–4 (seção 45) aplicada no orquestrador e nas rotas (Fase 8, ADR-0012): permissões da execução = catálogo ∩ nível ∩ quem pediu; nível 3 vira aprovação; nível 4 nunca roda; saída validada contra o material. |
 
 ## Módulos e fases
 
@@ -74,4 +74,21 @@ ejmf/
   docs/origem/        superprompt (especificação permanente)
   docker-compose.yml  db · api · worker · web
   *.md                documentação obrigatória
+```
+
+## IA (Fase 8)
+
+```
+ tela / assistente / automação / agendador
+            │ solicitar(função, entrada, escopo)          servidor MCP (/api/v1/mcp, token pessoal)
+            ▼                                                        │ só leitura
+   orquestrador ── chave, função ligada, permissões ──► fila "ia.executar"      │
+            │                                                        ▼
+            ▼                                              ferramentas de leitura (escopo no SQL)
+   executor da função ─► ferramentas de leitura ─► provedor (Anthropic SDK · compatível OpenAI · simulado)
+            │        guardas antes de cada chamada: modelo aprovado, preço, tetos, orçamento, iterações, tempo
+            ▼
+   validação própria (trecho literal, data no trecho, citação existente) ─► sugestão · aprovação (nível 3)
+            │
+   ia_execucoes + ia_passos (versão da instrução, modelo, tokens, custo) + auditoria
 ```

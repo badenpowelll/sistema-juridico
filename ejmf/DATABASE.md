@@ -125,4 +125,18 @@ Cria a extensão `vector` (pgvector).
 | `trechos_conhecimento` | Índice da pesquisa: `origem` (biblioteca, jurisprudencia, documento, memoria), item e versão, ordem, `cliente_id`, `processo_id`, `sigiloso`, texto, `vetorizador` e `vetor` (`vector(384)`, índice HNSW por cosseno) e `busca` (tsvector em português, gerada, índice GIN). Sem chave estrangeira para o item: o serviço refaz os trechos a cada mudança. |
 | `memorias` | `tipo` (decisao, orientacao, preferencia, fato), título, texto, cliente, processo, departamento, `origem` (pessoa, documento, sugestao_ia), referência, `situacao` (a_confirmar, confirmada, substituida, excluida), quem confirmou, `substituida_por` e motivo da exclusão. |
 
+## Fase 8 (`0008_ia`)
+
+| Tabela | Observações |
+|---|---|
+| `ia_modelos` | Modelos cadastrados: `provedor` (anthropic, openai_compativel, simulado), identificador, nome, preço de entrada e saída por milhão de tokens (US$), data e fonte da conferência do preço, `aprovado_confidencial` com o texto do que o advogado conferiu sobre retenção (`retencao_conferida`, obrigatório para aprovar), quem aprovou, `ativo` e `simulado`. Único por escritório, provedor e modelo. |
+| `ia_funcoes` | Configuração das 40 funções por escritório: `codigo`, `ativa` (começa desligada), `nivel` (nunca acima do teto do catálogo), modelo e modelo reserva, limite de chamadas ao modelo, limite de segundos, orçamento por execução (US$) e ferramentas desligadas. |
+| `ia_prompts` | Instruções versionadas por função: versão, texto, SHA-256, motivo, autor. A execução guarda a versão usada. |
+| `ia_execucoes` | Cada execução: função, `origem` (pessoa, assistente, agendador, automacao, mcp), `estado` (pendente, executando, aguardando_aprovacao, concluida, falhou, bloqueada, cancelada, interrompida), `chave` única por escritório (sem duplicidade), entrada e saída (JSON), cliente e processo do escopo, provedor, modelo, `simulado`, versão e SHA da instrução, tokens, custo, chamadas, tentativas, erro, aprovação ligada e datas. |
+| `ia_passos` | Passos de uma execução em ordem: `tipo` (modelo, ferramenta, validacao, aprovacao, regra, bloqueio), parâmetros, resultado resumido, sucesso, tokens, custo e duração. |
+| `assistente_comandos` | Comandos do assistente por usuário: texto, `tipo` (consulta, comando, recusado, livre), situação, intenção, proposta (o que seria feito), resposta, execução de IA ligada e data da decisão. |
+| `automacoes` | Nome, gatilho, parâmetros, condições, ações e janela de horário (JSON), `situacao` (rascunho, testada, ativa, pausada, desativada), versão e versão testada, quem ativou, última verificação e falhas seguidas. |
+| `automacao_execucoes` | Execuções de teste e reais com versão, evento, resultado e erro. Índice único (automação, chave) para as reais: nenhuma ocorrência é tratada duas vezes. |
+| `tokens_mcp` | Tokens pessoais do MCP: só o hash (único) e o prefixo, nome, validade, revogação, último uso e contagem. |
+
 As tabelas das fases seguintes são documentadas aqui quando a migração correspondente é criada.

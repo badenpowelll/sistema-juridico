@@ -26,3 +26,9 @@ Decisões estruturais ficam em ADRs (`docs/adr/`). Decisões menores e reversív
 | 2026-11-24 | Vetorizador local e determinístico (termos com *feature hashing*, 384 posições) até a Fase 8; pesquisa híbrida com o texto | Sem serviço externo nem custo; a coluna `vetorizador` permite reindexar depois | 0011 |
 | 2026-11-24 | Jurisprudência só entra em documento verificada no site oficial e homologada; referência de IA entra pendente | Seção 21: nunca aceitar referência da memória do modelo | 0011 |
 | 2026-11-24 | Texto novo da fonte oficial é versão a conferir; o anterior continua valendo | Não tratar texto antigo como atual nem aceitar mudança sem conferência | 0011 |
+| 2026-11-24 | Camada própria de provedores de IA (SDK oficial da Anthropic + API compatível com OpenAI + simulado), sem LiteLLM | Só dois formatos de API; dependência grande e incidente de cadeia de suprimentos | 0012 |
+| 2026-11-24 | Modelo real só aprovado pelo advogado (retenção conferida), com preço cadastrado e tetos diário e mensal | Sigilo profissional e controle de custo | 0012 |
+| 2026-11-24 | Saída de IA validada contra o material (trecho literal, data no trecho, citação que a pesquisa devolveu) antes de virar sugestão | IA não inventa fato nem referência | 0012 |
+| 2026-11-24 | Automações com construtor interno e lista fechada de ações; n8n não adotado | Menos um serviço e nenhuma credencial do EJMF fora dele | 0012 |
+| 2026-11-24 | Servidor MCP só de leitura, com token pessoal e permissões atuais do dono | Uso do EJMF por clientes MCP sem abrir escrita | 0012 |
+| 2026-11-24 | Pedido de aprovação feito por função virtual fica em nome da função | Permite que quem pediu a execução decida a proposta, sem autoaprovação de pedido próprio | 0012 |

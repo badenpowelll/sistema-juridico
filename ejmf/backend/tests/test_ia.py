@@ -593,6 +593,7 @@ def test_automacao_testa_antes_de_ativar_nao_repete_e_nova_versao_volta_ao_rascu
     assert len(db.execute(select(Pendencia).where(Pendencia.titulo == f"Conferir cadastro de {cli['nome']}")).scalars().all()) == 1
     det = c.get(f"/api/v1/automacoes/{a['id']}").json()
     assert {e["modo"] for e in det["execucoes"]} == {"teste", "real"}
+    assert isinstance(det["acoes"], list) and det["tipos_acao"] and det["permite_ativar"] is True
     r = c.put(f"/api/v1/automacoes/{a['id']}", json={"nome": "Conferir cliente novo v2", "gatilho": "cliente_novo",
                                                       "acoes": [{"tipo": "notificar", "permissao": "clientes:ler",
                                                                  "titulo": "Novo cliente: {nome}"}]})

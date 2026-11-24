@@ -1,4 +1,5 @@
 "use client";
+import { BotaoIA } from "@/componentes/BotaoIA";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
@@ -128,6 +129,7 @@ export default function EditorMinuta() {
             {m.cliente_id && <Link className="text-dourado hover:underline" href={`/painel/clientes/${m.cliente_id}`}>{m.cliente_nome}</Link>}
             {m.aprovada_em && <span>aprovada por {m.aprovada_por} em {dataHora(m.aprovada_em)}</span>}
           </div>
+          <div className="mt-2"><BotaoIA funcao="revisor_estrutural" rotulo="Revisão estrutural" entrada={{ minuta_id: m.id }} /></div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {m.pode_editar && <span role="status" aria-live="polite" className={`text-xs ${estado === "conflito" || estado === "erro" ? "text-perigo" : "text-suave"}`}>{textoEstado}</span>}

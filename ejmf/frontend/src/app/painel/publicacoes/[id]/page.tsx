@@ -1,4 +1,5 @@
 "use client";
+import { BotaoIA } from "@/componentes/BotaoIA";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -44,6 +45,7 @@ export default function DetalhePublicacao() {
           <Selo tom={tom}>{rot}</Selo>{p.simulado && <Selo tom="alerta">Simulado — dado fictício</Selo>}
         </div>
         <p className="text-sm text-suave">{FONTE[p.fonte] ?? p.fonte}{p.tribunal && ` · ${p.tribunal}`}{p.orgao && ` · ${p.orgao}`}{p.classe && ` · ${p.classe}`}</p>
+        <div className="mt-2"><BotaoIA funcao="organizador_audiencias" rotulo="Procurar audiência no texto" entrada={{ publicacao_id: p.id }} /></div>
       </div>
       {erro && <Aviso>{erro}</Aviso>}
       {ok && <Aviso tom="ok">{ok}</Aviso>}

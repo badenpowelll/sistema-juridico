@@ -453,4 +453,4 @@ def catalogo_json() -> dict:
                          for k, g in GATILHOS.items()],
             "operadores": {"igual": "é igual a", "diferente": "é diferente de", "contem": "contém", "nao_contem": "não contém",
                            "maior": "é maior que", "menor": "é menor que"},
-            "acoes": ACOES}
+            "tipos_acao": ACOES}

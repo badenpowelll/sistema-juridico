@@ -18,6 +18,7 @@ export const useEu = () => {
 const MENU = [
   { href: "/painel", rotulo: "Central de comando", perm: "painel:ler" },
   { href: "/painel/prioridades", rotulo: "Prioridades", perm: "prioridades:ler" },
+  { href: "/painel/assistente", rotulo: "Assistente", perm: "ia:usar" },
   { href: "/painel/atendimentos", rotulo: "Atendimentos", perm: "atendimentos:ler" },
   { href: "/painel/conversas", rotulo: "Conversas", perm: "conversas:ler" },
   { href: "/painel/agenda", rotulo: "Agenda", perm: "agenda:ler" },
@@ -34,6 +35,8 @@ const MENU = [
   { href: "/painel/prazos", rotulo: "Prazos", perm: "prazos:ler" },
   { href: "/painel/relatorios", rotulo: "Relatórios", perm: "relatorios:ler" },
   { href: "/painel/importacoes", rotulo: "Importação", perm: "importacoes:executar" },
+  { href: "/painel/ia", rotulo: "Inteligência artificial", perm: "ia:ler" },
+  { href: "/painel/automacoes", rotulo: "Automações", perm: "automacoes:ler" },
   { href: "/painel/contingencia", rotulo: "Contingência", perm: "contingencia:ler" },
   { href: "/painel/integracoes", rotulo: "Integrações", perm: "integracoes:ler" },
   { href: "/painel/departamentos", rotulo: "Departamentos", perm: "departamentos:ler" },

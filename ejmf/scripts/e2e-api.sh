@@ -18,4 +18,5 @@ export EJMF_LOGIN_LIMITE_POR_MINUTO_IP=500  # todos os testes saem do mesmo IP
 export EJMF_URL_PUBLICA="http://localhost:3010"  # links de cadastro e convites do portal apontam para o Next do E2E
 EJMF_ARQUIVOS_DIR="$(mktemp -d)"; export EJMF_ARQUIVOS_DIR  # arquivos enviados nos testes ficam fora do repositório
 export EJMF_CONECTORES_SIMULADOS=true  # habilita só o adaptador "Simulado — DJEN" (dados fictícios)
+export EJMF_IA_SIMULADO=true  # habilita só o modelo "[SIMULADO]" da IA (nenhuma chamada a provedor real)
 exec uvicorn app.main:app --port "$PORTA" --log-level warning

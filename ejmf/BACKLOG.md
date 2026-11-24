@@ -110,6 +110,28 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 | F7-11 | Leitura de páginas de tribunal montadas por JavaScript (hoje: fonte indisponível) | P2 |
 | F7-12 | Súmulas e temas importados em lote das páginas oficiais | P1 |
 
+## Fase 8 — IA
+
+| ID | Item | Prioridade |
+|---|---|---|
+| F8-01 ✓ | Camada de provedores: Anthropic (SDK oficial), compatível com OpenAI e simulado identificado | P0 — Claude real aguardando chave |
+| F8-02 ✓ | Modelos com preço, fonte, aprovação para dados do escritório e revogação | P0 |
+| F8-03 ✓ | Orquestrador: fila, chave contra duplicidade, permissões catálogo ∩ nível ∩ quem pediu, limites de chamadas, tempo e orçamento, tetos diário e mensal, retomada única | P0 |
+| F8-04 ✓ | Catálogo das 40 funções com ficha completa; 6 com IA e 6 por regras executáveis | P0 |
+| F8-05 ✓ | Validação própria das saídas (trecho literal, data no trecho, citações, departamento, números do relatório) | P0 |
+| F8-06 ✓ | Nível 3 pela central de aprovações (agendar audiência) e aplicação de sugestão por pessoa (classificação, memória) | P0 |
+| F8-07 ✓ | Instruções versionadas com SHA-256 e regras de segurança fixas | P0 |
+| F8-08 ✓ | Custos por execução, função, modelo, departamento, processo e dia | P0 |
+| F8-09 ✓ | Assistente por texto: consultas por regras, recusa do que altera, pendência com confirmação, perguntas livres pela função com IA | P0 |
+| F8-10 ✓ | Construtor de automações com teste obrigatório, versões, deduplicação e pausa após falhas | P0 |
+| F8-11 ✓ | Servidor MCP só de leitura com token pessoal | P1 |
+| F8-12 ✓ | Botões de IA nas telas de processo, publicação, atendimento, minuta e pesquisa | P1 |
+| F8-13 | Redação de minuta por IA (função 22) | P2 — exige revisão de risco própria |
+| F8-14 | Embeddings de um provedor aprovado para a pesquisa (era F7-09) | P2 |
+| F8-15 | Transcrição de áudio (era F6-11) | Fase 10 |
+| F8-16 | Funções 5, 24 e 38 (Gmail, evidências, backup) | Fases 9 a 11 |
+| F8-17 | Agendamento periódico de funções por regras pelo worker (hoje: sob demanda e por automação) | P2 |
+
 ## Demais fases
 Itens detalhados ao abrir cada fase (ver ROADMAP). Itens registrados desde já:
 

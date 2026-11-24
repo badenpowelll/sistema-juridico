@@ -1,4 +1,5 @@
 "use client";
+import { BotaoIA } from "@/componentes/BotaoIA";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -69,6 +70,8 @@ export default function Conhecimento() {
       {erro && <Aviso>{erro}</Aviso>}
       {r && (
         <Cartao titulo={`Resultados (${r.resultados.length})`} acao={<span className="text-xs text-suave">{r.metodo}</span>}>
+          {r.resultados.length > 0 && <div className="mb-3"><BotaoIA funcao="pesquisador" rotulo="Rascunho de resposta com as fontes" entrada={{ pergunta: r.q }}
+            clienteId={r.escopo.cliente_id} processoId={r.escopo.processo_id} /></div>}
           {r.resultados.length === 0 ? <Vazio>Nada encontrado neste escopo.</Vazio> : (
             <ol className="flex flex-col divide-y divide-borda" aria-label="Resultados da pesquisa">
               {r.resultados.map((x) => (

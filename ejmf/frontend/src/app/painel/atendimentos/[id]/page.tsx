@@ -1,4 +1,5 @@
 "use client";
+import { BotaoIA } from "@/componentes/BotaoIA";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
@@ -57,6 +58,7 @@ export default function DetalheAtendimentoPagina() {
           {a.simulado && <Selo tom="alerta">Simulado</Selo>}
         </div>
         <p className="text-sm text-suave"><span className="font-mono">{a.protocolo}</span> · {CANAL[a.canal] ?? a.canal} · aberto em {dataHora(a.criado_em)}</p>
+        <div className="mt-2"><BotaoIA funcao="gestor_relacionamento" rotulo="Sugerir memórias do cliente" entrada={{ atendimento_id: a.id }} /></div>
       </div>
       {erro && <Aviso>{erro}</Aviso>}
       {ok && <Aviso tom="ok">{ok}</Aviso>}

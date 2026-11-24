@@ -18,7 +18,10 @@ Estados oficiais: **Implementada e validada · Implementada em ambiente de teste
 | OCR e conversão (Tesseract, Poppler, LibreOffice) | Implementada e validada | Programas locais, sem serviço externo nem custo; instalados na imagem Docker e no CI | 6 |
 | Monitor legislativo (fontes oficiais e LexML) | Implementada em ambiente de testes | Sem credencial. Consulta diária (5h) só aos domínios oficiais cadastrados; busca no LexML pelo SRU público. Testado com respostas gravadas; a rede deste ambiente de desenvolvimento bloqueia planalto.gov.br e lexml.gov.br, então **não foi validado contra a fonte real** | 7 |
 | Verificador de jurisprudência | Implementada em ambiente de testes | Sem credencial. Baixa o original só do site oficial do tribunal (lista em `fontes_conhecimento`). Testado com páginas gravadas; **não validado contra os sites reais** (bloqueados na rede deste ambiente). Páginas montadas por JavaScript ou atrás de captcha ficam "fonte indisponível" | 7 |
-| Provedores de IA | Aguardando credenciais | Chaves e aprovação de tratamento de dados | 8 |
+| Anthropic (Claude) | Aguardando credenciais | `EJMF_ANTHROPIC_API_KEY`; o modelo só é usado depois de cadastrado com preço e aprovado pelo advogado (retenção conferida) e com tetos de gasto definidos. SDK oficial `anthropic` 2.7.0. Testado com respostas gravadas; **não chamado de verdade** neste ambiente | 8 |
+| IA compatível com a API da OpenAI (OpenAI, Gemini, servidor local) | Aguardando credenciais | `EJMF_IA_OPENAI_COMPATIVEL_URL` e `EJMF_IA_OPENAI_COMPATIVEL_CHAVE` (HTTPS em produção); mesmas exigências de aprovação e tetos | 8 |
+| Simulado — IA | Implementada em ambiente de testes | Só com `EJMF_IA_SIMULADO=true`; respostas determinísticas, custo zero, toda saída começa com "[SIMULADO]" | 8 |
+| Servidor MCP do EJMF (somente leitura) | Implementada em ambiente de testes | `POST /api/v1/mcp` (JSON-RPC, versões 2025-06-18, 2025-03-26 e 2024-11-05) com token pessoal `Authorization: Bearer ejmf_mcp_…` criado em Inteligência artificial; permissão `ia:mcp` | 8 |
 | Armazenamento S3 (backups) | Aguardando credenciais | Conta em provedor escolhido | 11 |
 
 Regra: um conector só sobe para "Implementada e validada" depois de teste contra a fonte real, registrado em TESTING.md com data e resultado.

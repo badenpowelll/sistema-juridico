@@ -1,4 +1,5 @@
 "use client";
+import { BotaoIA } from "@/componentes/BotaoIA";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
@@ -64,6 +65,7 @@ export default function ProntuarioProcesso() {
           {p.origem === "importacao" && <Selo tom="info">Importado</Selo>}
         </div>
         <p className="text-sm text-suave">{[p.tribunal ? `${p.tribunal.sigla} — ${p.tribunal.nome}` : "Tribunal não identificado", p.unidade].filter(Boolean).join(" · ")}</p>
+        <div className="mt-2"><BotaoIA funcao="classificador_processual" rotulo="Sugerir departamento e assuntos" processoId={p.id} /></div>
       </div>
       {erro && <Aviso>{erro}</Aviso>}
 
