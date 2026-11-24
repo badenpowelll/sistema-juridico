@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { reais } from "@/lib/financeiro";
 import { useParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Aviso, Cartao, Selo } from "@/componentes/ui";
@@ -59,7 +60,9 @@ export default function DetalheRelatorio() {
           <Bloco titulo="Conflitos de agenda">{(s.conflitos as unknown as { a: string; b: string; inicio: string }[]).length ? <ul className="text-sm">{(s.conflitos as unknown as { a: string; b: string; inicio: string }[]).map((c, i) => <li key={i}>{horaLocal(c.inicio)}: {c.a} × {c.b}</li>)}</ul> : <p className="text-sm text-suave">Sem conflitos.</p>}</Bloco>
           <Bloco titulo="Prioridades do dia">{(s.prioridades as unknown as { titulo: string; classe_rotulo: string; justificativa: string[]; link: string | null }[]).length ? <ul className="flex flex-col gap-1 text-sm">{(s.prioridades as unknown as { titulo: string; classe_rotulo: string; justificativa: string[]; link: string | null }[]).map((p, i) => <li key={i}><Selo tom="alerta">{p.classe_rotulo}</Selo> {p.link ? <Link href={p.link} className="hover:underline">{p.titulo}</Link> : p.titulo}<span className="text-xs text-suave"> — {p.justificativa.join("; ")}</span></li>)}</ul> : <p className="text-sm text-suave">Nada em atenção imediata ou alta.</p>}</Bloco>
           <Bloco titulo="Minutas em revisão"><p className="text-sm">{Number(s.minutas_em_revisao ?? 0)} aguardando o advogado. <Link href="/painel/minutas" className="text-dourado hover:underline">Abrir</Link></p></Bloco>
-          <Bloco titulo="Ainda não disponível"><ul className="text-sm text-suave">{(s.modulos_futuros as unknown as { rotulo: string; fase: number }[]).map((m) => <li key={m.rotulo}>{m.rotulo} (Fase {m.fase})</li>)}</ul></Bloco>
+          {s.financeiro && <Bloco titulo="Financeiro">{(() => { const f = s.financeiro as unknown as Record<"receitas_vencidas" | "receitas_hoje" | "despesas_hoje_ou_vencidas", { quantidade: number; valor: string }>; return <ul className="text-sm"><li>Receitas vencidas: {f.receitas_vencidas.quantidade} ({reais(f.receitas_vencidas.valor)})</li><li>Receitas que vencem hoje: {f.receitas_hoje.quantidade} ({reais(f.receitas_hoje.valor)})</li><li>Despesas de hoje ou atrasadas: {f.despesas_hoje_ou_vencidas.quantidade} ({reais(f.despesas_hoje_ou_vencidas.valor)})</li><li><Link href="/painel/financeiro" className="text-dourado hover:underline">Abrir o financeiro</Link></li></ul>; })()}</Bloco>}
+          {s.clientes_aguardando_retorno !== undefined && <Bloco titulo="Clientes aguardando retorno"><p className="text-sm">{Number(s.clientes_aguardando_retorno)} pedido(s) do portal sem resposta. <Link href="/painel/atendimentos" className="text-dourado hover:underline">Abrir</Link></p></Bloco>}
+          {((s.modulos_futuros ?? []) as unknown as { rotulo: string; fase: number }[]).length > 0 && <Bloco titulo="Ainda não disponível"><ul className="text-sm text-suave">{(s.modulos_futuros as unknown as { rotulo: string; fase: number }[]).map((m) => <li key={m.rotulo}>{m.rotulo} (Fase {m.fase})</li>)}</ul></Bloco>}
         </div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-2">

@@ -1,3 +1,4 @@
+import type { Contrato, Lancamento } from "@/lib/financeiro";
 export type Tribunal = { codigo: string; sigla: string; nome: string; uf: string | null; prioritario: boolean };
 export type Departamento = { id: string; codigo: string; nome: string; ativo: boolean };
 export type ProcessoResumo = {
@@ -12,7 +13,8 @@ export type Prontuario = ProcessoResumo & {
   portal_visivel?: boolean;
   assuntos: string[]; valor_causa: string | null; data_distribuicao: string | null; observacoes: string | null;
   criado_em: string; importacao_id: string | null; partes: Parte[]; linha_do_tempo: EventoTempo[];
-  modulos_futuros: { rotulo: string; fase: number }[]; prazos?: Prazo[]; publicacoes?: Publicacao[]; compromissos?: Compromisso[];
+  modulos_futuros: { rotulo: string; fase: number }[]; prazos?: Prazo[];
+  financeiro?: { contratos: Contrato[]; lancamentos: Lancamento[]; totais: { recebido: string; a_receber: string; despesas_pagas: string; despesas_a_pagar: string; resultado: string } }; publicacoes?: Publicacao[]; compromissos?: Compromisso[];
 };
 export type Cliente = {
   id: string; tipo: "PF" | "PJ"; nome: string; documento: string | null; email: string | null; telefone: string | null;

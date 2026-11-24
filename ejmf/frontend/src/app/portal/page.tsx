@@ -6,6 +6,7 @@ import { AreaTexto, Aviso, Botao, Campo, Cartao, Selecao, Selo, Vazio } from "@/
 import { api, dataHora, enviar, ErroApi } from "@/lib/api";
 import { SITUACAO_DOCUMENTO, SITUACAO_SOLICITACAO, enviarArquivoCom, type SolicitacaoPortal } from "@/lib/atendimento";
 import { STATUS_PROCESSO } from "@/lib/rotulos";
+import { dia, reais } from "@/lib/financeiro";
 
 type ProcPortal = { id: string; numero: string; classe: string | null; tribunal: string | null; unidade: string | null; status: string;
   ultima_movimentacao: { em: string; descricao: string } | null };
@@ -15,7 +16,10 @@ type Inicio = {
   pendencias: { atendimento_id: string | null; protocolo?: string; documento: string | null; rotulo: string; situacao: string; motivo?: string | null }[];
   solicitacoes: SolicitacaoPortal[]; documentos: { id: string; nome: string; situacao: string; motivo: string | null; enviado_em: string }[];
   modulos_futuros: { rotulo: string; fase: number }[]; aviso: string;
+  financeiro?: { itens: { id: string; descricao: string; valor: string; vencimento: string; situacao: "pago" | "vencido" | "a vencer"; pago_em: string | null; recibo: string | null }[];
+    lembretes: { id: string; texto: string; publicado_em: string | null }[]; em_aberto: string; aviso: string };
 };
+const TOM_PAGAMENTO: Record<string, string> = { pago: "ok", vencido: "perigo", "a vencer": "alerta" };
 
 export default function PortalInicio() {
   const router = useRouter();
@@ -121,6 +125,22 @@ export default function PortalInicio() {
         )}
       </Cartao>
 
+      {d.financeiro && (d.financeiro.itens.length > 0 || d.financeiro.lembretes.length > 0) && (
+        <Cartao titulo="Honorários e pagamentos">
+          {d.financeiro.lembretes.map((l) => <div key={l.id} className="mb-2"><Aviso tom="alerta">{l.texto}</Aviso></div>)}
+          <p className="mb-2 text-sm">Em aberto: <strong className="tabular-nums">{reais(d.financeiro.em_aberto)}</strong></p>
+          <ul className="divide-y divide-borda text-sm" aria-label="Pagamentos">
+            {d.financeiro.itens.map((x) => (
+              <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <div><span className="font-medium">{x.descricao}</span> <span className="text-xs text-suave">· vence {dia(x.vencimento)}{x.pago_em ? ` · pago em ${dia(x.pago_em)}` : ""}{x.recibo ? ` · recibo ${x.recibo}` : ""}</span></div>
+                <div className="flex items-center gap-2"><span className="tabular-nums">{reais(x.valor)}</span><Selo tom={TOM_PAGAMENTO[x.situacao]}>{x.situacao}</Selo></div>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-suave">{d.financeiro.aviso}</p>
+        </Cartao>
+      )}
+
       <Cartao titulo="Seus dados">
         <dl className="grid gap-2 text-sm sm:grid-cols-3">
           <div><dt className="text-xs text-suave">CPF</dt><dd className="font-mono">{d.cliente.documento ?? "—"}</dd></div>
@@ -130,7 +150,7 @@ export default function PortalInicio() {
         <p className="mt-2 text-xs text-suave">Para corrigir, use “Atualizar meus dados” acima.</p>
       </Cartao>
 
-      <p className="text-xs text-suave">Em breve neste portal: {d.modulos_futuros.map((m) => m.rotulo).join(" e ")}.</p>
+      {d.modulos_futuros.length > 0 && <p className="text-xs text-suave">Em breve neste portal: {d.modulos_futuros.map((m) => m.rotulo).join(" e ")}.</p>}
     </div>
   );
 }

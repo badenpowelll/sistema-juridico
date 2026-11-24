@@ -34,6 +34,7 @@ const MENU = [
   { href: "/painel/publicacoes", rotulo: "Publicações", perm: "publicacoes:ler" },
   { href: "/painel/prazos", rotulo: "Prazos", perm: "prazos:ler" },
   { href: "/painel/relatorios", rotulo: "Relatórios", perm: "relatorios:ler" },
+  { href: "/painel/financeiro", rotulo: "Financeiro", perm: "financeiro:ler" },
   { href: "/painel/importacoes", rotulo: "Importação", perm: "importacoes:executar" },
   { href: "/painel/ia", rotulo: "Inteligência artificial", perm: "ia:ler" },
   { href: "/painel/automacoes", rotulo: "Automações", perm: "automacoes:ler" },

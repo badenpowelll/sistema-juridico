@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { BuscaCliente } from "@/componentes/BuscaCliente";
 import { DocumentosVinculados } from "@/componentes/DocumentosVinculados";
 import { MemoriasVinculadas } from "@/componentes/MemoriasVinculadas";
+import { ListaLancamentos } from "@/componentes/Financeiro";
+import { reais } from "@/lib/financeiro";
 import { useEu } from "@/componentes/CascoPainel";
 import { NovoPrazo } from "@/componentes/NovoPrazo";
 import { PrazoResumo } from "@/componentes/PrazoResumo";
@@ -231,14 +233,26 @@ export default function ProntuarioProcesso() {
 
           <DocumentosVinculados processoId={id} />
           <MemoriasVinculadas processoId={id} />
-          <Cartao titulo="Próximos módulos">
-            <ul className="flex flex-col gap-2 text-sm">
-              {p.modulos_futuros.map((m) => (
-                <li key={m.rotulo} className="flex items-center justify-between gap-2"><span>{m.rotulo}</span><Selo>Fase {m.fase}</Selo></li>
-              ))}
-            </ul>
-            <p className="mt-3 text-xs text-suave">Estes dados ainda não são acompanhados pelo sistema; a ausência deles aqui não significa que não existam.</p>
-          </Cartao>
+          {p.financeiro && (
+            <Cartao titulo="Financeiro" acao={<Link href={`/painel/financeiro/lancamentos?processo=${p.id}&situacao=`} className="text-sm text-dourado hover:underline">Lançamentos</Link>}>
+              <p className="mb-2 text-sm tabular-nums">Recebido {reais(p.financeiro.totais.recebido)} · a receber {reais(p.financeiro.totais.a_receber)} · despesas pagas {reais(p.financeiro.totais.despesas_pagas)} · resultado {reais(p.financeiro.totais.resultado)}</p>
+              {p.financeiro.contratos.length > 0 && (
+                <ul className="mb-2 text-sm" aria-label="Contratos de honorários do processo">
+                  {p.financeiro.contratos.map((c) => <li key={c.id}><Link className="hover:underline" href={`/painel/financeiro/contratos/${c.id}`}>Contrato {c.numero}</Link> <span className="text-xs text-suave">· {c.modalidade_rotulo} · {c.situacao}</span></li>)}
+                </ul>
+              )}
+              <ListaLancamentos itens={p.financeiro.lancamentos.slice(0, 8)} rotulo="Lançamentos do processo" vazio="Nenhum lançamento ligado a este processo." />
+            </Cartao>
+          )}
+          {p.modulos_futuros.length > 0 && (
+            <Cartao titulo="Próximos módulos">
+              <ul className="flex flex-col gap-2 text-sm">
+                {p.modulos_futuros.map((m) => (
+                  <li key={m.rotulo} className="flex items-center justify-between gap-2"><span>{m.rotulo}</span><Selo>Fase {m.fase}</Selo></li>
+                ))}
+              </ul>
+            </Cartao>
+          )}
         </div>
       </div>
     </div>
