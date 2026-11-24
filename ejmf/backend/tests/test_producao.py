@@ -171,3 +171,26 @@ def test_sem_credenciais_nada_e_enviado(db, pasta):  # noqa: F811
         "configurada": False, "texto": "Aguardando credenciais (S3 compatível)"}
     with pytest.raises(copias.ErroCopia):
         copias.listar_externas()
+
+
+# ------------------------------------------------------------------ monitoramento
+
+def test_saude_componentes_para_monitor_externo_sem_dados(app_cliente, db):
+    from app.modelos import Configuracao
+    esc = obter_escritorio(db).id
+    c = app_cliente()
+    # worker sem batimento recente: 503 para o monitor chamar alguém
+    db.execute(update(Configuracao).where(Configuracao.escritorio_id == esc, Configuracao.chave == "sistema.worker_batimento")
+               .values(valor=(datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()))
+    db.commit()
+    r = c.get("/api/v1/saude/componentes")
+    assert r.status_code == 503 and r.json()["componentes"]["worker"] == "parado"
+    assert set(r.json()["componentes"]) == {"banco", "worker", "copias", "wal", "disco_arquivos", "disco_copias"}
+    # com o batimento em dia e sem chave de cópias (aguardando configuração não derruba), fica ok
+    from app.worker import batimento
+    batimento()
+    r = c.get("/api/v1/saude/componentes")
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["status"] == "ok" and d["componentes"]["copias"] == "aguardando_configuracao" and d["componentes"]["wal"] == "desligado"
+    assert "ejmf" not in r.text.replace("ejmf_", "")  # nada de banco, usuário ou caminho

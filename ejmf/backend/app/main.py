@@ -63,6 +63,14 @@ def criar_app() -> FastAPI:
         except Exception as e:  # noqa: BLE001
             return JSONResponse({"status": "degradado", "banco": "erro", "erro": type(e).__name__}, status_code=503)
 
+    @app.get("/api/v1/saude/componentes", tags=["público"])
+    def saude_componentes():
+        """Para o monitor externo (Uptime Kuma ou similar): só nomes e situação, sem dado do escritório.
+        Responde 503 quando algo precisa de alguém: banco fora, worker parado, cópia atrasada ou WAL falhando."""
+        from app.servicos import monitoramento
+        r = monitoramento.componentes()
+        return JSONResponse(r, status_code=200 if r["status"] == "ok" else 503)
+
     app.include_router(autenticacao.rotas, prefix="/api/v1")
     app.include_router(administracao.rotas, prefix="/api/v1")
     app.include_router(administracao.publicas, prefix="/api/v1")

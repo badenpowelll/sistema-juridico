@@ -1,0 +1,140 @@
+# EJMF — produção (Fase 12). Nada é publicado por este arquivo sozinho: ele só roda no servidor do escritório,
+# depois da autorização e do roteiro em IMPLANTACAO.md.
+#   cp .env.producao.example .env.producao   # preencha tudo; nada aqui é inventado
+#   docker compose -f docker-compose.producao.yml --env-file .env.producao up -d --build
+# Diferenças do docker-compose.yml de desenvolvimento:
+#   - só o Caddy (80/443) fica exposto; banco, API e web ficam na rede interna
+#   - HTTPS automático, arquivamento contínuo do WAL e cópia física diária (RPO de 1 h)
+#   - antivírus ligado, reinício automático e limite de logs
+name: ejmf-producao
+
+x-logs: &logs
+  logging:
+    driver: json-file
+    options: {max-size: "20m", max-file: "5"}
+
+x-app: &app
+  build: ./backend
+  env_file: .env.producao
+  environment:
+    EJMF_AMBIENTE: producao
+    EJMF_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@db:5432/ejmf_db
+    EJMF_CLAMAV_ENDERECO: tcp://clamav:3310
+    EJMF_WAL_DIR: /wal
+  volumes:
+    - arquivos:/app/dados/arquivos
+    - ${EJMF_COPIAS_DIR:?defina EJMF_COPIAS_DIR numa pasta em outro disco}:/app/dados/backups
+  restart: unless-stopped
+  <<: *logs
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    command:
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=/infra/wal/arquivar.sh %p %f
+      - -c
+      - archive_timeout=900   # no máximo 15 min de WAL sem arquivar
+      - -c
+      - max_wal_senders=3
+    environment:
+      POSTGRES_DB: ejmf_db
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      TZ: America/Fortaleza
+      WAL_DIR: /wal
+    volumes:
+      - dados_db:/var/lib/postgresql/data
+      - ${EJMF_WAL_DIR:?defina EJMF_WAL_DIR numa pasta em outro disco}:/wal
+      - ./infra/wal:/infra/wal:ro
+      - ./infra/wal/replicacao.sh:/docker-entrypoint-initdb.d/replicacao.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ejmf_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    shm_size: 256mb
+    restart: unless-stopped
+    <<: *logs
+
+  # cópia física diária (pg_basebackup) e limpeza do WAL antigo; ver infra/wal e BACKUP.md
+  wal:
+    image: pgvector/pgvector:pg16
+    command: ["/infra/wal/base.sh", "--diario", "${EJMF_WAL_HORA:-03:00}"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:?}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      WAL_DIR: /wal
+      WAL_BASES: ${EJMF_WAL_BASES:-7}
+      TZ: America/Fortaleza
+    volumes:
+      - ${EJMF_WAL_DIR}:/wal
+      - ./infra/wal:/infra/wal:ro
+    depends_on:
+      db: {condition: service_healthy}
+    restart: unless-stopped
+    <<: *logs
+
+  api:
+    <<: *app
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/v1/saude')"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      api: {condition: service_healthy}
+
+  clamav:
+    image: clamav/clamav:stable
+    volumes:
+      - assinaturas_clamav:/var/lib/clamav
+    restart: unless-stopped
+    <<: *logs
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        EJMF_API_INTERNA: http://api:8000
+    environment:
+      NODE_ENV: production
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+    <<: *logs
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      EJMF_DOMINIO: ${EJMF_DOMINIO:?defina o domínio do escritório}
+      EJMF_ACME_EMAIL: ${EJMF_ACME_EMAIL:?defina o e-mail para o certificado}
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_dados:/data
+      - caddy_config:/config
+    depends_on: [web, api]
+    restart: unless-stopped
+    <<: *logs
+
+volumes:
+  dados_db:
+  arquivos:
+  assinaturas_clamav:
+  caddy_dados:
+  caddy_config:
