@@ -122,6 +122,8 @@ def alterar_configuracao(chave: str, dados: EntradaValor, ctx: Contexto = Depend
     c = ctx.db.get(Configuracao, (ctx.usuario.escritorio_id, chave))
     if c is None or chave.startswith("sistema."):
         raise HTTPException(404, "Configuração não encontrada")
+    if chave.startswith("ia."):
+        raise HTTPException(409, "Tetos e opções de IA são alterados na central de IA (permissão ia:gerenciar)")
     valor = dados.valor
     if isinstance(valor, str):
         valor = valor.strip() or None

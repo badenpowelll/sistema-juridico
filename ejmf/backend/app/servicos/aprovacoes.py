@@ -19,7 +19,8 @@ from app.servicos import agenda, agenda_google, auditoria, notificacoes, prazos 
 TIPOS = {"cancelar_audiencia": "Cancelamento de audiência", "reagendamento_google": "Reagendamento vindo do Google",
          "homologar_prazo": "Homologação de prazo", "homologar_regra": "Homologação de regra de contagem",
          "confirmar_suspensao": "Confirmação de dia sem expediente",
-         "confirmar_agendamento": "Agendamento pedido pela recepcionista virtual"}
+         "confirmar_agendamento": "Agendamento pedido pela recepcionista virtual",
+         "ia_agendar_audiencia": "Audiência proposta por função virtual"}
 
 
 class ErroAprovacao(ValueError):
@@ -72,6 +73,9 @@ def decidir(db: Session, ator: auditoria.Ator, ap: Aprovacao, usuario: Usuario, 
                 conversas.enviar(db, conv, t, autor="recepcionista")
             except conversas.ErroConversa:
                 pass  # fora da janela de 24 h: a equipe avisa por outro canal (fica no histórico da aprovação)
+    elif ap.tipo.startswith("ia_"):
+        from app.servicos.ia import orquestrador
+        orquestrador.decidir_aprovacao(db, ator, ap, decisao, usuario)
     ap.situacao = {"aprovar": "aprovada", "rejeitar": "rejeitada", "devolver": "devolvida"}[decisao]
     ap.decidida_por, ap.decidida_em, ap.motivo = usuario.id, datetime.now(timezone.utc), (motivo or "").strip() or None
     auditoria.registrar(db, ator, f"aprovacao.{decisao}", entidade="aprovacao", entidade_id=ap.id,
@@ -129,4 +133,6 @@ def _link(ap: Aprovacao) -> str | None:
         return f"/painel/agenda?compromisso={ap.entidade_id}"
     if ap.entidade == "conversa":
         return f"/painel/conversas?c={ap.entidade_id}"
+    if ap.entidade == "ia_execucao":
+        return f"/painel/ia/execucoes/{ap.entidade_id}"
     return None

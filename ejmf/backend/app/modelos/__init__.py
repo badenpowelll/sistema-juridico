@@ -1302,3 +1302,221 @@ class Memoria(Base):
     criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
     criado_em: Mapped[datetime] = _criado()
     atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+# ================================================================ Fase 8 — IA, funções virtuais e automações
+
+class ModeloIA(Base):
+    """Modelo de IA cadastrado pelo escritório. Preço e aprovação para dados confidenciais são decisões do advogado."""
+    __tablename__ = "ia_modelos"
+    __table_args__ = (
+        UniqueConstraint("escritorio_id", "provedor", "modelo"),
+        CheckConstraint("provedor in ('anthropic','openai_compativel','simulado')"),
+        CheckConstraint("not aprovado_confidencial or retencao_conferida is not null", name="ck_ia_modelos_retencao"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    provedor: Mapped[str] = mapped_column(String(30), nullable=False)
+    modelo: Mapped[str] = mapped_column(String(120), nullable=False)
+    rotulo: Mapped[str] = mapped_column(String(200), nullable=False)
+    preco_entrada_milhao: Mapped[Any | None] = mapped_column(Numeric(12, 4))  # USD por milhão de tokens
+    preco_saida_milhao: Mapped[Any | None] = mapped_column(Numeric(12, 4))
+    preco_conferido_em: Mapped[date | None] = mapped_column(Date)
+    preco_fonte: Mapped[str | None] = mapped_column(String(500))
+    aprovado_confidencial: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    retencao_conferida: Mapped[str | None] = mapped_column(Text)  # o que o advogado conferiu sobre retenção de dados
+    aprovado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    aprovado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    simulado: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class FuncaoVirtual(Base):
+    """Uma das 40 funções virtuais (AGENTS.md). Teto de nível e ferramentas vêm do código; aqui só se restringe."""
+    __tablename__ = "ia_funcoes"
+    __table_args__ = (
+        UniqueConstraint("escritorio_id", "codigo"),
+        UniqueConstraint("escritorio_id", "numero"),
+        CheckConstraint("nivel between 0 and 4"),
+        CheckConstraint("limite_iteracoes between 1 and 20"),
+        CheckConstraint("limite_segundos between 5 and 900"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    numero: Mapped[int] = mapped_column(Integer, nullable=False)
+    codigo: Mapped[str] = mapped_column(String(60), nullable=False)
+    ativa: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    nivel: Mapped[int] = mapped_column(Integer, nullable=False)
+    modelo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ia_modelos.id", ondelete="SET NULL"))
+    modelo_reserva_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ia_modelos.id", ondelete="SET NULL"))
+    limite_iteracoes: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("5"))
+    limite_segundos: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("120"))
+    orcamento_execucao: Mapped[Any] = mapped_column(Numeric(10, 4), nullable=False, server_default=text("0.50"))  # USD
+    ferramentas_desligadas: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    atualizado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class PromptIA(Base):
+    """Versão de instrução de uma função. Nunca é alterada: editar cria nova versão."""
+    __tablename__ = "ia_prompts"
+    __table_args__ = (UniqueConstraint("escritorio_id", "funcao", "versao"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    funcao: Mapped[str] = mapped_column(String(60), nullable=False)
+    versao: Mapped[int] = mapped_column(Integer, nullable=False)
+    texto: Mapped[str] = mapped_column(Text, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    motivo: Mapped[str | None] = mapped_column(Text)
+    ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+ESTADOS_EXECUCAO_IA = ("pendente", "executando", "aguardando_aprovacao", "concluida", "falhou", "bloqueada", "cancelada",
+                       "interrompida")
+
+
+class ExecucaoIA(Base):
+    """Execução de uma função virtual: estado persistente, custo, modelo e versão da instrução usados."""
+    __tablename__ = "ia_execucoes"
+    __table_args__ = (
+        CheckConstraint("estado in (" + ",".join(f"'{e}'" for e in ESTADOS_EXECUCAO_IA) + ")"),
+        CheckConstraint("origem in ('pessoa','assistente','agendador','automacao','mcp')"),
+        Index("ix_ia_execucoes_chave", "escritorio_id", "chave", unique=True, postgresql_where=text("chave is not null")),
+        Index("ix_ia_execucoes_periodo", "escritorio_id", "criado_em"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    funcao: Mapped[str] = mapped_column(String(60), nullable=False, index=True)
+    origem: Mapped[str] = mapped_column(String(20), nullable=False)
+    chave: Mapped[str | None] = mapped_column(String(200))
+    estado: Mapped[str] = mapped_column(String(25), nullable=False, server_default=text("'pendente'"))
+    prioridade: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("5"))
+    entrada: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    saida: Mapped[Any | None] = mapped_column(JSONB)
+    erro: Mapped[str | None] = mapped_column(Text)
+    cliente_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clientes.id", ondelete="SET NULL"))
+    processo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("processos.id", ondelete="SET NULL"))
+    departamento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("departamentos.id", ondelete="SET NULL"))
+    provedor: Mapped[str | None] = mapped_column(String(30))
+    modelo: Mapped[str | None] = mapped_column(String(120))
+    simulado: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    prompt_versao: Mapped[int | None] = mapped_column(Integer)
+    prompt_sha256: Mapped[str | None] = mapped_column(String(64))
+    tokens_entrada: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    tokens_saida: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    custo: Mapped[Any] = mapped_column(Numeric(12, 6), nullable=False, server_default=text("0"))  # USD
+    iteracoes: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    tentativas: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    aprovacao_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("aprovacoes.id", ondelete="SET NULL"))
+    solicitada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    iniciada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    concluida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class PassoExecucaoIA(Base):
+    """Cada chamada ao modelo, ferramenta, validação ou pedido de aprovação dentro de uma execução."""
+    __tablename__ = "ia_passos"
+    __table_args__ = (CheckConstraint("tipo in ('modelo','ferramenta','validacao','aprovacao','regra','bloqueio')"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    execucao_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ia_execucoes.id", ondelete="CASCADE"), nullable=False, index=True)
+    ordem: Mapped[int] = mapped_column(Integer, nullable=False)
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False)
+    nome: Mapped[str] = mapped_column(String(120), nullable=False)
+    parametros: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    resultado: Mapped[Any | None] = mapped_column(JSONB)
+    sucesso: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    tokens_entrada: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    tokens_saida: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    custo: Mapped[Any] = mapped_column(Numeric(12, 6), nullable=False, server_default=text("0"))
+    duracao_ms: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class ComandoAssistente(Base):
+    """Comando dado ao assistente pessoal. Consultas respondem na hora; o que altera dados espera confirmação."""
+    __tablename__ = "assistente_comandos"
+    __table_args__ = (
+        CheckConstraint("tipo in ('consulta','comando','recusado','livre')"),
+        CheckConstraint("situacao in ('respondido','aguardando_confirmacao','confirmado','cancelado','recusado','falhou')"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True)
+    canal: Mapped[str] = mapped_column(String(10), nullable=False, server_default=text("'texto'"))
+    texto: Mapped[str] = mapped_column(Text, nullable=False)
+    intencao: Mapped[str | None] = mapped_column(String(60))
+    tipo: Mapped[str] = mapped_column(String(15), nullable=False)
+    situacao: Mapped[str] = mapped_column(String(25), nullable=False)
+    proposta: Mapped[Any | None] = mapped_column(JSONB)  # ação que espera confirmação
+    resposta: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    execucao_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ia_execucoes.id", ondelete="SET NULL"))
+    criado_em: Mapped[datetime] = _criado()
+    decidido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Automacao(Base):
+    """Automação: gatilho, condições e ações de uma lista fechada. Só é ativada depois de testada na versão atual."""
+    __tablename__ = "automacoes"
+    __table_args__ = (CheckConstraint("situacao in ('rascunho','testada','ativa','pausada','desativada')"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    nome: Mapped[str] = mapped_column(String(200), nullable=False)
+    descricao: Mapped[str | None] = mapped_column(Text)
+    gatilho: Mapped[str] = mapped_column(String(60), nullable=False)
+    parametros: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    condicoes: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    acoes: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    horario: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))  # dias úteis, faixa de horas
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'rascunho'"))
+    versao: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
+    testada_versao: Mapped[int | None] = mapped_column(Integer)
+    testada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ativada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    ativada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultima_varredura: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    falhas_seguidas: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class ExecucaoAutomacao(Base):
+    """Uma ocorrência do gatilho tratada (ou simulada no teste). A chave impede repetir a mesma ocorrência."""
+    __tablename__ = "automacao_execucoes"
+    __table_args__ = (
+        CheckConstraint("modo in ('teste','real')"),
+        CheckConstraint("situacao in ('concluida','ignorada','falhou','aguardando_aprovacao')"),
+        Index("ix_automacao_exec_chave", "automacao_id", "chave", unique=True, postgresql_where=text("modo = 'real'")),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    automacao_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("automacoes.id", ondelete="CASCADE"), nullable=False, index=True)
+    versao: Mapped[int] = mapped_column(Integer, nullable=False)
+    modo: Mapped[str] = mapped_column(String(10), nullable=False)
+    chave: Mapped[str] = mapped_column(String(200), nullable=False)
+    evento: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    resultado: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    situacao: Mapped[str] = mapped_column(String(25), nullable=False)
+    erro: Mapped[str | None] = mapped_column(Text)
+    criado_em: Mapped[datetime] = _criado()
+
+
+class TokenMCP(Base):
+    """Token pessoal para clientes MCP. Só o hash fica no banco; vale com as permissões atuais do dono, só leitura."""
+    __tablename__ = "tokens_mcp"
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True)
+    nome: Mapped[str] = mapped_column(String(120), nullable=False)
+    prefixo: Mapped[str] = mapped_column(String(16), nullable=False)
+    hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    expira_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revogado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultimo_uso_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    usos: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    criado_em: Mapped[datetime] = _criado()

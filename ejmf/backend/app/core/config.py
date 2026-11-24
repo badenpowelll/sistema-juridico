@@ -55,6 +55,13 @@ class Config(BaseSettings):
     arquivos_dir: str = "dados/arquivos"
     # Adaptadores simulados (dados sintéticos, sempre marcados). Desligados por padrão.
     conectores_simulados: bool = False
+    # IA (Fase 8). Sem chave, o provedor fica "aguardando credenciais". O endereço compatível com a API da OpenAI
+    # (OpenAI, Gemini ou servidor local) é informado pelo escritório; nada é presumido.
+    anthropic_api_key: str | None = None
+    ia_openai_compativel_url: str | None = None
+    ia_openai_compativel_chave: str | None = None
+    ia_simulado: bool = False  # provedor de testes, determinístico, custo zero, sempre marcado como [SIMULADO]
+    ia_timeout_segundos: float = 120.0
 
     @property
     def producao(self) -> bool:

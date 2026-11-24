@@ -19,6 +19,8 @@ from app.modelos import Configuracao
 from app.servicos import (  # noqa: F401  (registram executores da fila)
     assinaturas, biblioteca, conversas, documentos, fila, relatorios, sincronizacao,
 )
+from app.servicos import automacoes
+from app.servicos.ia import assistente, funcoes, orquestrador  # noqa: F401  (registram executores)
 from app.servicos.semente import obter_escritorio
 
 log = logging.getLogger("ejmf.worker")
@@ -48,6 +50,9 @@ def ciclo(agora_local: datetime | None = None) -> dict:
         agendadas = (sincronizacao.agendar(db, esc.id, agora_local) + relatorios.agendar(db, esc.id, agora_local)
                      + biblioteca.agendar(db, esc.id, agora_local))
         retomadas = fila.recuperar_travadas(db)
+        retomadas += orquestrador.recuperar(db)
+        db.commit()
+        automacoes.varrer_todas(db, esc.id)
         db.commit()
         processadas = fila.processar(db)
     return {"agendadas": agendadas, "retomadas": retomadas, "processadas": processadas}

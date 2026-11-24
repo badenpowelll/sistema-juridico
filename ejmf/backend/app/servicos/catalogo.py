@@ -70,6 +70,13 @@ PERMISSOES: dict[str, tuple[str, int]] = {
     "memoria:gerenciar": ("Registrar e corrigir memórias", 2),
     "memoria:confirmar": ("Confirmar memórias sugeridas automaticamente ou extraídas de documentos", 3),
     "memoria:excluir": ("Excluir memória (exclusão controlada, com motivo)", 4),
+    "ia:ler": ("Ver a central de IA: funções, execuções e custos", 0),
+    "ia:usar": ("Usar o assistente e pedir execuções às funções virtuais", 1),
+    "ia:gerenciar": ("Ativar funções, escolher modelos, aprovar provedores, definir tetos de gasto e editar instruções", 4),
+    "ia:mcp": ("Criar token pessoal para acessar as consultas do EJMF por um cliente MCP", 3),
+    "automacoes:ler": ("Ver automações e o histórico de execuções", 0),
+    "automacoes:gerenciar": ("Criar, editar e testar automações", 3),
+    "automacoes:ativar": ("Ativar, pausar e desativar automações", 4),
 }
 
 PERFIS: dict[str, dict] = {
@@ -91,7 +98,7 @@ PERFIS: dict[str, dict] = {
                        "atendimentos:ler", "atendimentos:gerenciar", "conversas:ler", "conversas:responder",
                        "documentos:ler", "documentos:gerenciar", "modelos:ler", "minutas:ler", "minutas:editar",
                        "conhecimento:ler", "biblioteca:gerenciar", "jurisprudencia:gerenciar", "memoria:ler",
-                       "memoria:gerenciar"],
+                       "memoria:gerenciar", "ia:ler", "ia:usar", "automacoes:ler"],
     },
     "cliente": {
         "nome": "Cliente (portal)",
@@ -100,7 +107,8 @@ PERFIS: dict[str, dict] = {
     },
     "agente_ia": {
         "nome": "Função virtual (agente de IA)",
-        "descricao": "Identidade técnica das funções virtuais; permissões concedidas por função (Fase 8).",
+        "descricao": "Identidade técnica das funções virtuais. Fica sem permissões: cada função usa só as do catálogo "
+                     "no código, limitadas pelo nível e por quem pediu (Fase 8).",
         "permissoes": [],
     },
 }
@@ -127,7 +135,7 @@ OBS_WHATSAPP = ("Conector da Cloud API implementado (envio de texto, webhook com
                 "verificada e as variáveis EJMF_WHATSAPP_TOKEN, EJMF_WHATSAPP_PHONE_NUMBER_ID, EJMF_WHATSAPP_APP_SECRET e "
                 "EJMF_WHATSAPP_VERIFY_TOKEN. Fora da janela de 24 h só modelos aprovados pela Meta podem ser enviados.")
 # Observações antigas trocadas pela nova quando o estado não mudou
-OBSERVACOES_ANTIGAS = {"whatsapp": ("Conta Meta Business verificada pendente. Fase 5.", OBS_WHATSAPP)}
+OBSERVACOES_ANTIGAS = {"whatsapp": ("Conta Meta Business verificada pendente. Fase 5.", OBS_WHATSAPP)}  # mais itens abaixo
 
 OBS_ASSINATURA = ("Conector da API v2 do Documenso implementado (envelope com o PDF aprovado, envio aos participantes e "
                   "webhook). Falta a conta ou instância própria e as variáveis EJMF_DOCUMENSO_TOKEN, EJMF_DOCUMENSO_URL "
@@ -139,6 +147,11 @@ OBS_MONITOR = ("Monitor legislativo implementado: consulta diária só a domíni
 OBS_VERIFICADOR = ("Verificador de jurisprudência implementado: baixa o original só do site oficial do tribunal e confere "
                    "número, ementa, relator e data. Testado com páginas gravadas; ainda não validado contra os sites "
                    "reais (bloqueados na rede deste ambiente).")
+
+OBS_IA = ("Camada de provedores implementada (Anthropic pelo SDK oficial e serviços compatíveis com a API da OpenAI) e "
+          "testada com respostas gravadas. Falta a chave (EJMF_ANTHROPIC_API_KEY ou EJMF_IA_OPENAI_COMPATIVEL_URL/CHAVE), "
+          "a aprovação do modelo pelo advogado depois de conferir a retenção de dados e os tetos de gasto.")
+OBSERVACOES_ANTIGAS_IA = ("Chaves e aprovação de tratamento de dados pendentes. Fase 8.", OBS_IA)
 
 # Integrações que mudam de estado com uma fase (só se ainda estiverem como "não implementada")
 ATUALIZACOES_INTEGRACOES = {"djen": ("ambiente_testes", OBS_DJEN), "datajud": ("aguardando_credenciais", OBS_DATAJUD),
@@ -170,8 +183,7 @@ INTEGRACOES = [
      OBS_MONITOR),
     ("verificador_jurisprudencia", "Verificador de jurisprudência (sites dos tribunais)", "conhecimento",
      "ambiente_testes", False, OBS_VERIFICADOR),
-    ("ia", "Provedores de IA", "ia", "aguardando_credenciais", False,
-     "Chaves e aprovação de tratamento de dados pendentes. Fase 8."),
+    ("ia", "Provedores de IA", "ia", "aguardando_credenciais", False, OBS_IA),
     ("backup", "Backup externo (S3 compatível)", "infraestrutura", "aguardando_credenciais", True,
      "Sem backup externo configurado. Fase 11."),
 ]
@@ -224,7 +236,20 @@ CONFIGURACOES: dict[str, tuple[object, bool, str]] = {
     "conhecimento.dias_reverificacao": (30, False, "Dias sem consulta à fonte depois dos quais o item é marcado como desatualizado"),
     "conhecimento.cobertura_minima_ementa": (0.6, False, "Fração mínima da ementa que precisa estar no original para o julgado ser verificado"),
     "documentos.ocr_confianca_minima": (45, False, "Confiança média do OCR abaixo da qual o documento é marcado como ilegível"),
+    "ia.teto_diario_usd": (None, False, "Teto diário de gasto com IA (US$). Vazio = nenhum modelo pago é chamado"),
+    "ia.teto_mensal_usd": (None, False, "Teto mensal de gasto com IA (US$). Vazio = nenhum modelo pago é chamado"),
+    "ia.fallback_autorizado": (False, False, "Permitir usar o modelo reserva de cada função quando o principal falhar"),
+    "ia.cotacao_dolar": (None, False, "Cotação do dólar para mostrar custos em reais (informada pelo escritório)"),
 }
+
+# Modelos que o painel oferece como atalho. Preços copiados da tabela oficial da Anthropic em 2026-11-24 (US$ por
+# milhão de tokens); o advogado confere antes de aprovar. Nenhum entra aprovado para dados do escritório.
+FONTE_PRECOS_ANTHROPIC = "https://platform.claude.com/docs/en/about-claude/pricing"
+MODELOS_SUGERIDOS = [
+    {"provedor": "anthropic", "modelo": "claude-opus-5-5", "rotulo": "Claude Opus 5.5", "entrada": "4.00", "saida": "20.00"},
+    {"provedor": "anthropic", "modelo": "claude-sonnet-5-5", "rotulo": "Claude Sonnet 5.5", "entrada": "2.00", "saida": "10.00"},
+    {"provedor": "anthropic", "modelo": "claude-haiku-5-5", "rotulo": "Claude Haiku 5.5", "entrada": "0.10", "saida": "0.50"},
+]
 
 # Formulários de cadastro por departamento (somente o necessário). Podem ser ajustados em
 # "atendimento.formularios" (mesma estrutura); o link guarda uma cópia do formulário no momento do envio.
@@ -424,3 +449,5 @@ BIBLIOTECA_INICIAL = [
     ("lei", "Estatuto da Advocacia e da OAB — Lei nº 8.906/1994", "Lei 8.906/1994",
      "https://www.planalto.gov.br/ccivil_03/leis/l8906.htm"),
 ]
+
+OBSERVACOES_ANTIGAS["ia"] = OBSERVACOES_ANTIGAS_IA

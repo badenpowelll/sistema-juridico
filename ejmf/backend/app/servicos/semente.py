@@ -115,6 +115,14 @@ def semear(sessao: Session) -> dict[str, int]:
             criados["biblioteca"] = criados.get("biblioteca", 0) + 1
 
     sessao.flush()
+    from app.modelos import ModeloIA
+    from app.servicos.ia import orquestrador
+    criados["funcoes_virtuais"] = orquestrador.sincronizar(sessao, esc.id)
+    if sessao.execute(select(ModeloIA).where(ModeloIA.escritorio_id == esc.id, ModeloIA.provedor == "simulado")).scalar() is None:
+        sessao.add(ModeloIA(escritorio_id=esc.id, provedor="simulado", modelo="simulado-v1", simulado=True, ativo=True,
+                            rotulo="[SIMULADO] Adaptador de testes (sem IA real, custo zero)"))
+        criados["modelos_ia"] = 1
+    sessao.flush()
     if any(criados.values()):
         auditoria.registrar(sessao, auditoria.Ator(tipo="sistema", nome="semeadura", escritorio_id=esc.id),
                             "sistema.semear", alteracoes=criados, origem="cli")
