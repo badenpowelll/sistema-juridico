@@ -308,6 +308,10 @@ def executar(db: Session, esc_id: uuid.UUID, origem: str = "agendador", usuario_
     c.tamanho, c.sha256, c.manifesto = r["tamanho"], r["sha256"], _resumo(r["manifesto"])
     auditoria.registrar(db, _ator(esc_id), "backup.concluido", entidade="copia_seguranca", entidade_id=str(c.id),
                         alteracoes={"arquivo": nome, "tamanho": c.tamanho, "sha256": c.sha256, "origem": origem})
+    if obter_config().s3_configurado:
+        c.externa_situacao = "pendente"
+        fila.enfileirar(db, esc_id, "backup.enviar_externo", f"backup:externo:{c.id}", {"copia_id": str(c.id)},
+                        max_tentativas=6, criada_por=None)
     aplicar_retencao(db, esc_id)
     db.commit()
     return c
@@ -497,6 +501,102 @@ def aplicar_retencao(db: Session, esc_id: uuid.UUID) -> int:
     return n
 
 
+# ------------------------------------------------------------------ cópia externa (S3 compatível, Fase 12)
+
+def _s3():
+    """Cliente S3 pelo SDK oficial da AWS (boto3), que também atende os provedores compatíveis pelo endpoint."""
+    import boto3
+    from botocore.config import Config as BotoConfig
+    cfg = obter_config()
+    if not cfg.s3_configurado:
+        raise ErroCopia("Cópia externa aguardando credenciais (EJMF_BACKUP_S3_*)", 409)
+    return boto3.client("s3", endpoint_url=cfg.backup_s3_endpoint or None, region_name=cfg.backup_s3_regiao or "us-east-1",
+                        aws_access_key_id=cfg.backup_s3_chave_acesso, aws_secret_access_key=cfg.backup_s3_chave_secreta,
+                        config=BotoConfig(retries={"max_attempts": 3, "mode": "standard"}, connect_timeout=15,
+                                          read_timeout=120, s3={"addressing_style": "path"},
+                                          request_checksum_calculation="when_required",
+                                          response_checksum_validation="when_required"))
+
+
+def _chave_externa(nome: str) -> str:
+    return obter_config().backup_s3_prefixo.lstrip("/") + nome
+
+
+def enviar_externo(db: Session, copia_id: uuid.UUID) -> CopiaSeguranca:
+    """Envia o arquivo já cifrado e confere tamanho e SHA-256 lidos de volta do armazenamento."""
+    c = db.get(CopiaSeguranca, copia_id)
+    if c is None or not c.arquivo:
+        raise ErroCopia("Cópia não encontrada", 404)
+    if c.externa_situacao == "enviada":
+        return c
+    caminho = _destino() / c.arquivo
+    if not caminho.exists():
+        c.externa_situacao, c.externa_erro = "falhou", "O arquivo local já não existe (retenção)"
+        db.commit()
+        return c
+    cfg = obter_config()
+    chave = _chave_externa(c.arquivo)
+    try:
+        s3 = _s3()
+        s3.upload_file(str(caminho), cfg.backup_s3_bucket, chave,
+                       ExtraArgs={"Metadata": {"sha256": c.sha256 or "", "chave-id": c.chave_id or ""},
+                                  "ContentType": "application/octet-stream"})
+        h = hashlib.sha256()
+        obj = s3.get_object(Bucket=cfg.backup_s3_bucket, Key=chave)
+        tamanho = 0
+        for pedaco in obj["Body"].iter_chunks(BLOCO):
+            h.update(pedaco)
+            tamanho += len(pedaco)
+        if tamanho != c.tamanho or h.hexdigest() != c.sha256:
+            raise ErroCopia("A cópia lida de volta do armazenamento externo não confere (tamanho ou SHA-256)")
+    except Exception as e:  # noqa: BLE001
+        db.rollback()
+        c.externa_situacao, c.externa_erro = "falhou", _sem_segredos(str(e))[:1000]
+        auditoria.registrar(db, _ator(c.escritorio_id), "backup.externo_falhou", entidade="copia_seguranca",
+                            entidade_id=str(c.id), alteracoes={"erro": c.externa_erro[:300]})
+        db.commit()
+        raise RuntimeError(c.externa_erro) from e  # a fila tenta de novo, com espera crescente
+    c.externa_situacao, c.externa_chave, c.externa_em, c.externa_erro = "enviada", chave, datetime.now(timezone.utc), None
+    auditoria.registrar(db, _ator(c.escritorio_id), "backup.externo_enviado", entidade="copia_seguranca",
+                        entidade_id=str(c.id), alteracoes={"chave": chave, "tamanho": c.tamanho, "sha256": c.sha256})
+    db.commit()
+    return c
+
+
+def _sem_segredos(texto: str) -> str:
+    cfg = obter_config()
+    for s in (cfg.backup_s3_chave_secreta, cfg.backup_s3_chave_acesso):
+        if s:
+            texto = texto.replace(s, "***")
+    return texto
+
+
+def listar_externas() -> list[dict]:
+    cfg = obter_config()
+    s3 = _s3()
+    saida, token = [], None
+    while True:
+        kw = {"Bucket": cfg.backup_s3_bucket, "Prefix": cfg.backup_s3_prefixo.lstrip("/")}
+        if token:
+            kw["ContinuationToken"] = token
+        r = s3.list_objects_v2(**kw)
+        saida += [{"chave": o["Key"], "tamanho": o["Size"], "data": o["LastModified"]} for o in r.get("Contents", [])]
+        if not r.get("IsTruncated"):
+            return saida
+        token = r["NextContinuationToken"]
+
+
+def baixar_externa(chave: str, destino: Path) -> Path:
+    """Baixa uma cópia (cifrada) para restaurar com `restaurar`. Só pela linha de comando."""
+    cfg = obter_config()
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    if destino.exists():
+        raise ErroCopia(f"{destino} já existe")
+    _s3().download_file(cfg.backup_s3_bucket, chave, str(destino))
+    os.chmod(destino, 0o600)
+    return destino
+
+
 # ------------------------------------------------------------------ estado, agenda e fila
 
 def estado(db: Session, esc_id: uuid.UUID) -> dict:
@@ -528,20 +628,41 @@ def estado(db: Session, esc_id: uuid.UUID) -> dict:
             motivos.append("O último teste de restauração falhou")
         elif (agora - ultimo_teste.testada_em).days >= teste_dias:
             motivos.append(f"Último teste de restauração há {(agora - ultimo_teste.testada_em).days} dias")
+    externa = _estado_externo(db, esc_id, motivos)
     return {"configurada": configurada(), "comprometido": bool(motivos), "motivos": motivos,
             "ultima_concluida_em": ultima_ok.concluida_em if ultima_ok else None, "horas_desde_ultima": horas,
             "ultimo_teste_em": ultimo_teste.testada_em if ultimo_teste else None,
             "ultimo_teste": ultimo_teste.teste_situacao if ultimo_teste else None,
             "retencao": retencao(db, esc_id), "hora": str(config(db, esc_id, "backup.hora", "02:00")),
-            "teste_dias": teste_dias, "externa": "Aguardando credenciais (S3 compatível)",
+            "teste_dias": teste_dias, "externa": externa,
             "espaco_livre_bytes": shutil.disk_usage(_destino()).free if configurada() else None}
+
+
+def _estado_externo(db: Session, esc_id: uuid.UUID, motivos: list[str]) -> dict:
+    cfg = obter_config()
+    if not cfg.s3_configurado:
+        return {"configurada": False, "texto": "Aguardando credenciais (S3 compatível)"}
+    ultima = db.execute(select(CopiaSeguranca).where(CopiaSeguranca.escritorio_id == esc_id,
+                                                     CopiaSeguranca.externa_situacao == "enviada")
+                        .order_by(CopiaSeguranca.externa_em.desc()).limit(1)).scalar()
+    falhas = db.execute(select(func.count()).select_from(CopiaSeguranca).where(
+        CopiaSeguranca.escritorio_id == esc_id, CopiaSeguranca.externa_situacao == "falhou")).scalar_one()
+    recente = db.execute(select(CopiaSeguranca).where(CopiaSeguranca.escritorio_id == esc_id,
+                                                      CopiaSeguranca.situacao == "concluida")
+                         .order_by(CopiaSeguranca.concluida_em.desc()).limit(1)).scalar()
+    if recente and recente.externa_situacao != "enviada" and recente.concluida_em \
+            and datetime.now(timezone.utc) - recente.concluida_em > timedelta(hours=2):
+        motivos.append("A última cópia ainda não chegou ao armazenamento externo")
+    return {"configurada": True, "bucket": cfg.backup_s3_bucket, "ultima_enviada_em": ultima.externa_em if ultima else None,
+            "falhas": falhas, "texto": "Enviando para o armazenamento externo" if not ultima else "Em dia"}
 
 
 def como_json(c: CopiaSeguranca) -> dict:
     return {"id": str(c.id), "situacao": c.situacao, "origem": c.origem, "iniciada_em": c.iniciada_em,
             "concluida_em": c.concluida_em, "arquivo": c.arquivo, "tamanho": c.tamanho, "sha256": c.sha256,
             "chave_id": c.chave_id, "manifesto": c.manifesto, "erro": c.erro, "teste_situacao": c.teste_situacao,
-            "testada_em": c.testada_em, "teste_detalhes": c.teste_detalhes, "expirada_em": c.expirada_em}
+            "testada_em": c.testada_em, "teste_detalhes": c.teste_detalhes, "expirada_em": c.expirada_em,
+            "externa_situacao": c.externa_situacao, "externa_em": c.externa_em, "externa_erro": c.externa_erro}
 
 
 def agendar(db: Session, esc_id: uuid.UUID, agora_local: datetime) -> list[str]:
@@ -590,3 +711,9 @@ def _executar_tarefa(db: Session, tarefa) -> dict:
 def _testar_tarefa(db: Session, tarefa) -> dict:
     c = testar(db, tarefa.escritorio_id, uuid.UUID(tarefa.parametros["copia_id"]) if tarefa.parametros.get("copia_id") else None)
     return {"copia": str(c.id), "resultado": c.teste_situacao}
+
+
+@fila.executor("backup.enviar_externo")
+def _enviar_externo_tarefa(db: Session, tarefa) -> dict:
+    c = enviar_externo(db, uuid.UUID(tarefa.parametros["copia_id"]))
+    return {"copia": str(c.id), "externa": c.externa_situacao, "chave": c.externa_chave}

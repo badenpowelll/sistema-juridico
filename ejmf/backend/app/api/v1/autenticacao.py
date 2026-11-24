@@ -46,7 +46,7 @@ def _eu(ctx: Contexto) -> dict:
         "id": str(u.id), "nome": u.nome, "email": u.email,
         "perfis": [p.codigo for p in u.perfis], "permissoes": sorted(ctx.permissoes),
         "mfa_ativo": u.mfa_ativo, "mfa_pendente": ctx.sessao.mfa_pendente,
-        "mfa_obrigatorio": cfg.mfa_obrigatorio_admin and eh_admin(u),
+        "mfa_obrigatorio": cfg.mfa_exigido_admin and eh_admin(u),
     }
 
 

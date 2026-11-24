@@ -74,10 +74,31 @@ class Config(BaseSettings):
     pg_bin_dir: str | None = None  # pasta de pg_dump/pg_restore, se não estiverem no PATH
     # Antivírus (Fase 11): clamd por socket Unix ("/run/clamav/clamd.ctl") ou TCP ("tcp://host:3310"). Vazio = sem varredura.
     clamav_endereco: str | None = None
+    # Cópia externa (Fase 12): armazenamento compatível com S3 (AWS, Backblaze, Wasabi, Magalu Cloud, MinIO...).
+    # Sem as quatro variáveis, fica "aguardando credenciais". A credencial deve poder só gravar e ler (sem apagar):
+    # a retenção externa é feita pela regra de ciclo de vida do próprio bucket, não pelo EJMF.
+    backup_s3_endpoint: str | None = None  # ex.: https://s3.sa-east-1.amazonaws.com; vazio com região = AWS
+    backup_s3_regiao: str | None = None
+    backup_s3_bucket: str | None = None
+    backup_s3_chave_acesso: str | None = None
+    backup_s3_chave_secreta: str | None = None
+    backup_s3_prefixo: str = "ejmf/"
+    # Arquivamento contínuo do WAL (Fase 12): pasta montada no servidor do banco e lida aqui só para o painel.
+    wal_dir: str | None = None
 
     @property
     def producao(self) -> bool:
         return self.ambiente == "producao"
+
+    @property
+    def mfa_exigido_admin(self) -> bool:
+        """Em produção a verificação em duas etapas do administrador é sempre obrigatória."""
+        return self.mfa_obrigatorio_admin or self.producao
+
+    @property
+    def s3_configurado(self) -> bool:
+        return bool(self.backup_s3_bucket and self.backup_s3_chave_acesso and self.backup_s3_chave_secreta
+                    and (self.backup_s3_endpoint or self.backup_s3_regiao))
 
     @property
     def cookie_seguro(self) -> bool:
@@ -88,7 +109,26 @@ class Config(BaseSettings):
         if self.ambiente in ("producao", "homologacao"):
             if self.chave_secreta == CHAVE_PADRAO_DEV or len(self.chave_secreta) < 32:
                 raise ValueError("EJMF_CHAVE_SECRETA precisa ter ao menos 32 caracteres fora do desenvolvimento")
+        if self.producao:
+            # o que é perigoso demais para subir: dados simulados misturados aos reais, link de cliente sem HTTPS
+            # e a senha de exemplo do banco. O restante aparece em `python -m app.cli verificar-producao`.
+            erros = problemas_bloqueantes(self)
+            if erros:
+                raise ValueError("; ".join(erros))
         return self
+
+
+def problemas_bloqueantes(c: "Config") -> list[str]:
+    erros = []
+    if c.conectores_simulados:
+        erros.append("EJMF_CONECTORES_SIMULADOS não pode estar ligado em produção (dados simulados se misturariam aos reais)")
+    if c.ia_simulado:
+        erros.append("EJMF_IA_SIMULADO não pode estar ligado em produção")
+    if not c.url_publica.startswith("https://"):
+        erros.append("EJMF_URL_PUBLICA precisa começar com https:// em produção (links de cadastro e portal)")
+    if "ejmf:ejmf@" in c.database_url:
+        erros.append("EJMF_DATABASE_URL usa a senha de exemplo do banco; troque a senha antes de produção")
+    return erros
 
 
 @lru_cache

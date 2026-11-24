@@ -23,6 +23,11 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("backup", help="faz uma cópia de segurança cifrada agora")
     tb = sub.add_parser("testar-restauracao", help="restaura a última cópia (ou --id) num banco descartável e confere")
     tb.add_argument("--id")
+    sub.add_parser("listar-copias-externas", help="lista as cópias no armazenamento externo (S3 compatível)")
+    bx = sub.add_parser("baixar-copia-externa", help="baixa uma cópia cifrada do armazenamento externo para restaurar")
+    bx.add_argument("--chave", required=True, help="nome do objeto, como listado")
+    bx.add_argument("--destino", required=True, help="arquivo local que ainda não existe")
+    sub.add_parser("verificar-producao", help="lista o que falta para produção; sai com 1 se algo bloqueia")
     rs = sub.add_parser("restaurar", help="restaura uma cópia num banco VAZIO e numa pasta de arquivos vazia")
     rs.add_argument("--arquivo", required=True)
     rs.add_argument("--destino", required=True, help="URL do banco de destino, já criado e vazio")
@@ -44,6 +49,20 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         try:
             print(copias.restaurar(Path(a.arquivo), a.destino, Path(a.arquivos_destino)))
+        except copias.ErroCopia as e:
+            print(f"Erro: {e}", file=sys.stderr)
+            return 2
+        return 0
+    if a.cmd in ("listar-copias-externas", "baixar-copia-externa"):
+        from pathlib import Path
+
+        from app.servicos import copias
+        try:
+            if a.cmd == "listar-copias-externas":
+                for o in copias.listar_externas():
+                    print(f"{o['data']:%Y-%m-%d %H:%M}  {o['tamanho']:>12}  {o['chave']}")
+            else:
+                print(copias.baixar_externa(a.chave, Path(a.destino)))
         except copias.ErroCopia as e:
             print(f"Erro: {e}", file=sys.stderr)
             return 2
@@ -85,6 +104,21 @@ def main(argv: list[str] | None = None) -> int:
             print(copias.como_json(c))
             ok = c.situacao == "concluida" if a.cmd == "backup" else c.teste_situacao == "aprovado"
             return 0 if ok else 2
+        if a.cmd == "verificar-producao":
+            from app.servicos import prontidao
+            from app.servicos.semente import obter_escritorio
+            r = prontidao.verificar(db, obter_escritorio(db).id)
+            marca = {"ok": "[ok]      ", "atencao": "[atenção] ", "bloqueia": "[BLOQUEIA]"}
+            grupo = None
+            for i in r["itens"]:
+                if i["grupo"] != grupo:
+                    grupo = i["grupo"]
+                    print(f"\n{grupo}")
+                print(f"  {marca[i['situacao']]} {i['titulo']}: {i['detalhe']}")
+                if i["como_resolver"]:
+                    print(f"             → {i['como_resolver']}")
+            print(f"\n{r['resumo']}")
+            return 0 if r["pronta"] else 1
     return 0
 
 

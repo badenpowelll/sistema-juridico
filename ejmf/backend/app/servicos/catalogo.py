@@ -86,6 +86,7 @@ PERMISSOES: dict[str, tuple[str, int]] = {
     "financeiro:exportar": ("Exportar lançamentos e relatórios financeiros", 2),
     "backups:ler": ("Ver o estado das cópias de segurança e dos testes de restauração", 0),
     "backups:executar": ("Pedir cópia de segurança e teste de restauração agora", 3),
+    "producao:ler": ("Ver a verificação de prontidão para produção", 3),
 }
 
 PERFIS: dict[str, dict] = {

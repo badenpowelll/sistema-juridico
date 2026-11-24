@@ -47,7 +47,7 @@ def contexto(request: Request, db: Session = Depends(obter_sessao)) -> Contexto:
     ctx = _contexto(request, db, permitir_mfa_pendente=False)
     cfg = obter_config()
     caminho = request.url.path
-    if cfg.mfa_obrigatorio_admin and eh_admin(ctx.usuario) and not ctx.usuario.mfa_ativo \
+    if cfg.mfa_exigido_admin and eh_admin(ctx.usuario) and not ctx.usuario.mfa_ativo \
             and not caminho.startswith("/api/v1/auth/"):
         raise HTTPException(403, "Configure a verificação em duas etapas para continuar")
     return ctx

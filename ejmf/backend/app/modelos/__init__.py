@@ -1736,6 +1736,7 @@ class CopiaSeguranca(Base):
     __table_args__ = (
         CheckConstraint("situacao in ('executando','concluida','falhou','expirada')", name="ck_copias_situacao"),
         CheckConstraint("teste_situacao is null or teste_situacao in ('aprovado','reprovado')", name="ck_copias_teste"),
+        CheckConstraint("externa_situacao is null or externa_situacao in ('pendente','enviada','falhou')", name="ck_copias_externa"),
         Index("ix_copias_seguranca_iniciada", "escritorio_id", "iniciada_em"),
     )
     id: Mapped[uuid.UUID] = _uuid()
@@ -1755,3 +1756,8 @@ class CopiaSeguranca(Base):
     testada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     teste_detalhes: Mapped[Any] = mapped_column(JSONB, nullable=True)
     expirada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Fase 12: cópia no armazenamento externo (S3 compatível). O EJMF só grava e confere; não apaga lá fora.
+    externa_situacao: Mapped[str | None] = mapped_column(String(20))
+    externa_chave: Mapped[str | None] = mapped_column(String(300))
+    externa_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    externa_erro: Mapped[str | None] = mapped_column(Text)
