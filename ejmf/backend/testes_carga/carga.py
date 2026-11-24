@@ -26,6 +26,11 @@ os.environ["EJMF_DATABASE_URL"] = URL
 os.environ.setdefault("EJMF_AMBIENTE", "teste")
 os.environ.setdefault("EJMF_CHAVE_SECRETA", "carga-chave-sintetica-" + "x" * 32)
 os.environ["EJMF_LOGIN_LIMITE_POR_MINUTO_IP"] = "100000"
+if not os.environ.get("EJMF_BACKUP_CHAVE"):  # chave descartável só para medir a cópia; nada fica guardado
+    import base64 as _b64
+    import tempfile as _tmp
+    os.environ["EJMF_BACKUP_CHAVE"] = _b64.urlsafe_b64encode(os.urandom(32)).rstrip(b"=").decode()
+    os.environ.setdefault("EJMF_BACKUP_DIR", _tmp.mkdtemp(prefix="ejmf-carga-copias-"))
 
 from app.servicos.identificadores import gerar_cnj, gerar_cpf, normalizar_texto  # noqa: E402
 
@@ -175,6 +180,10 @@ def cenario(n: int, movs: int, linhas_importacao: int) -> dict:
         medir(c, "Pesquisa global", lambda i: ("/api/v1/pesquisa", {"q": " ".join(nomes[i * 11 % len(nomes)].split()[:2])})),
         medir(c, "Lista de clientes", lambda i: ("/api/v1/clientes", {})),
         medir(c, "Central de comando", lambda i: ("/api/v1/painel", {})),
+        medir(c, "Central de contingência", lambda i: ("/api/v1/contingencia", {})),
+        medir(c, "Central de prioridades", lambda i: ("/api/v1/prioridades", {})),
+        medir(c, "Financeiro (visão geral)", lambda i: ("/api/v1/financeiro", {})),
+        medir(c, "Cópias de segurança (estado)", lambda i: ("/api/v1/backups", {})),
     ]
     importacao = None
     if linhas_importacao:
@@ -208,10 +217,23 @@ def cenario(n: int, movs: int, linhas_importacao: int) -> dict:
     with fabrica_sessao()() as db:
         tamanho = db.execute(text("SELECT pg_size_pretty(pg_database_size(current_database()))")).scalar()
         integra = c.get("/api/v1/auditoria/verificar").json()["integra"]
+    copia = None
+    if os.environ.get("EJMF_BACKUP_CHAVE"):  # cópia cifrada e teste de restauração do banco inteiro (Fase 11)
+        from app.servicos import copias
+        with fabrica_sessao()() as db:
+            esc_id = obter_escritorio(db).id
+            t0 = time.perf_counter()
+            cp = copias.executar(db, esc_id, "pessoa")
+            t1 = time.perf_counter()
+            cp = copias.testar(db, esc_id, cp.id)
+            t2 = time.perf_counter()
+            copia = {"situacao": cp.situacao, "teste": cp.teste_situacao, "tamanho_mb": round((cp.tamanho or 0) / 1048576, 1),
+                     "copiar_s": round(t1 - t0, 1), "testar_restauracao_s": round(t2 - t1, 1),
+                     "linhas": (cp.teste_detalhes or {}).get("linhas"), "erro": cp.erro or (cp.teste_detalhes or {}).get("erro")}
     return {"processos": n, "movimentacoes": movs, "geracao_processos_s": round(t_proc, 2),
             "geracao_movimentacoes_s": round(t_mov, 2), "medidas": medidas, "importacao": importacao,
             "banco": tamanho, "memoria_max_mb": round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1),
-            "auditoria_integra": integra}
+            "auditoria_integra": integra, "copia_seguranca": copia}
 
 
 def main():

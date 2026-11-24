@@ -1,78 +1,102 @@
 {
-  "gerado_em": "2026-11-24T03:54:01.014342+00:00",
+  "gerado_em": "2026-11-24T09:47:26.696435+00:00",
   "cenarios": [
     {
       "processos": 1000,
       "movimentacoes": 3000,
-      "geracao_processos_s": 0.27,
-      "geracao_movimentacoes_s": 0.26,
+      "geracao_processos_s": 0.32,
+      "geracao_movimentacoes_s": 0.36,
       "medidas": [
         {
           "rota": "Lista de processos (pág. 1)",
-          "p50_ms": 22.6,
-          "p95_ms": 26.7,
-          "max_ms": 47.8
+          "p50_ms": 24.6,
+          "p95_ms": 41.1,
+          "max_ms": 53.6
         },
         {
           "rota": "Lista de processos (pág. 40)",
-          "p50_ms": 22.1,
-          "p95_ms": 24.7,
-          "max_ms": 27.0
+          "p50_ms": 23.7,
+          "p95_ms": 28.5,
+          "max_ms": 29.2
         },
         {
           "rota": "Filtro situação + tribunal",
-          "p50_ms": 21.4,
-          "p95_ms": 24.9,
-          "max_ms": 26.7
+          "p50_ms": 22.6,
+          "p95_ms": 24.1,
+          "max_ms": 24.4
         },
         {
           "rota": "Busca por nome de cliente",
-          "p50_ms": 19.7,
-          "p95_ms": 22.1,
-          "max_ms": 22.7
+          "p50_ms": 25.8,
+          "p95_ms": 30.4,
+          "max_ms": 186.3
         },
         {
           "rota": "Busca por número (com máscara)",
-          "p50_ms": 19.7,
-          "p95_ms": 21.5,
-          "max_ms": 23.5
+          "p50_ms": 26.6,
+          "p95_ms": 36.3,
+          "max_ms": 36.5
         },
         {
           "rota": "Busca por trecho do número",
-          "p50_ms": 19.7,
-          "p95_ms": 21.8,
-          "max_ms": 21.9
+          "p50_ms": 26.9,
+          "p95_ms": 29.3,
+          "max_ms": 30.5
         },
         {
           "rota": "Prontuário com linha do tempo",
-          "p50_ms": 17.9,
-          "p95_ms": 18.9,
-          "max_ms": 24.2
+          "p50_ms": 35.7,
+          "p95_ms": 37.9,
+          "max_ms": 57.1
         },
         {
           "rota": "Pesquisa global",
-          "p50_ms": 18.0,
-          "p95_ms": 21.3,
-          "max_ms": 22.8
+          "p50_ms": 23.1,
+          "p95_ms": 28.5,
+          "max_ms": 38.1
         },
         {
           "rota": "Lista de clientes",
-          "p50_ms": 15.8,
-          "p95_ms": 17.3,
-          "max_ms": 19.2
+          "p50_ms": 18.9,
+          "p95_ms": 23.3,
+          "max_ms": 31.0
         },
         {
           "rota": "Central de comando",
+          "p50_ms": 106.3,
+          "p95_ms": 130.6,
+          "max_ms": 133.7
+        },
+        {
+          "rota": "Central de contingência",
+          "p50_ms": 55.4,
+          "p95_ms": 62.6,
+          "max_ms": 101.8
+        },
+        {
+          "rota": "Central de prioridades",
+          "p50_ms": 80.4,
+          "p95_ms": 98.6,
+          "max_ms": 146.3
+        },
+        {
+          "rota": "Financeiro (visão geral)",
+          "p50_ms": 44.2,
+          "p95_ms": 50.8,
+          "max_ms": 148.7
+        },
+        {
+          "rota": "Cópias de segurança (estado)",
           "p50_ms": 27.2,
-          "p95_ms": 32.7,
-          "max_ms": 40.1
+          "p95_ms": 38.6,
+          "max_ms": 148.1
         }
       ],
       "importacao": {
         "linhas": 5100,
-        "analisar_s": 0.22,
-        "validar_s": 0.84,
-        "executar_s": 9.54,
+        "analisar_s": 0.26,
+        "validar_s": 0.97,
+        "executar_s": 12.97,
         "chamadas_executar": 2,
         "situacoes": {
           "invalida": 50,
@@ -85,153 +109,228 @@
           "duplicada_arquivo": 50
         }
       },
-      "banco": "51 MB",
-      "memoria_max_mb": 174.2,
-      "auditoria_integra": true
+      "banco": "55 MB",
+      "memoria_max_mb": 206.3,
+      "auditoria_integra": true,
+      "copia_seguranca": {
+        "situacao": "concluida",
+        "teste": "aprovado",
+        "tamanho_mb": 3.0,
+        "copiar_s": 0.6,
+        "testar_restauracao_s": 2.2,
+        "linhas": 37267,
+        "erro": null
+      }
     },
     {
       "processos": 5000,
       "movimentacoes": 15000,
-      "geracao_processos_s": 1.28,
-      "geracao_movimentacoes_s": 1.39,
+      "geracao_processos_s": 1.58,
+      "geracao_movimentacoes_s": 1.33,
       "medidas": [
         {
           "rota": "Lista de processos (pág. 1)",
-          "p50_ms": 21.2,
-          "p95_ms": 28.2,
-          "max_ms": 33.0
+          "p50_ms": 23.7,
+          "p95_ms": 31.5,
+          "max_ms": 33.3
         },
         {
           "rota": "Lista de processos (pág. 40)",
-          "p50_ms": 20.9,
-          "p95_ms": 24.7,
-          "max_ms": 25.7
+          "p50_ms": 27.6,
+          "p95_ms": 31.3,
+          "max_ms": 31.9
         },
         {
           "rota": "Filtro situação + tribunal",
-          "p50_ms": 22.1,
-          "p95_ms": 23.8,
-          "max_ms": 24.1
+          "p50_ms": 24.7,
+          "p95_ms": 28.2,
+          "max_ms": 30.9
         },
         {
           "rota": "Busca por nome de cliente",
-          "p50_ms": 26.9,
-          "p95_ms": 28.2,
-          "max_ms": 32.5
+          "p50_ms": 31.6,
+          "p95_ms": 34.3,
+          "max_ms": 35.5
         },
         {
           "rota": "Busca por número (com máscara)",
-          "p50_ms": 26.5,
-          "p95_ms": 31.0,
-          "max_ms": 31.1
+          "p50_ms": 29.2,
+          "p95_ms": 32.8,
+          "max_ms": 32.8
         },
         {
           "rota": "Busca por trecho do número",
-          "p50_ms": 26.3,
-          "p95_ms": 29.0,
-          "max_ms": 29.9
+          "p50_ms": 29.5,
+          "p95_ms": 33.0,
+          "max_ms": 34.3
         },
         {
           "rota": "Prontuário com linha do tempo",
-          "p50_ms": 19.1,
-          "p95_ms": 22.0,
-          "max_ms": 30.7
+          "p50_ms": 30.2,
+          "p95_ms": 42.5,
+          "max_ms": 48.5
         },
         {
           "rota": "Pesquisa global",
-          "p50_ms": 20.1,
-          "p95_ms": 23.1,
-          "max_ms": 27.4
+          "p50_ms": 25.3,
+          "p95_ms": 30.3,
+          "max_ms": 32.2
         },
         {
           "rota": "Lista de clientes",
-          "p50_ms": 16.3,
-          "p95_ms": 18.7,
-          "max_ms": 20.2
+          "p50_ms": 19.8,
+          "p95_ms": 23.7,
+          "max_ms": 23.9
         },
         {
           "rota": "Central de comando",
-          "p50_ms": 34.9,
-          "p95_ms": 39.0,
-          "max_ms": 44.4
+          "p50_ms": 100.5,
+          "p95_ms": 130.8,
+          "max_ms": 248.0
+        },
+        {
+          "rota": "Central de contingência",
+          "p50_ms": 52.7,
+          "p95_ms": 59.7,
+          "max_ms": 66.8
+        },
+        {
+          "rota": "Central de prioridades",
+          "p50_ms": 81.0,
+          "p95_ms": 98.4,
+          "max_ms": 122.5
+        },
+        {
+          "rota": "Financeiro (visão geral)",
+          "p50_ms": 50.1,
+          "p95_ms": 55.8,
+          "max_ms": 60.3
+        },
+        {
+          "rota": "Cópias de segurança (estado)",
+          "p50_ms": 29.4,
+          "p95_ms": 36.6,
+          "max_ms": 52.5
         }
       ],
       "importacao": null,
-      "banco": "39 MB",
-      "memoria_max_mb": 215.2,
-      "auditoria_integra": true
+      "banco": "45 MB",
+      "memoria_max_mb": 250.3,
+      "auditoria_integra": true,
+      "copia_seguranca": {
+        "situacao": "concluida",
+        "teste": "aprovado",
+        "tamanho_mb": 2.4,
+        "copiar_s": 0.6,
+        "testar_restauracao_s": 2.0,
+        "linhas": 33152,
+        "erro": null
+      }
     },
     {
       "processos": 10000,
       "movimentacoes": 100000,
-      "geracao_processos_s": 2.61,
-      "geracao_movimentacoes_s": 5.04,
+      "geracao_processos_s": 3.25,
+      "geracao_movimentacoes_s": 6.25,
       "medidas": [
         {
           "rota": "Lista de processos (pág. 1)",
-          "p50_ms": 23.1,
-          "p95_ms": 33.1,
-          "max_ms": 96.8
+          "p50_ms": 33.4,
+          "p95_ms": 39.6,
+          "max_ms": 41.1
         },
         {
           "rota": "Lista de processos (pág. 40)",
-          "p50_ms": 24.0,
-          "p95_ms": 28.4,
-          "max_ms": 29.3
+          "p50_ms": 31.6,
+          "p95_ms": 34.2,
+          "max_ms": 34.6
         },
         {
           "rota": "Filtro situação + tribunal",
-          "p50_ms": 23.6,
-          "p95_ms": 26.1,
-          "max_ms": 27.8
+          "p50_ms": 28.7,
+          "p95_ms": 32.3,
+          "max_ms": 40.3
         },
         {
           "rota": "Busca por nome de cliente",
-          "p50_ms": 31.9,
-          "p95_ms": 34.7,
-          "max_ms": 36.2
+          "p50_ms": 33.9,
+          "p95_ms": 36.9,
+          "max_ms": 264.3
         },
         {
           "rota": "Busca por número (com máscara)",
-          "p50_ms": 34.8,
-          "p95_ms": 39.7,
-          "max_ms": 49.8
+          "p50_ms": 30.9,
+          "p95_ms": 38.3,
+          "max_ms": 55.1
         },
         {
           "rota": "Busca por trecho do número",
-          "p50_ms": 31.7,
-          "p95_ms": 34.2,
-          "max_ms": 35.9
+          "p50_ms": 27.1,
+          "p95_ms": 28.3,
+          "max_ms": 28.4
         },
         {
           "rota": "Prontuário com linha do tempo",
-          "p50_ms": 20.5,
-          "p95_ms": 22.9,
-          "max_ms": 24.1
+          "p50_ms": 33.3,
+          "p95_ms": 37.7,
+          "max_ms": 49.3
         },
         {
           "rota": "Pesquisa global",
-          "p50_ms": 21.0,
-          "p95_ms": 24.0,
-          "max_ms": 25.5
+          "p50_ms": 26.7,
+          "p95_ms": 30.2,
+          "max_ms": 31.8
         },
         {
           "rota": "Lista de clientes",
-          "p50_ms": 16.5,
-          "p95_ms": 18.6,
-          "max_ms": 27.2
+          "p50_ms": 23.1,
+          "p95_ms": 25.2,
+          "max_ms": 32.8
         },
         {
           "rota": "Central de comando",
-          "p50_ms": 38.9,
-          "p95_ms": 44.0,
-          "max_ms": 44.3
+          "p50_ms": 110.8,
+          "p95_ms": 121.8,
+          "max_ms": 168.6
+        },
+        {
+          "rota": "Central de contingência",
+          "p50_ms": 66.7,
+          "p95_ms": 82.3,
+          "max_ms": 83.2
+        },
+        {
+          "rota": "Central de prioridades",
+          "p50_ms": 85.3,
+          "p95_ms": 110.0,
+          "max_ms": 131.8
+        },
+        {
+          "rota": "Financeiro (visão geral)",
+          "p50_ms": 48.2,
+          "p95_ms": 55.3,
+          "max_ms": 58.1
+        },
+        {
+          "rota": "Cópias de segurança (estado)",
+          "p50_ms": 32.5,
+          "p95_ms": 34.3,
+          "max_ms": 35.6
         }
       ],
       "importacao": null,
-      "banco": "78 MB",
-      "memoria_max_mb": 215.2,
-      "auditoria_integra": true
+      "banco": "83 MB",
+      "memoria_max_mb": 253.7,
+      "auditoria_integra": true,
+      "copia_seguranca": {
+        "situacao": "concluida",
+        "teste": "aprovado",
+        "tamanho_mb": 8.2,
+        "copiar_s": 1.1,
+        "testar_restauracao_s": 2.9,
+        "linhas": 135652,
+        "erro": null
+      }
     }
   ]
 }
