@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## [Fase 3] — 2026-11-24
+- Migração `0003_controladoria`: calendário, regras de prazo, publicações, leituras, prazos, alertas, execuções de integração e fila de tarefas.
+- Calendário forense: feriados nacionais (inclusive 20/11), datas da Justiça Federal (Lei 5.010 art. 62), recesso do art. 220 do CPC, e Carnaval, Paixão e Corpus Christi como "possível suspensão" a confirmar. Feriados locais cadastráveis por tribunal, UF ou segmento.
+- Motor de prazos determinístico com memória de cálculo: dias úteis ou corridos, termo inicial pela disponibilização no DJEN ou pela intimação, dobro com fundamento, e vencimento alternativo caso as possíveis suspensões se confirmem. Cinco regras versionadas (CPC, CPC por intimação, CLT, Juizados e CPP), todas não homologadas até o advogado conferir.
+- Prazo: sugerido → conferido → homologado por outra pessoa, com regra homologada; alterado, vencido, concluído e informação insuficiente. Recalcula sozinho quando o calendário muda e volta para conferência.
+- Publicações: original preservado, quatro datas (disponibilização, publicação, ciência, captura), deduplicação por fonte e entre fontes, classificação por regras, vínculo a processo, conferência, descarte com motivo, ciência só registrada por pessoa e leituras internas separadas da ciência.
+- Conectores DJEN e DataJud com limite de taxa, circuit breaker, idempotência e fila com reagendamento exponencial; adaptador "Simulado — DJEN" sempre marcado. Importação do arquivo JSON do DJEN como contingência.
+- Central de contingência: estado de cada fonte, último sucesso, processos afetados, procedimento manual com o endereço de consulta pronto, fila e worker.
+- Telas: Publicações, Prazos (com alertas), Regras e calendário, Contingência, e prazos e publicações no prontuário, com prévia do cálculo ao cadastrar.
+- Indicadores do painel passam a ser reais: publicações pendentes, intimações das últimas 24 h, prazos de hoje e prazos futuros.
+
 ## [Fase 2] — 2026-11-24
 - Migração `0002_gestao_processual`: tribunais, clientes, processos, partes, movimentações, importações e linhas de importação.
 - Número CNJ validado pelo dígito verificador (módulo 97) e tribunal identificado pelo código J.TR (95 tribunais; TJRN, TRT21 e TRF5 prioritários).

@@ -11,6 +11,7 @@ Decisões estruturais ficam em ADRs (`docs/adr/`). Decisões menores e reversív
 | 2026-11-24 | Auditoria só-inserção com cadeia de hash | Seção 36 | 0005 |
 | 2026-11-24 | `escritorio_id` em todas as tabelas de negócio | Seção 40 (expansão futura) | 0006 |
 | 2026-11-24 | Estados oficiais das integrações e adaptadores simulados marcados | Seções 42 e R | 0007 |
+| 2026-11-24 | Carnaval, Paixão e Corpus Christi contam como dia útil até o advogado confirmar a suspensão | Prazos | 0008 |
 | 2026-11-24 | Relatório diário às **6h30** (não 7h) | O superprompt prevalece sobre a conversa de origem | — |
 | 2026-11-24 | Marcas antigas não usadas em nenhum arquivo | Ordem expressa do superprompt | — |
 | 2026-11-24 | Dados institucionais (CNPJ, endereço, telefone, e-mail, WhatsApp) começam vazios e aparecem como pendência no painel | Não inventar dados | — |

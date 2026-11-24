@@ -44,4 +44,28 @@ escritorios ─┬─< clientes ──────────────┐
 | `importacoes` | Arquivo (nome, SHA-256, formato), colunas, mapeamento, `status`, totais. O arquivo em si não é guardado. |
 | `importacao_linhas` | Uma por linha do arquivo, nunca descartada: `original`, `normalizado`, `situacao`, `mensagens`, `candidatos` (homônimos), quem resolveu e quando. |
 
+## Fase 3 (`0003_controladoria`)
+
+```
+escritorios ─┬─< calendario
+             ├─< regras_prazo (codigo, versao)
+             ├─< publicacoes >── processos ──< prazos >── regras_prazo
+             │      └─< publicacao_leituras       └─< alertas_prazo
+             ├─< execucoes_integracao >── integracoes
+             └─< tarefas (chave única)
+```
+
+| Tabela | Observações |
+|---|---|
+| `calendario` | `data`, `nome`, `tipo` (feriado, suspensao, possivel_suspensao), `abrangencia` (nacional, `segmento:N`, `tribunal:J.TR`, `uf:XX`), `fundamento`, `confirmado` e quem confirmou, `origem` (semente ou manual), `ativo`. Feriado previsto em lei não pode ser desativado. |
+| `regras_prazo` | Versionadas por `codigo`; `contagem` (uteis, corridos), `termo_inicial` (disponibilizacao_djen, intimacao), `suspensao_recesso`, `segmentos`, `situacao` (nao_homologada, homologada, substituida) e quem homologou. |
+| `publicacoes` | `fonte`, `id_externo` (único por fonte), `numero_processo`, `processo_id`, `texto`, `texto_hash`, `original` JSON intacto, `disponibilizado_em`, `publicado_em`, `ciencia_em` e quem registrou, `capturado_em`, `classificacao`, `situacao` (nao_conferida, conferida, descartada, duplicada), `duplicada_de_id`, `simulado`. |
+| `publicacao_leituras` | Quem abriu, quantas vezes e quando. Leitura interna não é ciência. |
+| `prazos` | `descricao`, `dias`, `dobro` e fundamento, `data_base`, `inicio_contagem`, `vencimento`, `vencimento_alternativo`, `calculo` JSON (memória completa), `regra_id`, `situacao`, conferência, homologação e conclusão com autor e data, `origem`, `simulado`. |
+| `alertas_prazo` | Um por prazo, limiar e vencimento (único), com ciência. Se o vencimento muda, os alertas recomeçam. |
+| `execucoes_integracao` | Cada sincronização: parâmetros, resultado, contagens e erro. |
+| `tarefas` | Fila: `tipo`, `chave` única por escritório (idempotência), `estado`, tentativas, `agendada_para`, erro e resultado. Tirada com `FOR UPDATE SKIP LOCKED`. |
+
+Também nesta migração: `integracoes.falhas_consecutivas` e `circuito_aberto_ate`; `movimentacoes.chave_externa` (única quando preenchida) para não duplicar andamentos do DataJud.
+
 As tabelas das fases seguintes são documentadas aqui quando a migração correspondente é criada.

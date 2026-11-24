@@ -43,4 +43,16 @@ Teste de carga (API via TestClient, PostgreSQL local, 30 repetições por rota; 
 
 Importação de 5.100 linhas (2% com problema): analisar 0,22 s, validar 0,84 s, executar 9,5 s em 2 chamadas; 5.000 importadas, 50 inválidas e 50 duplicadas, nenhuma descartada. Memória máxima do processo: 215 MB. Cadeia de auditoria íntegra ao final de cada cenário.
 
+### Fase 3 — 2026-11-24 (mesmo ambiente)
+| Comando | Resultado |
+|---|---|
+| `cd backend && pytest -q` | **101 passed**: 13 casos do motor de prazos conferidos à mão (CPC art. 224, DJEN Lei 11.419 art. 4º §§3º-4º, dias corridos do CPP com prorrogação, recesso de 20/12 a 20/01 do art. 220, dobro, Justiça Federal pela Lei 5.010 art. 62, 20/11 nacional, Carnaval como possível suspensão e vencimento alternativo) e 15 de controladoria (DJEN e DataJud com respostas gravadas via `httpx.MockTransport`, idempotência da sincronização, circuit breaker, contingência, movimentos do DataJud sem duplicar, dupla conferência, regra penal, recálculo ao confirmar Carnaval, alertas e vencidos, publicação manual, duplicada entre fontes, vínculo, descarte, ciência, permissões do operador, importação do JSON do DJEN, fila com reagendamento, agendador e adaptador simulado) |
+| `alembic upgrade head` / `downgrade -1` / `upgrade head` e `alembic check` (migração `0003_controladoria`) | ida e volta sem erro; modelos e migração sem diferença |
+| `cd frontend && npm run lint && npx tsc --noEmit && npm run build` | sem erros |
+| `cd frontend && npx playwright test --trace off` | **29 passed, 1 skipped** (3 cenários novos × desktop e celular: publicação manual → prazo sugerido de 15 dias úteis com vencimento 09/12/2026 conferido pelo operador e homologado pelo advogado depois de homologar a regra; quem cadastra o prazo não consegue homologar o próprio cálculo; central de contingência com DJEN comprometido, procedimento manual com o endereço de consulta e sincronização do adaptador simulado) |
+| Acesso real ao DJEN (`comunicaapi.pje.jus.br`) a partir deste ambiente | **HTTP 403** (bloqueio geográfico do CloudFront fora do Brasil). Por isso o DJEN fica "Implementada em ambiente de testes": o conector foi testado contra respostas no formato documentado, e só sobe para "validada" após a primeira sincronização real num servidor no Brasil |
+| DataJud | não testado contra a fonte real: falta `DATAJUD_API_KEY` (estado "Aguardando credenciais") |
+
+Verificação manual do cenário E2E: 16/11/2026 (segunda) é a disponibilização; a publicação é 17/11; a contagem começa em 18/11; 20/11 (Dia da Consciência Negra, Lei 14.759/2023) não conta; o 15º dia útil é 09/12/2026.
+
 CI: `.github/workflows/ejmf.yml` roda os mesmos testes (backend + E2E) em cada PR que toca `ejmf/`.

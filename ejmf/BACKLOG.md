@@ -36,15 +36,15 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 ## Fase 3 — Controladoria
 | ID | Item | Prioridade |
 |---|---|---|
-| F3-01 | Interface `Conector`, circuit breaker, rate limit, fila de tarefas com idempotência | P0 |
-| F3-02 | Conector DJEN (consulta por OAB/UF, certidão por hash) | P0 |
-| F3-03 | Conector DataJud (chave pública via ambiente; lote por tribunal) | P1 |
-| F3-04 | Publicações/intimações com quatro datas separadas e original preservado | P0 |
-| F3-05 | Conferência (fila) e vínculo a processo; duplicidades | P0 |
-| F3-06 | Motor de prazos determinístico: calendário, feriados nacionais e por tribunal, suspensões, regras versionadas, memória de cálculo | P0 |
-| F3-07 | Estados do prazo e dupla conferência | P0 |
-| F3-08 | Alertas configuráveis (15/7/5/3/2/1/0 dias) | P1 |
-| F3-09 | Central de contingência (estado por fonte, último sucesso, "monitoramento comprometido") | P0 |
+| F3-01 ✓ | Interface `Conector`, circuit breaker, rate limit, fila de tarefas com idempotência | P0 |
+| F3-02 ✓ | Conector DJEN (consulta por OAB/UF, certidão por hash) — validação real pendente de servidor no Brasil | P0 |
+| F3-03 ✓ | Conector DataJud (chave pública via ambiente; lote por tribunal) — validação real pendente da chave | P1 |
+| F3-04 ✓ | Publicações/intimações com quatro datas separadas e original preservado | P0 |
+| F3-05 ✓ | Conferência (fila) e vínculo a processo; duplicidades | P0 |
+| F3-06 ✓ | Motor de prazos determinístico: calendário, feriados nacionais e por tribunal, suspensões, regras versionadas, memória de cálculo | P0 |
+| F3-07 ✓ | Estados do prazo e dupla conferência | P0 |
+| F3-08 ✓ | Alertas configuráveis (15/7/5/3/2/1/0 dias) | P1 |
+| F3-09 ✓ | Central de contingência (estado por fonte, último sucesso, "monitoramento comprometido") | P0 |
 
 ## Demais fases
 Itens detalhados ao abrir cada fase (ver ROADMAP). Itens registrados desde já:
