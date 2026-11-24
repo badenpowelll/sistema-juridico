@@ -161,12 +161,31 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 | F10-07 | Transcrição de arquivos de áudio no servidor (F8-15) | P2 — exige provedor aprovado ou modelo local |
 | F10-08 | Modo offline com dados, cifrado e opcional | Fora do padrão (ADR-0014) |
 
+## Fase 11 — Homologação
+
+| ID | Item | Prioridade |
+|---|---|---|
+| F11-01 ✓ | Cópias cifradas (banco + arquivos + manifesto), retenção diária/semanal/mensal, avisos, tela e linha de comando | P0 |
+| F11-02 ✓ | Teste de restauração automático em banco descartável (contagens, SHA-256 dos arquivos, cadeia de auditoria) | P0 |
+| F11-03 ✓ | Restauração real pela linha de comando, só em banco vazio e com confirmação | P0 |
+| F11-04 ✓ | Antivírus pelo clamd (recusa infectado, quarentena se fora do ar) | P0 |
+| F11-05 ✓ | Limite de tentativas compartilhado entre processos (PostgreSQL) | P0 |
+| F11-06 ✓ | Varredura de dependências no CI (era SEC-010) e CSP | P0 |
+| F11-07 ✓ | Teste de isolamento entre escritórios | P0 |
+| F11-08 ✓ | Carga repetida com todas as fases (1k, 5k e 10k processos; cópia e restauração medidas) | P0 |
+| F11-09 ✓ | Roteiro de homologação profissional (HOMOLOGACAO.md) com os 14 cenários de aceitação | P0 |
+| F11-10 | Cópia em outro provedor (S3 compatível) | Depende da conta do escritório |
+| F11-11 | WAL contínuo (pgBackRest) para RPO de 1 h | Implantação (Fase 12) |
+| F11-12 | Ensaio de restauração completo por pessoa, cronometrado, no servidor real | Depende do responsável |
+| F11-13 | Homologação profissional dos 14 cenários, regras de prazo, feriados, modelos e instruções de IA | Depende do Dr. Márcio |
+| F11-14 | Revisão de segurança externa (pentest) antes da produção | Recomendado; depende de contratação autorizada |
+| F11-15 | CSP com nonce (sem 'unsafe-inline') | P2 — exige renderização dinâmica das páginas |
+
 ## Demais fases
 Itens detalhados ao abrir cada fase (ver ROADMAP). Itens registrados desde já:
 
 | ID | Item | Origem |
 |---|---|---|
-| SEC-010 | Varredura de dependências (pip-audit, npm audit) no CI | Seção 34 |
 | SEC-011 | Varredura de vulnerabilidades dos componentes externos antes de adotar | RESEARCH |
 | FUT-01 | Controle de horas trabalhadas | Conversa de origem |
 | FUT-02 | Gestão de correspondentes e colaboradores | Conversa de origem |

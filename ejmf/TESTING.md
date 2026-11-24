@@ -125,4 +125,42 @@ Verificação manual do cenário E2E: 16/11/2026 (segunda) é a disponibilizaç�
 | Web Push contra serviço real (FCM, Mozilla, Apple) | **não testado**: sem chaves VAPID e sem serviço de push alcançável neste ambiente. Estado "Aguardando credenciais" |
 | Reconhecimento de voz real | **não testado**: o Chromium sem cabeça não tem microfone; coberto com reconhecimento simulado no navegador |
 
+### Fase 11 — 2026-11-24 (mesmo ambiente; PostgreSQL 16 com `pg_dump`/`pg_restore` 16, ClamAV 1.x local)
+| Comando | Resultado |
+|---|---|
+| `cd backend && pytest -q` | **217 passed**. Os novos: `tests/test_homologacao.py` (12) — sem chave nada é copiado e o painel avisa; cópia cifrada real (`pg_dump` no mesmo instante das contagens) restaurada num banco descartável com contagens, SHA-256 dos arquivos e cadeia de auditoria conferidos e o banco descartável apagado; arquivo alterado, cortado, com blocos trocados de lugar ou aberto com outra chave é recusado; retenção diária/semanal/mensal como função pura e com as configurações, preservando a última cópia aprovada e auditando cada exclusão; restauração pela linha de comando recusa sem `--confirmar`, banco com tabelas e pasta com arquivos e, num banco vazio, restaura tudo; API com permissões (operador 403, sem chave 409), fila, agendamento diário sem repetir e aviso de atraso uma vez por dia; gatilho "Cópia de segurança atrasada" e função 38; limite de tentativas compartilhado entre duas instâncias do limitador (mesmo banco); antivírus com um clamd falso por TCP (limpo, infectado recusado e auditado, fora do ar vira quarentena) e, com `EJMF_TESTE_CLAMAV`, contra o clamd real. `tests/test_isolamento.py` (3) — um segundo escritório com cliente, processo, documento já extraído e indexado (controle), lançamento e compromisso: nada aparece em listas, pesquisa global, pesquisa no conteúdo, financeiro, agenda e painel; detalhe e arquivo por id dão 404; ligar lançamento, documento, compromisso ou anotação a ids do outro escritório dá 404/422 |
+| Antivírus contra o clamd real | `clamd` local com socket unix e TCP e uma assinatura de teste EICAR (`teste.ndb`): arquivo limpo passa, EICAR é recusado. **Assinaturas reais não testadas**: o `freshclam` não alcança o servidor de assinaturas neste ambiente |
+| `alembic downgrade 0010` / `upgrade head` e `alembic check` (migração `0011_homologacao`) | ida e volta sem erro; modelos e migração sem diferença |
+| `python -m app.cli semear` duas vezes | 2 permissões (`backups:ler`, `backups:executar`) e a integração "Antivírus" na primeira; nada novo na segunda |
+| `pip-audit --skip-editable` e `npm audit` (produção e completo) | nenhuma vulnerabilidade conhecida; o `pgvector` instalado por arquivo local fica fora da verificação do pip-audit |
+| `ruff check --select F app tests testes_carga`, `cd frontend && npm run lint && npx tsc --noEmit` | sem erros |
+| `cd frontend && npx playwright test --trace off` | **55 passed, 1 skipped** (cenário novo `e2e/homologacao.spec.ts` × desktop e celular: o painel responde com a política de conteúdo (`frame-ancestors 'none'`, `object-src 'none'`), o indicador de cópias mostra "Aguardando configuração", a tela Cópias de segurança explica `gerar-chave-backup` sem o botão de fazer cópia, a contingência mostra o bloco de cópias e nenhuma página registra violação da política no console; o operador não vê o indicador nem o menu e recebe 403 em `GET` e `POST /api/v1/backups`). Todos os cenários anteriores passaram com a CSP ligada |
+| `python testes_carga/carga.py` (3 cenários, repetido com cópia e restauração) | ver tabela abaixo; todas as restaurações aprovadas e a cadeia de auditoria íntegra em todos os cenários. Importação de 5.100 linhas: análise 0,26 s, validação 0,97 s, execução 12,97 s em 2 chamadas; 5.000 importadas, 50 inválidas e 50 duplicadas apontadas |
+| Cópia em S3, WAL contínuo, ensaio de restauração por pessoa | **não testado**: sem conta de armazenamento externo e sem servidor de produção. Estado "Aguardando credenciais" |
+
+Tempos da carga (p50/p95 em ms, 1 usuário, API local):
+
+| Rota | 1 mil proc. / 3 mil mov. | 5 mil / 15 mil | 10 mil / 100 mil |
+|---|---|---|---|
+| Lista pág. 1 | 24,6 / 41,1 | 23,7 / 31,5 | 33,4 / 39,6 |
+| Lista pág. 40 | 23,7 / 28,5 | 27,6 / 31,3 | 31,6 / 34,2 |
+| Filtro situação + tribunal | 22,6 / 24,1 | 24,7 / 28,2 | 28,7 / 32,3 |
+| Busca por nome de cliente | 25,8 / 30,4 | 31,6 / 34,3 | 33,9 / 36,9 |
+| Busca por número (com máscara) | 26,6 / 36,3 | 29,2 / 32,8 | 30,9 / 38,3 |
+| Busca por trecho do número | 26,9 / 29,3 | 29,5 / 33,0 | 27,1 / 28,3 |
+| Prontuário | 35,7 / 37,9 | 30,2 / 42,5 | 33,3 / 37,7 |
+| Pesquisa global | 23,1 / 28,5 | 25,3 / 30,3 | 26,7 / 30,2 |
+| Clientes | 18,9 / 23,3 | 19,8 / 23,7 | 23,1 / 25,2 |
+| Central de comando | 106,3 / 130,6 | 100,5 / 130,8 | 110,8 / 121,8 |
+| Contingência | 55,4 / 62,6 | 52,7 / 59,7 | 66,7 / 82,3 |
+| Prioridades | 80,4 / 98,6 | 81,0 / 98,4 | 85,3 / 110,0 |
+| Financeiro | 44,2 / 50,8 | 50,1 / 55,8 | 48,2 / 55,3 |
+| Estado das cópias | 27,2 / 38,6 | 29,4 / 36,6 | 32,5 / 34,3 |
+
+| Cenário | Banco | Memória máx. da API | Cópia cifrada | Copiar | Testar restauração | Linhas conferidas |
+|---|---|---|---|---|---|---|
+| 1 mil | 55 MB | 206 MB | 3,0 MB | 0,6 s | 2,2 s | 37.267 |
+| 5 mil | 45 MB | 250 MB | 2,4 MB | 0,6 s | 2,0 s | 33.152 |
+| 10 mil | 83 MB | 254 MB | 8,2 MB | 1,1 s | 2,9 s | 135.652 |
+
 CI: `.github/workflows/ejmf.yml` roda os mesmos testes (backend + E2E) em cada PR que toca `ejmf/`.

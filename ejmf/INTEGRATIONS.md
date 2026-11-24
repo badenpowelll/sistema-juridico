@@ -24,7 +24,9 @@ Estados oficiais: **Implementada e validada · Implementada em ambiente de teste
 | Servidor MCP do EJMF (somente leitura) | Implementada em ambiente de testes | `POST /api/v1/mcp` (JSON-RPC, versões 2025-06-18, 2025-03-26 e 2024-11-05) com token pessoal `Authorization: Bearer ejmf_mcp_…` criado em Inteligência artificial; permissão `ia:mcp` | 8 |
 | Notificações no celular (Web Push) | Aguardando credenciais | Chaves VAPID geradas no próprio servidor (`python -m app.cli gerar-vapid`) em `EJMF_VAPID_CHAVE_PUBLICA` e `EJMF_VAPID_CHAVE_PRIVADA`, mais `EJMF_VAPID_CONTATO` (mailto: ou endereço público) e o EJMF em HTTPS. Sem custo; o conteúdo é genérico (ADR-0014) | 10 |
 | Reconhecimento de voz do navegador | Implementada em ambiente de testes | Web Speech API do Chrome/Edge/Safari; o áudio vai ao fabricante do navegador, por isso fica desligado até o advogado ligar (ADR-0014) | 10 |
-| Armazenamento S3 (backups) | Aguardando credenciais | Conta em provedor escolhido | 11 |
+| Cópias de segurança locais cifradas | Implementada em ambiente de testes | `EJMF_BACKUP_CHAVE` (gerada com `python -m app.cli gerar-chave-backup`) e `EJMF_BACKUP_DIR`; cliente do PostgreSQL (pg_dump/pg_restore) no servidor; teste de restauração automático (ADR-0015) | 11 |
+| Armazenamento S3 (cópia externa) | Aguardando credenciais | Conta em provedor escolhido pelo escritório | 11 |
+| Antivírus (ClamAV, clamd) | Aguardando credenciais | Instalar o ClamAV com assinaturas atualizadas (freshclam) e definir `EJMF_CLAMAV_ENDERECO`; validado aqui contra o clamd real com uma assinatura de teste local, porque o servidor de assinaturas não é alcançável | 11 |
 
 Regra: um conector só sobe para "Implementada e validada" depois de teste contra a fonte real, registrado em TESTING.md com data e resultado.
 

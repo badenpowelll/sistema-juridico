@@ -15,5 +15,5 @@ Fases do superprompt (seção 47). Cada fase termina com testes reais, atualiza�
 | 8 | IA | Camada própria de provedores (SDK oficial da Anthropic, API compatível com OpenAI, simulado; LiteLLM descartado no ADR-0012), orquestrador com limites, catálogo das 40 funções, autonomia 0–4, custos, assistente, automações, MCP só de leitura | concluída (provedores reais aguardando credenciais) |
 | 9 | Financeiro | Honorários, lançamentos, previsto/faturado/recebido, fluxo de caixa, rentabilidade, recibos, conciliação por extrato importado e lembretes só no portal (ADR-0013; a calculadora é de verbas rescisórias e não foi reaproveitada) | concluída |
 | 10 | PWA e experiência | Manifesto, service worker sem cache de documentos confidenciais, voz, notificações (ADR-0014) | concluída (Web Push real aguardando chaves VAPID) |
-| 11 | Homologação | Segurança, carga, restauração de backup, homologação profissional pelo Dr. Márcio | depende do responsável |
+| 11 | Homologação | Segurança, carga, restauração de backup, homologação profissional pelo Dr. Márcio (ADR-0015, HOMOLOGACAO.md) | parte técnica concluída; homologação profissional depende do responsável |
 | 12 | Produção | Implantação **somente com autorização** | depende do responsável |

@@ -7,6 +7,7 @@ Leia isto antes de qualquer trabalho na pasta `ejmf/`. Uma sessão nova deve con
 2. `docs/origem/SUPERPROMPT-MASTER-5.0.md` — especificação principal (não editar).
 3. `ARCHITECTURE.md`, `DECISIONS.md`, `docs/adr/`.
 4. `BACKLOG.md` e `ROADMAP.md` — o que falta, por fase.
+5. `HOMOLOGACAO.md` — roteiro de homologação profissional (Fase 11) e o que falta para produção.
 
 ## Regras inegociáveis
 - Nome do sistema: **Escritório Jurídico Márcio Fernandes (EJMF)**. Nunca usar as marcas antigas.
@@ -31,6 +32,8 @@ export EJMF_DATABASE_URL=postgresql+psycopg://ejmf:ejmf@localhost:5433/ejmf_db
 alembic upgrade head
 python -m app.cli semear            # perfis, permissões, departamentos, integrações
 python -m app.cli criar-admin --email admin@example.com --nome "Administrador"
+python -m app.cli gerar-chave-backup   # chave das cópias (guardar também fora do servidor)
+python -m app.cli backup               # cópia cifrada agora; testar-restauracao confere num banco descartável
 uvicorn app.main:app --reload       # http://localhost:8000/api/v1/docs
 pytest -q                           # usa EJMF_TEST_DATABASE_URL (padrão: ejmf_test na mesma instância)
 

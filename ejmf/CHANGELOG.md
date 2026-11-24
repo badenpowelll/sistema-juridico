@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [Fase 11] — 2026-11-24
+- Migração `0011_homologacao`: cópias de segurança (`copias_seguranca`) e contadores do limite de tentativas (`contadores_taxa`).
+- Cópias de segurança (ADR-0015): banco (`pg_dump` no mesmo instante das contagens) + arquivos + manifesto, cifrados com AES-256-GCM em blocos autenticados; chave só em `EJMF_BACKUP_CHAVE` (`gerar-chave-backup`); sem chave, nenhuma cópia. Diária a partir das 2h, retenção de 7 diárias, 5 semanais e 12 mensais, a última aprovada sempre guardada.
+- Teste de restauração automático a cada 7 dias num banco descartável: SHA-256 do arquivo, do dump e de cada arquivo, linhas por tabela e cadeia de auditoria restaurada; banco descartável sempre apagado. Avisos para cópia atrasada, falha, teste reprovado ou nunca feito.
+- Restauração real só pela linha de comando (`restaurar --confirmar`), em banco vazio e pasta vazia. A API não baixa nem restaura cópias.
+- Tela "Cópias de segurança" (estado, histórico, fazer cópia agora, testar restauração), bloco na central de contingência, indicador e item no painel, função 38 por regras e gatilho "Cópia de segurança atrasada". Permissões `backups:ler` e `backups:executar`.
+- Antivírus pelo clamd (INSTREAM, socket ou TCP): infectado recusado e auditado; antivírus fora do ar manda para a quarentena. Perfil `antivirus` opcional no Docker Compose.
+- Limite de tentativas no PostgreSQL, compartilhado por todos os processos da API (login, portal, rotas públicas e MCP).
+- Política de conteúdo (CSP) e HSTS em produção no site; pip-audit e npm audit no CI.
+- Teste de isolamento entre escritórios e teste de carga repetido com as centrais das fases 3 a 11 e a cópia com restauração.
+- HOMOLOGACAO.md: roteiro de homologação profissional com os 14 cenários de aceitação; BACKUP.md e OPERATIONS.md reescritos com os procedimentos.
+
 ## [Fase 10] — 2026-11-24
 - Migração `0010_pwa`: assinaturas de notificação no celular (`assinaturas_push`), ligadas à sessão que as ativou.
 - PWA instalável: manifesto (início no painel, tela cheia, cores da marca, atalhos para prazos, agenda, aprovações e assistente), ícones gerados do SVG da marca (192, 512, maskable e Apple) e metadados para iPhone.

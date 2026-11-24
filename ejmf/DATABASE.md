@@ -162,4 +162,11 @@ Valores em `Numeric(14,2)` (reais); a API devolve texto decimal. Nada é apagado
 
 A voz é a configuração `voz.reconhecimento_navegador` (tabela `configuracoes`), e cada comando do assistente guarda o canal (`texto` ou `voz`) na resposta.
 
+## Fase 11 (`0011_homologacao`)
+
+| Tabela | Observações |
+|---|---|
+| `copias_seguranca` | `situacao` (executando, concluida, falhou, expirada), `origem` (agendador, pessoa, funcao), quem pediu, início e fim, nome do arquivo (o arquivo fica em `EJMF_BACKUP_DIR`, fora do banco), tamanho, SHA-256 do arquivo cifrado, `chave_id` (identifica a chave sem revelá-la), `manifesto` (revisão, linhas por tabela, total, arquivos e bytes, tamanho do dump, último hash da auditoria), erro, `teste_situacao` (aprovado, reprovado), testada em, `teste_detalhes` (tempo, tabelas, linhas, divergências, auditoria íntegra), expirada em. |
+| `contadores_taxa` | Chave (ex.: `ip:…`, `portal-ip:…`, `mcp:…`) e janela de um minuto, com a contagem. Janela deslizante aproximada (minuto atual + fração do anterior); linhas com mais de uma hora são apagadas aos poucos. Sem dado pessoal além do IP da tentativa. |
+
 As tabelas das fases seguintes são documentadas aqui quando a migração correspondente é criada.

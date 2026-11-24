@@ -37,4 +37,8 @@ Decisões estruturais ficam em ADRs (`docs/adr/`). Decisões menores e reversív
 | 2026-11-24 | Service worker só guarda arquivos públicos; sem conexão, página "Sem conexão" e nenhum dado | §33: não guardar documentos confidenciais offline | 0014 |
 | 2026-11-24 | Web Push com VAPID e cifragem próprios e conteúdo genérico; revogado com a sessão | Tela bloqueada e serviço do fabricante não devem ver dados | 0014 |
 | 2026-11-24 | Voz pelo navegador desligada por padrão e ligada só pelo advogado | O áudio vai aos servidores do fabricante do navegador | 0014 |
+| 2026-11-24 | Cópias próprias cifradas (AES-256-GCM em blocos) com teste de restauração automático; sem age/gpg/restic | Menos binários e uma chave só; restauração conferida por contagem, SHA-256 e cadeia de auditoria | 0015 |
+| 2026-11-24 | API não baixa nem restaura cópia; restaurar só pela linha de comando em banco vazio | Evita exfiltração em uma chamada e restauração irreversível por cima do banco em uso | 0015 |
+| 2026-11-24 | Antivírus pelo clamd local; fora do ar = quarentena | Nenhum arquivo sai do servidor; nada se perde nem entra sem verificação | 0015 |
+| 2026-11-24 | Limite de tentativas no PostgreSQL em vez de Redis | Compartilhado entre processos sem mais um serviço | 0015 |
 | 2026-11-24 | Calculadora de rescisão não reaproveitada no financeiro; rentabilidade sem rateio de custos operacionais | Domínios diferentes; critério de rateio ainda não decidido pelo escritório | 0013 |

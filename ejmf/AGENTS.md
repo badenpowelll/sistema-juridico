@@ -56,7 +56,7 @@ Campos completos por função (entradas, saídas, ferramentas, permissões, limi
 | 35 | Relacionamento | Gestor de relacionamento | Retornos pendentes | Agendador | Opcional | 1 |
 | 36 | Auditoria e segurança | Auditor de operações | Verificar a cadeia de auditoria | Agendador | Não | 0 |
 | 37 | Auditoria e segurança | Fiscal de segurança | Acessos anômalos, sessões | Evento de login | Não | 1 |
-| 38 | Auditoria e segurança | Gestor de backups | Executar e testar restauração | Agendador | Não | 2 |
+| 38 | Auditoria e segurança | Gestor de backups | Acompanhar cópias e testes de restauração | Agendador ou pedido | Não | 0 |
 | 39 | Auditoria e segurança | Monitor de integrações e contingência | Saúde das fontes e alertas | Agendador | Não | 2 |
 | 40 | Auditoria e segurança | Analista de produtividade | Métricas coletadas, gargalos | Agendador | Opcional | 0 |
 
@@ -101,6 +101,6 @@ Campos completos por função (entradas, saídas, ferramentas, permissões, limi
 | 35 | Gestor de relacionamento | Com IA (orquestrador) | Memória da Fase 7: sugestão entra como 'a confirmar'. |
 | 36 | Auditor de operações | Por regras (orquestrador) | Verificação encadeada da Fase 1. |
 | 37 | Fiscal de segurança | Serviço do sistema | Bloqueio após falhas e limite por IP da Fase 1. |
-| 38 | Gestor de backups | Fase futura | Backup externo: Fase 11. |
+| 38 | Gestor de backups | Por regras (orquestrador) | Só lê o estado das cópias da Fase 11 (ADR-0015): última cópia, último teste de restauração e o que precisa de atenção. A cópia e o teste são feitos pelo agendador, não pela função. |
 | 39 | Monitor de integrações e contingência | Por regras (orquestrador) | Central de contingência da Fase 3. |
 | 40 | Analista de produtividade | Por regras (orquestrador) | Métricas das filas, pendências e execuções. |

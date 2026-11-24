@@ -25,8 +25,10 @@
 
 - **Fase 10** — PWA e experiência: aplicativo instalável com manifesto e ícones, service worker que não guarda dados (só a página "Sem conexão" e arquivos públicos), limpeza ao sair; notificações no celular por Web Push próprio (VAPID e aes128gcm), com conteúdo genérico, só urgentes e revogação junto com a sessão; voz no assistente pelo navegador, desligada até o advogado ligar; atalhos no rodapé do celular (ADR-0014). Testes em TESTING.md (202 backend, 53 E2E).
 
+- **Fase 11** — homologação (parte técnica): cópias de segurança cifradas do banco e dos arquivos com retenção, teste de restauração automático num banco descartável (contagens, arquivos e cadeia de auditoria conferidos) e restauração pela linha de comando só em banco vazio; antivírus pelo clamd; limite de tentativas compartilhado entre processos; política de conteúdo (CSP); varredura de dependências no CI; teste de isolamento entre escritórios; carga repetida até 10 mil processos; roteiro de homologação com os 14 cenários de aceitação em HOMOLOGACAO.md (ADR-0015). Testes em TESTING.md (217 no backend; 55 E2E passed, 1 skipped).
+
 ## Em desenvolvimento
-- Nada. Próxima: Fase 11 (homologação).
+- Homologação profissional pelo Dr. Márcio (HOMOLOGACAO.md). Depois dela, só a Fase 12 (produção), que exige autorização.
 
 ## Pendências que dependem do responsável
 - Dados institucionais: CNPJ, endereço, telefone, e-mail institucional, WhatsApp, domínio.
@@ -46,13 +48,15 @@
 - Revisar as instruções iniciais das seis funções com IA (Inteligência artificial > Funções virtuais > ficha > Instruções).
 - Notificações no celular: gerar as chaves com `python -m app.cli gerar-vapid`, colocar em `EJMF_VAPID_CHAVE_PUBLICA`, `EJMF_VAPID_CHAVE_PRIVADA` e `EJMF_VAPID_CONTATO`, publicar o EJMF em HTTPS e testar em Android, iPhone (com o EJMF na tela inicial) e computador.
 - Decidir se a voz fica ligada (Assistente > "Permitir comandos por voz no escritório"), sabendo que no Chrome e no Edge o áudio vai aos servidores do Google ou da Microsoft.
+- Cópias de segurança: gerar a chave com `python -m app.cli gerar-chave-backup`, colocar em `EJMF_BACKUP_CHAVE` e **guardar uma cópia da chave fora do servidor**; escolher o disco de `EJMF_BACKUP_DIR` e um provedor para a cópia externa (S3 compatível).
+- Antivírus: instalar o ClamAV no servidor (ou o perfil `antivirus` do Docker Compose), manter o freshclam rodando e definir `EJMF_CLAMAV_ENDERECO`.
+- Homologação profissional: percorrer HOMOLOGACAO.md.
 - Decidir o destino dos PRs antigos #1 e #2 do `sistema-juridico` (ADR-0003).
 
 ## Testes executados
 Ver TESTING.md.
 
 ## Erros conhecidos
-- O limite de tentativas de login por IP fica em memória do processo: com vários processos da API, cada um conta separado (aceitável no monólito; rever na Fase 11).
 - Na tabela de processos em celular, as últimas colunas ficam atrás de rolagem horizontal.
 - A importação aceita até 20 MB ou 50 mil linhas por arquivo; carteiras maiores precisam ser divididas.
 - A saudação do painel usa o fuso America/Fortaleza; de madrugada mostra "Bom dia".
@@ -61,12 +65,13 @@ Ver TESTING.md.
 - Sem conexão, o EJMF não mostra nenhum dado (por decisão, ADR-0014).
 - Voz depende do navegador: Firefox não tem reconhecimento de voz e o botão não aparece.
 - Os relatórios ainda não saem por e-mail nem WhatsApp: aparecem no painel e nas notificações até as integrações serem validadas.
-- Os arquivos recebidos ficam no disco do servidor (`EJMF_ARQUIVOS_DIR`), ainda sem cópia de segurança nem varredura de vírus (Fase 11). A quarentena da Fase 6 pega conteúdo ativo (script, macro), não vírus em geral.
+- As cópias de segurança ficam no mesmo servidor até haver conta de armazenamento externo; copie a pasta de cópias (já cifradas) para fora regularmente.
+- O antivírus só funciona com o ClamAV instalado e com assinaturas atualizadas no servidor; aqui foi validado com uma assinatura de teste local.
+- A política de conteúdo (CSP) aceita scripts embutidos ('unsafe-inline'), exigência do Next sem nonce.
 - O PDF assinado ainda não é baixado sozinho do Documenso: ao concluir, o sistema avisa e alguém guarda o arquivo como nova versão.
 - O OCR lê até 30 páginas por arquivo (configurável); fotos HEIC não passam pelo OCR. Transcrição de áudio fica para a Fase 8.
 - O editor usa os comandos de edição do navegador; colar de outro programa traz só a formatação permitida (o restante é limpo ao salvar).
 - O portal não tem "esqueci a senha": o escritório gera um novo convite.
-- O limite de requisições das rotas públicas fica em memória do processo, como o do login.
 - O Claude real não foi chamado neste ambiente (sem chave): o caminho está coberto por testes com o SDK oficial e respostas gravadas.
 - A estimativa de custo antes da chamada usa caracteres ÷ 3; o custo registrado depois usa os tokens informados pelo provedor.
 - As funções por regras rodam sob demanda ou por automação; ainda não há agenda periódica própria para elas (F8-17).
@@ -76,4 +81,6 @@ Ver TESTING.md.
 Ver INTEGRATIONS.md.
 
 ## Próxima atividade recomendada
-Fase 11 (homologação): segurança, carga, restauração de backup e homologação profissional pelo Dr. Márcio. Boa parte depende do responsável (servidor, credenciais, conferência das regras e modelos); começar pelo que dá para fazer aqui: varredura de dependências (SEC-010), cópia de segurança e restauração testadas, varredura de vírus dos arquivos recebidos e limite de tentativas compartilhado entre processos.
+1. O Dr. Márcio percorre HOMOLOGACAO.md num ambiente de homologação e registra cada cenário; divergências viram itens do BACKLOG.
+2. Resolver as pendências que dependem do responsável (acima), principalmente: chave das cópias guardada fora do servidor, conta de armazenamento externo, ClamAV no servidor, regras de prazo e feriados homologados, modelos homologados.
+3. Fase 12 (produção) **somente com autorização expressa**: escolha do servidor no Brasil, HTTPS, WAL contínuo, cópia externa, ensaio de restauração por pessoa.
