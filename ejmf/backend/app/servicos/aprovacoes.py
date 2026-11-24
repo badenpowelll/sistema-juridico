@@ -18,7 +18,8 @@ from app.servicos import agenda, agenda_google, auditoria, notificacoes, prazos 
 
 TIPOS = {"cancelar_audiencia": "Cancelamento de audiência", "reagendamento_google": "Reagendamento vindo do Google",
          "homologar_prazo": "Homologação de prazo", "homologar_regra": "Homologação de regra de contagem",
-         "confirmar_suspensao": "Confirmação de dia sem expediente"}
+         "confirmar_suspensao": "Confirmação de dia sem expediente",
+         "confirmar_agendamento": "Agendamento pedido pela recepcionista virtual"}
 
 
 class ErroAprovacao(ValueError):
@@ -61,6 +62,16 @@ def decidir(db: Session, ator: auditoria.Ator, ap: Aprovacao, usuario: Usuario, 
     elif ap.tipo == "reagendamento_google":
         if decisao in ("aprovar", "rejeitar"):
             agenda_google.decidir_reagendamento(db, ator, ap, decisao == "aprovar")
+    elif ap.tipo == "confirmar_agendamento" and decisao in ("aprovar", "rejeitar"):
+        from app.modelos import Conversa
+        from app.servicos import conversas, recepcionista
+        textos = recepcionista.confirmar_agendamento(db, ator, ap, decisao == "aprovar")
+        conv = db.get(Conversa, uuid.UUID(ap.dados["conversa_id"]))
+        for t in textos:
+            try:
+                conversas.enviar(db, conv, t, autor="recepcionista")
+            except conversas.ErroConversa:
+                pass  # fora da janela de 24 h: a equipe avisa por outro canal (fica no histórico da aprovação)
     ap.situacao = {"aprovar": "aprovada", "rejeitar": "rejeitada", "devolver": "devolvida"}[decisao]
     ap.decidida_por, ap.decidida_em, ap.motivo = usuario.id, datetime.now(timezone.utc), (motivo or "").strip() or None
     auditoria.registrar(db, ator, f"aprovacao.{decisao}", entidade="aprovacao", entidade_id=ap.id,
@@ -116,4 +127,6 @@ def central(db: Session, esc_id: uuid.UUID, usuario: Usuario, permissoes: set[st
 def _link(ap: Aprovacao) -> str | None:
     if ap.entidade == "compromisso":
         return f"/painel/agenda?compromisso={ap.entidade_id}"
+    if ap.entidade == "conversa":
+        return f"/painel/conversas?c={ap.entidade_id}"
     return None

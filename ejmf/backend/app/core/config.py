@@ -36,6 +36,16 @@ class Config(BaseSettings):
     google_client_secret: str | None = None
     google_redirect_uri: str | None = None
     google_api_url: str = "https://www.googleapis.com/calendar/v3"
+    # WhatsApp Business Cloud API (Fase 5). Sem as quatro variáveis, fica "aguardando credenciais".
+    whatsapp_token: str | None = None
+    whatsapp_phone_number_id: str | None = None
+    whatsapp_app_secret: str | None = None
+    whatsapp_verify_token: str | None = None
+    whatsapp_api_url: str = "https://graph.facebook.com/v23.0"
+    # Endereço público usado nos links enviados a clientes (cadastro, portal)
+    url_publica: str = "http://localhost:3000"
+    # Onde ficam os arquivos enviados por clientes (fora do Git; ver BACKUP.md)
+    arquivos_dir: str = "dados/arquivos"
     # Adaptadores simulados (dados sintéticos, sempre marcados). Desligados por padrão.
     conectores_simulados: bool = False
 

@@ -15,3 +15,5 @@ __pycache__/
 .next/
 ejmf/frontend/test-results/
 ejmf/frontend/playwright-report/
+# arquivos enviados por clientes (dados pessoais): nunca versionar
+ejmf/backend/dados/

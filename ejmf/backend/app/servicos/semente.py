@@ -64,6 +64,10 @@ def semear(sessao: Session) -> dict[str, int]:
             sessao.add(Integracao(escritorio_id=esc.id, codigo=codigo, nome=nome, categoria=cat, estado=estado,
                                   critica=critica, observacao=obs, simulado=codigo.endswith("_simulado")))
             criados["integracoes"] += 1
+    for codigo, (antiga, nova) in catalogo.OBSERVACOES_ANTIGAS.items():
+        i = ints.get(codigo)
+        if i is not None and i.observacao == antiga:
+            i.observacao = nova
     for codigo, (estado, obs) in catalogo.ATUALIZACOES_INTEGRACOES.items():
         i = ints.get(codigo)
         if i is not None and i.estado == "nao_implementada":

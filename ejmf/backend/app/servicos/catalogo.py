@@ -44,6 +44,12 @@ PERMISSOES: dict[str, tuple[str, int]] = {
     "aprovacoes:ler": ("Ver a central de aprovações", 0),
     "relatorios:ler": ("Ler os relatórios diário e de encerramento", 0),
     "relatorios:gerar": ("Gerar um relatório fora do horário", 2),
+    "atendimentos:ler": ("Consultar o funil de atendimento, cadastros e documentos recebidos", 0),
+    "atendimentos:gerenciar": ("Abrir atendimentos, mover etapas, gerar e revogar links de cadastro", 2),
+    "atendimentos:conferir": ("Fazer a conferência profissional do atendimento", 4),
+    "conversas:ler": ("Ver as conversas do WhatsApp e da recepcionista virtual", 0),
+    "conversas:responder": ("Responder ao contato e assumir ou devolver a conversa", 2),
+    "portal:gerenciar": ("Convidar clientes ao portal, revogar acesso e liberar processos", 3),
 }
 
 PERFIS: dict[str, dict] = {
@@ -61,11 +67,12 @@ PERFIS: dict[str, dict] = {
                        "publicacoes:ler", "publicacoes:cadastrar", "publicacoes:conferir",
                        "prazos:ler", "prazos:gerenciar", "contingencia:ler", "integracoes:sincronizar",
                        "agenda:ler", "agenda:gerenciar", "prioridades:ler", "prioridades:gerenciar",
-                       "aprovacoes:ler", "relatorios:ler", "relatorios:gerar"],
+                       "aprovacoes:ler", "relatorios:ler", "relatorios:gerar",
+                       "atendimentos:ler", "atendimentos:gerenciar", "conversas:ler", "conversas:responder"],
     },
     "cliente": {
         "nome": "Cliente (portal)",
-        "descricao": "Acesso somente ao próprio portal (Fase 5).",
+        "descricao": "Reservado. O cliente entra pelo portal, com credencial própria separada da equipe.",
         "permissoes": [],
     },
     "agente_ia": {
@@ -93,6 +100,12 @@ OBS_DJEN = ("Conector implementado e testado com respostas no formato oficial. A
 OBS_DATAJUD = ("Conector implementado. Informe a chave pública do CNJ na variável DATAJUD_API_KEY. DataJud traz "
                "andamentos públicos e não substitui os canais oficiais de intimação.")
 
+OBS_WHATSAPP = ("Conector da Cloud API implementado (envio de texto, webhook com assinatura). Falta a conta Meta Business "
+                "verificada e as variáveis EJMF_WHATSAPP_TOKEN, EJMF_WHATSAPP_PHONE_NUMBER_ID, EJMF_WHATSAPP_APP_SECRET e "
+                "EJMF_WHATSAPP_VERIFY_TOKEN. Fora da janela de 24 h só modelos aprovados pela Meta podem ser enviados.")
+# Observações antigas trocadas pela nova quando o estado não mudou
+OBSERVACOES_ANTIGAS = {"whatsapp": ("Conta Meta Business verificada pendente. Fase 5.", OBS_WHATSAPP)}
+
 # Integrações que mudam de estado com a Fase 3 (só se ainda estiverem como "não implementada")
 ATUALIZACOES_INTEGRACOES = {"djen": ("ambiente_testes", OBS_DJEN), "datajud": ("aguardando_credenciais", OBS_DATAJUD)}
 
@@ -114,8 +127,9 @@ INTEGRACOES = [
      "EJMF_GOOGLE_CLIENT_ID, EJMF_GOOGLE_CLIENT_SECRET e EJMF_GOOGLE_REDIRECT_URI. Escopo mínimo: calendar.events.owned."),
     ("google_calendar_simulado", "Simulado — Google Agenda (dados sintéticos)", "agenda", "ambiente_testes", False,
      "Servidor simulado da API do Google Calendar para testes e demonstração. Nunca substitui a agenda real."),
-    ("whatsapp", "WhatsApp Business (Cloud API)", "comunicacao", "aguardando_credenciais", False,
-     "Conta Meta Business verificada pendente. Fase 5."),
+    ("whatsapp", "WhatsApp Business (Cloud API)", "comunicacao", "aguardando_credenciais", False, OBS_WHATSAPP),
+    ("whatsapp_simulado", "Simulado — WhatsApp (dados sintéticos)", "comunicacao", "ambiente_testes", False,
+     "Simulador do WhatsApp dentro do painel para testar a recepcionista virtual. Nenhuma mensagem sai do EJMF."),
     ("assinatura", "Assinatura eletrônica (Documenso)", "documentos", "nao_implementada", False, "Fase 6."),
     ("ia", "Provedores de IA", "ia", "aguardando_credenciais", False,
      "Chaves e aprovação de tratamento de dados pendentes. Fase 8."),
@@ -155,6 +169,101 @@ CONFIGURACOES: dict[str, tuple[object, bool, str]] = {
     "prioridades.criterios": ({"prazo_imediato_dias_uteis": 1, "prazo_alta_dias_uteis": 5, "audiencia_alta_horas": 48,
                                "publicacao_alta_horas": 24, "aprovacao_alta_horas": 24}, False,
                               "Critérios objetivos da central de prioridades"),
+    "atendimento.link_validade_horas": (72, False, "Validade do link de cadastro (horas)"),
+    "atendimento.arquivo_max_mb": (15, False, "Tamanho máximo de cada arquivo enviado pelo cliente (MB)"),
+    "atendimento.arquivos_por_atendimento": (40, False, "Máximo de arquivos por atendimento"),
+    "atendimento.formularios": ({}, False, "Ajustes nos formulários de cadastro por departamento"),
+    "recepcionista.ativa": (True, False, "Recepcionista virtual responde automaticamente"),
+    "recepcionista.saudacao": ("Olá! Sou a assistente virtual do Escritório Jurídico Márcio Fernandes. Sou um atendimento "
+                               "automático: cuido de cadastro, documentos e agendamento. Dúvidas jurídicas são "
+                               "respondidas pelo advogado.", False, "Saudação da recepcionista virtual"),
+    "portal.convite_validade_horas": (72, False, "Validade do convite para o portal (horas)"),
+}
+
+# Formulários de cadastro por departamento (somente o necessário). Podem ser ajustados em
+# "atendimento.formularios" (mesma estrutura); o link guarda uma cópia do formulário no momento do envio.
+CAMPOS_BASE = [
+    {"id": "nome", "rotulo": "Nome completo", "tipo": "texto", "obrigatorio": True, "secao": "pessoais"},
+    {"id": "cpf", "rotulo": "CPF", "tipo": "cpf", "obrigatorio": True, "secao": "pessoais"},
+    {"id": "rg", "rotulo": "RG e órgão emissor", "tipo": "texto", "obrigatorio": False, "secao": "pessoais"},
+    {"id": "nascimento", "rotulo": "Data de nascimento", "tipo": "data", "obrigatorio": True, "secao": "pessoais"},
+    {"id": "estado_civil", "rotulo": "Estado civil", "tipo": "opcao", "obrigatorio": True, "secao": "pessoais",
+     "opcoes": ["solteiro(a)", "casado(a)", "união estável", "separado(a)", "divorciado(a)", "viúvo(a)"]},
+    {"id": "profissao", "rotulo": "Profissão", "tipo": "texto", "obrigatorio": True, "secao": "pessoais"},
+    {"id": "nacionalidade", "rotulo": "Nacionalidade", "tipo": "texto", "obrigatorio": True, "secao": "pessoais", "padrao": "brasileira"},
+    {"id": "cep", "rotulo": "CEP", "tipo": "cep", "obrigatorio": True, "secao": "contato"},
+    {"id": "logradouro", "rotulo": "Rua / avenida", "tipo": "texto", "obrigatorio": True, "secao": "contato"},
+    {"id": "numero", "rotulo": "Número", "tipo": "texto", "obrigatorio": True, "secao": "contato"},
+    {"id": "complemento", "rotulo": "Complemento", "tipo": "texto", "obrigatorio": False, "secao": "contato"},
+    {"id": "bairro", "rotulo": "Bairro", "tipo": "texto", "obrigatorio": True, "secao": "contato"},
+    {"id": "cidade", "rotulo": "Cidade", "tipo": "texto", "obrigatorio": True, "secao": "contato"},
+    {"id": "uf", "rotulo": "UF", "tipo": "uf", "obrigatorio": True, "secao": "contato"},
+    {"id": "telefone", "rotulo": "Telefone / WhatsApp", "tipo": "telefone", "obrigatorio": True, "secao": "contato"},
+    {"id": "email", "rotulo": "E-mail", "tipo": "email", "obrigatorio": False, "secao": "contato"},
+]
+PERGUNTAS_BASE = [
+    {"id": "o_que_aconteceu", "texto": "Conte com suas palavras o que aconteceu."},
+    {"id": "desde_quando", "texto": "Desde quando isso acontece ou quando aconteceu?"},
+    {"id": "o_que_espera", "texto": "O que você espera resolver com o escritório?"},
+]
+DOCUMENTOS_BASE = [
+    {"id": "identidade", "rotulo": "Documento de identidade com foto (RG ou CNH)", "obrigatorio": True},
+    {"id": "cpf", "rotulo": "CPF (se não constar na identidade)", "obrigatorio": False},
+    {"id": "comprovante_residencia", "rotulo": "Comprovante de residência recente", "obrigatorio": True},
+]
+FORMULARIOS: dict[str, dict] = {
+    "geral": {"titulo": "Cadastro de atendimento", "campos": [], "perguntas": [], "documentos": []},
+    "trabalhista": {
+        "titulo": "Cadastro — Direito Trabalhista",
+        "campos": [
+            {"id": "empregador", "rotulo": "Nome da empresa (empregador)", "tipo": "texto", "obrigatorio": True, "secao": "complementares"},
+            {"id": "funcao", "rotulo": "Função / cargo", "tipo": "texto", "obrigatorio": True, "secao": "complementares"},
+            {"id": "admissao", "rotulo": "Data de admissão", "tipo": "data", "obrigatorio": True, "secao": "complementares"},
+            {"id": "saida", "rotulo": "Data de saída (se já saiu)", "tipo": "data", "obrigatorio": False, "secao": "complementares"},
+            {"id": "salario", "rotulo": "Último salário (R$)", "tipo": "texto", "obrigatorio": False, "secao": "complementares"},
+            {"id": "ctps_assinada", "rotulo": "A carteira de trabalho foi assinada?", "tipo": "opcao", "obrigatorio": True,
+             "secao": "complementares", "opcoes": ["sim", "não", "em parte do período"]},
+        ],
+        "perguntas": [{"id": "jornada", "texto": "Qual era o seu horário de trabalho, inclusive intervalos e horas extras?"}],
+        "documentos": [
+            {"id": "ctps", "rotulo": "Carteira de trabalho (páginas de identificação e do contrato)", "obrigatorio": True},
+            {"id": "contracheques", "rotulo": "Contracheques", "obrigatorio": False},
+            {"id": "rescisao", "rotulo": "Termo de rescisão (TRCT), se houver", "obrigatorio": False},
+        ],
+    },
+    "previdenciario": {
+        "titulo": "Cadastro — Direito Previdenciário",
+        "campos": [
+            {"id": "nit", "rotulo": "NIT / PIS", "tipo": "texto", "obrigatorio": False, "secao": "complementares"},
+            {"id": "beneficio", "rotulo": "Benefício pretendido ou em discussão", "tipo": "texto", "obrigatorio": True, "secao": "complementares"},
+            {"id": "numero_beneficio", "rotulo": "Número do benefício (NB), se houver", "tipo": "texto", "obrigatorio": False, "secao": "complementares"},
+        ],
+        "perguntas": [{"id": "inss", "texto": "Já fez pedido no INSS? Qual foi a resposta e quando?"}],
+        "documentos": [
+            {"id": "cnis", "rotulo": "Extrato do CNIS (Meu INSS)", "obrigatorio": True},
+            {"id": "carta_indeferimento", "rotulo": "Carta de indeferimento ou decisão do INSS", "obrigatorio": False},
+            {"id": "laudos", "rotulo": "Laudos e exames médicos (se for benefício por incapacidade)", "obrigatorio": False},
+        ],
+    },
+    "consumidor": {
+        "titulo": "Cadastro — Direito do Consumidor",
+        "campos": [
+            {"id": "empresa", "rotulo": "Empresa envolvida", "tipo": "texto", "obrigatorio": True, "secao": "complementares"},
+            {"id": "data_fato", "rotulo": "Data do problema", "tipo": "data", "obrigatorio": True, "secao": "complementares"},
+            {"id": "protocolos", "rotulo": "Protocolos de atendimento da empresa", "tipo": "texto", "obrigatorio": False, "secao": "complementares"},
+        ],
+        "perguntas": [],
+        "documentos": [{"id": "comprovantes", "rotulo": "Notas, contratos, faturas ou conversas com a empresa", "obrigatorio": True}],
+    },
+    "familia": {
+        "titulo": "Cadastro — Direito de Família",
+        "campos": [
+            {"id": "outra_parte", "rotulo": "Nome da outra parte", "tipo": "texto", "obrigatorio": False, "secao": "complementares"},
+            {"id": "filhos", "rotulo": "Filhos envolvidos (nomes e idades)", "tipo": "texto_longo", "obrigatorio": False, "secao": "complementares"},
+        ],
+        "perguntas": [],
+        "documentos": [{"id": "certidoes", "rotulo": "Certidões de casamento ou nascimento", "obrigatorio": False}],
+    },
 }
 
 # Regras de contagem semeadas como NÃO homologadas: o advogado responsável confere e homologa.

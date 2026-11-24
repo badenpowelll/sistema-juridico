@@ -148,7 +148,7 @@ class Integracao(Base):
 class Auditoria(Base):
     __tablename__ = "auditoria"
     __table_args__ = (
-        CheckConstraint("ator_tipo in ('usuario','agente','sistema','anonimo')"),
+        CheckConstraint("ator_tipo in ('usuario','agente','sistema','anonimo','cliente')", name="auditoria_ator_tipo_check"),
         Index("ix_auditoria_entidade", "entidade", "entidade_id"),
         Index("ix_auditoria_ocorrido_em", "ocorrido_em"),
     )
@@ -244,6 +244,8 @@ class Processo(Base):
     texto_busca: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("''"))
     busca: Mapped[Any] = mapped_column(TSVECTOR, Computed("to_tsvector('simple'::regconfig, texto_busca)", persisted=True))
     ultima_movimentacao_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Portal do cliente (Fase 5): só aparece para o cliente o que for expressamente liberado
+    portal_visivel: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     criado_em: Mapped[datetime] = _criado()
     atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -706,3 +708,202 @@ class Notificacao(Base):
     nivel: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'info'"))
     criado_em: Mapped[datetime] = _criado()
     lida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ============================================================== Fase 5 — atendimento e CRM
+
+ETAPAS_ATENDIMENTO = (
+    "primeiro_contato", "atendimento_iniciado", "cadastro_enviado", "cadastro_preenchido", "documentos_pendentes",
+    "documentos_recebidos", "conferencia_profissional", "contrato_preparado", "assinatura_pendente",
+    "atendimento_ativo", "processo_vinculado", "acompanhamento", "encerramento", "arquivamento",
+)
+
+
+class Atendimento(Base):
+    """Funil de atendimento (14 etapas). O contato pode ainda não ser cliente cadastrado."""
+    __tablename__ = "atendimentos"
+    __table_args__ = (
+        CheckConstraint("etapa in (" + ",".join(f"'{e}'" for e in ETAPAS_ATENDIMENTO) + ")"),
+        UniqueConstraint("escritorio_id", "protocolo"),
+        Index("ix_atendimentos_funil", "escritorio_id", "etapa", "atualizado_em"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    protocolo: Mapped[str] = mapped_column(String(20), nullable=False)
+    cliente_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clientes.id", ondelete="SET NULL"), index=True)
+    processo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("processos.id", ondelete="SET NULL"), index=True)
+    departamento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("departamentos.id"))
+    contato_nome: Mapped[str] = mapped_column(String(300), nullable=False)
+    contato_telefone: Mapped[str | None] = mapped_column(String(30))
+    contato_email: Mapped[str | None] = mapped_column(String(254))
+    assunto: Mapped[str | None] = mapped_column(String(500))
+    canal: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'manual'"))
+    etapa: Mapped[str] = mapped_column(String(30), nullable=False, server_default=text("'primeiro_contato'"))
+    etapa_em: Mapped[datetime] = _criado()
+    responsavel_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    observacoes: Mapped[str | None] = mapped_column(Text)  # internas: nunca vão ao cliente
+    motivo_encerramento: Mapped[str | None] = mapped_column(Text)
+    conferido_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    conferido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    simulado: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class LinkCadastro(Base):
+    """Link seguro de cadastro: token aleatório guardado só pelo hash, com validade, revogação e registro de uso."""
+    __tablename__ = "links_cadastro"
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    atendimento_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("atendimentos.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    finalidade: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'cadastro'"))  # cadastro | documentos
+    formulario: Mapped[Any] = mapped_column(JSONB, nullable=False)  # cópia do formulário no momento do envio
+    expira_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revogado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revogado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    concluido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    usos: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    primeiro_uso_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultimo_uso_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultimo_ip: Mapped[str | None] = mapped_column(INET)
+    enviado_por_canal: Mapped[str | None] = mapped_column(String(20))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class CadastroAtendimento(Base):
+    """Respostas do cliente. Conteúdo (dados pessoais, relato, cronologia, entrevista) cifrado em repouso."""
+    __tablename__ = "cadastros_atendimento"
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    atendimento_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("atendimentos.id", ondelete="CASCADE"), nullable=False, unique=True)
+    conteudo_cifrado: Mapped[str] = mapped_column(Text, nullable=False)
+    campos_preenchidos: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    passo: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    relato_hash: Mapped[str | None] = mapped_column(String(64))  # prova de que o relato original não mudou
+    confirmado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    confirmado_ip: Mapped[str | None] = mapped_column(INET)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class DocumentoRecebido(Base):
+    """Arquivo enviado pelo cliente (link, portal ou WhatsApp). O original fica intacto; a gestão completa é da Fase 6."""
+    __tablename__ = "documentos_recebidos"
+    __table_args__ = (
+        CheckConstraint("situacao in ('recebido','aceito','recusado')"),
+        Index("ix_documentos_recebidos_hash", "atendimento_id", "sha256"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    atendimento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("atendimentos.id", ondelete="SET NULL"), index=True)
+    cliente_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clientes.id", ondelete="SET NULL"), index=True)
+    documento_previsto: Mapped[str | None] = mapped_column(String(60))
+    nome_original: Mapped[str] = mapped_column(String(255), nullable=False)
+    tipo_mime: Mapped[str] = mapped_column(String(100), nullable=False)
+    tamanho: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    caminho: Mapped[str] = mapped_column(String(300), nullable=False)
+    origem: Mapped[str] = mapped_column(String(20), nullable=False)  # link | portal | whatsapp | painel
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'recebido'"))
+    motivo: Mapped[str | None] = mapped_column(Text)
+    conferido_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    conferido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    enviado_por_usuario: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    ip: Mapped[str | None] = mapped_column(INET)
+    simulado: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class AcessoPortal(Base):
+    """Login do cliente no portal: credencial própria, separada dos usuários da equipe."""
+    __tablename__ = "acessos_portal"
+    __table_args__ = (UniqueConstraint("escritorio_id", "email"), UniqueConstraint("cliente_id"))
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    cliente_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clientes.id", ondelete="CASCADE"), nullable=False)
+    email: Mapped[str] = mapped_column(CITEXT, nullable=False)
+    senha_hash: Mapped[str | None] = mapped_column(String(300))
+    ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    convite_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    convite_expira_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ativado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    falhas_login: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    bloqueado_ate: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ultimo_login_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class SessaoPortal(Base):
+    __tablename__ = "sessoes_portal"
+    id: Mapped[uuid.UUID] = _uuid()
+    acesso_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("acessos_portal.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    criado_em: Mapped[datetime] = _criado()
+    ultimo_uso_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expira_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revogada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ip: Mapped[str | None] = mapped_column(INET)
+
+
+class SolicitacaoPortal(Base):
+    """Pedido ou mensagem do cliente pelo portal; respondido pela equipe."""
+    __tablename__ = "solicitacoes_portal"
+    __table_args__ = (CheckConstraint("situacao in ('aberta','respondida','encerrada')"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    cliente_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clientes.id", ondelete="CASCADE"), nullable=False, index=True)
+    tipo: Mapped[str] = mapped_column(String(30), nullable=False)  # mensagem | atendimento | atualizar_dados
+    assunto: Mapped[str] = mapped_column(String(300), nullable=False)
+    texto: Mapped[str] = mapped_column(Text, nullable=False)
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'aberta'"))
+    resposta: Mapped[str | None] = mapped_column(Text)
+    respondida_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    respondida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class Conversa(Base):
+    """Conversa em um canal (WhatsApp ou simulado). A recepcionista virtual responde enquanto estiver com ela."""
+    __tablename__ = "conversas"
+    __table_args__ = (UniqueConstraint("escritorio_id", "canal", "contato_id"),
+                      CheckConstraint("estado in ('recepcionista','humano','encerrada')"))
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    canal: Mapped[str] = mapped_column(String(30), nullable=False)  # whatsapp | whatsapp_simulado
+    contato_id: Mapped[str] = mapped_column(String(64), nullable=False)  # wa_id (número) no canal
+    contato_nome: Mapped[str | None] = mapped_column(String(300))
+    cliente_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clientes.id", ondelete="SET NULL"))
+    atendimento_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("atendimentos.id", ondelete="SET NULL"))
+    estado: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'recepcionista'"))
+    contexto: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    ultima_entrada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # abre a janela de 24 h
+    ultima_mensagem_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    nao_lidas: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    simulado: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class Mensagem(Base):
+    __tablename__ = "mensagens"
+    __table_args__ = (
+        CheckConstraint("direcao in ('entrada','saida')"),
+        Index("ix_mensagens_conversa", "conversa_id", "criado_em"),
+        Index("uq_mensagens_externo", "escritorio_id", "id_externo", unique=True, postgresql_where=text("id_externo is not null")),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    conversa_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("conversas.id", ondelete="CASCADE"), nullable=False)
+    direcao: Mapped[str] = mapped_column(String(10), nullable=False)
+    autor: Mapped[str] = mapped_column(String(20), nullable=False)  # contato | recepcionista | equipe
+    usuario_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'texto'"))
+    texto: Mapped[str] = mapped_column(Text, nullable=False)
+    intencao: Mapped[str | None] = mapped_column(String(40))
+    id_externo: Mapped[str | None] = mapped_column(String(200))
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'recebida'"))
+    erro: Mapped[str | None] = mapped_column(Text)
+    original: Mapped[Any | None] = mapped_column(JSONB)
+    criado_em: Mapped[datetime] = _criado()
