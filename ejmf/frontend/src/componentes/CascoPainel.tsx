@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { Notificacoes } from "@/componentes/Notificacoes";
 import { Logotipo } from "@/componentes/Logotipo";
 import { PesquisaGlobal } from "@/componentes/PesquisaGlobal";
 import { SeletorTema } from "@/componentes/SeletorTema";
@@ -16,10 +17,14 @@ export const useEu = () => {
 
 const MENU = [
   { href: "/painel", rotulo: "Central de comando", perm: "painel:ler" },
+  { href: "/painel/prioridades", rotulo: "Prioridades", perm: "prioridades:ler" },
+  { href: "/painel/agenda", rotulo: "Agenda", perm: "agenda:ler" },
+  { href: "/painel/aprovacoes", rotulo: "Aprovações", perm: "aprovacoes:ler" },
   { href: "/painel/processos", rotulo: "Processos", perm: "processos:ler" },
   { href: "/painel/clientes", rotulo: "Clientes", perm: "clientes:ler" },
   { href: "/painel/publicacoes", rotulo: "Publicações", perm: "publicacoes:ler" },
   { href: "/painel/prazos", rotulo: "Prazos", perm: "prazos:ler" },
+  { href: "/painel/relatorios", rotulo: "Relatórios", perm: "relatorios:ler" },
   { href: "/painel/importacoes", rotulo: "Importação", perm: "importacoes:executar" },
   { href: "/painel/contingencia", rotulo: "Contingência", perm: "contingencia:ler" },
   { href: "/painel/integracoes", rotulo: "Integrações", perm: "integracoes:ler" },
@@ -83,6 +88,7 @@ export function CascoPainel({ children }: { children: ReactNode }) {
               <PesquisaGlobal />
             </div>
             <div className="flex items-center gap-4">
+              <Notificacoes />
               <SeletorTema />
               <button onClick={sair} className="text-sm text-suave underline-offset-4 hover:underline">Sair</button>
             </div>

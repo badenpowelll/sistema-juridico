@@ -8,7 +8,7 @@ import { NovoPrazo } from "@/componentes/NovoPrazo";
 import { PrazoResumo } from "@/componentes/PrazoResumo";
 import { Aviso, AreaTexto, Botao, Campo, Cartao, Selecao, Selo, Vazio } from "@/componentes/ui";
 import { api, dataHora, enviar } from "@/lib/api";
-import { dataCurta, moeda, POLO, SITUACAO_PUBLICACAO, STATUS_PROCESSO } from "@/lib/rotulos";
+import { dataCurta, diaLocal, moeda, POLO, SITUACAO_PUBLICACAO, STATUS_PROCESSO } from "@/lib/rotulos";
 import type { Cliente, Departamento, EventoTempo, Prontuario } from "@/lib/tipos";
 
 const TIPO_EVENTO: Record<string, [string, string]> = {
@@ -101,6 +101,18 @@ export default function ProntuarioProcesso() {
               {novoPrazo && <div className="mb-4"><NovoPrazo processoId={id} aoCriar={() => { setNovoPrazo(false); carregar(); }} /></div>}
               {p.prazos.length === 0 ? <Vazio>Nenhum prazo cadastrado para este processo.</Vazio> : (
                 <ul className="flex flex-col divide-y divide-borda">{p.prazos.map((z) => <li key={z.id} className="py-2"><PrazoResumo pz={z} mostrarProcesso={false} /></li>)}</ul>
+              )}
+            </Cartao>
+          )}
+          {p.compromissos && (
+            <Cartao titulo="Audiências e compromissos" acao={eu.permissoes.includes("agenda:gerenciar") && p.status === "ativo" ? <Link href={`/painel/agenda?novo=1`} className="text-sm text-dourado hover:underline">Agendar</Link> : undefined}>
+              {p.compromissos.length === 0 ? <Vazio>Nenhum compromisso ligado a este processo.</Vazio> : (
+                <ul className="flex flex-col divide-y divide-borda text-sm">{p.compromissos.map((c) => (
+                  <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2" data-compromisso-processo={c.tipo}>
+                    <Link href={`/painel/agenda?visao=dia&data=${diaLocal(new Date(c.inicio))}&compromisso=${c.id}`} className="min-w-0 flex-1 hover:underline">{c.titulo}</Link>
+                    <span className="flex items-center gap-2"><Selo tom={c.tipo === "audiencia" ? "dourado" : "neutro"}>{c.tipo_rotulo}</Selo>{c.situacao !== "agendado" && <Selo>{c.situacao_rotulo}</Selo>}<span className="font-mono text-xs">{dataHora(c.inicio)}</span></span>
+                  </li>
+                ))}</ul>
               )}
             </Cartao>
           )}

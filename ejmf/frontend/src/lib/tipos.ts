@@ -11,7 +11,7 @@ export type EventoTempo = { id: string; tipo: string; ocorrido_em: string; descr
 export type Prontuario = ProcessoResumo & {
   assuntos: string[]; valor_causa: string | null; data_distribuicao: string | null; observacoes: string | null;
   criado_em: string; importacao_id: string | null; partes: Parte[]; linha_do_tempo: EventoTempo[];
-  modulos_futuros: { rotulo: string; fase: number }[]; prazos?: Prazo[]; publicacoes?: Publicacao[];
+  modulos_futuros: { rotulo: string; fase: number }[]; prazos?: Prazo[]; publicacoes?: Publicacao[]; compromissos?: Compromisso[];
 };
 export type Cliente = {
   id: string; tipo: "PF" | "PJ"; nome: string; documento: string | null; email: string | null; telefone: string | null;
@@ -89,3 +89,47 @@ export type Contingencia = {
   fila: { por_estado: Record<string, number>; atrasadas: number; falhas: { id: string; tipo: string; chave: string; erro: string | null; tentativas: number; concluida_em: string | null }[] };
   worker: { ultimo_batimento: string | null; parado: boolean }; limite_horas_sem_sucesso: number;
 };
+
+// ---------------------------------------------------------------- Fase 4 — agenda e secretaria
+export type Compromisso = {
+  id: string; tipo: string; tipo_rotulo: string; titulo: string; descricao: string | null; local: string | null;
+  link_virtual: string | null; modalidade: string | null; inicio: string; fim: string; dia_inteiro: boolean;
+  processo_id: string | null; processo: { numero: string } | null; responsavel_id: string | null; responsavel: string | null;
+  participantes: string[]; situacao: "agendado" | "realizado" | "cancelado"; situacao_rotulo: string; resultado: string | null;
+  cancelado_motivo: string | null; origem: string; simulado: boolean; privado: boolean; somente_leitura: boolean;
+  sincronizar_google: boolean; no_google: boolean; sync_pendente: boolean; removido_no_google: boolean; criado_em: string;
+  conflitos?: { id: string; titulo: string }[];
+  historico?: { operacao: string; quando: string; por: string | null; origem: string | null; alteracoes: Record<string, unknown> | null }[];
+  aprovacoes_pendentes?: { id: string; tipo: string; titulo: string }[];
+};
+export type PrazoAgenda = {
+  id: string; prazo_id: string; tipo: "prazo"; titulo: string; data: string; confirmado: boolean; situacao: string;
+  processo_id: string; processo: { numero: string } | null; simulado: boolean;
+};
+export type SituacaoGoogle = {
+  oauth_configurado: boolean; conectado: boolean; conectado_em: string | null; escopos: string[]; calendario_id: string;
+  simulado_disponivel: boolean; simulado_ativo: boolean; ultima_sync: string | null;
+};
+export type Agenda = {
+  inicio: string; fim: string; hoje: string; compromissos: Compromisso[]; prazos: PrazoAgenda[];
+  conflitos: { a: string; b: string; titulo_a: string; titulo_b: string; inicio: string }[];
+  sobrecarga: { dia: string; pessoa: string; pessoa_nome: string | null; horas: number; audiencias: number; motivos: string[] }[];
+  google: SituacaoGoogle;
+};
+export type Pendencia = {
+  id: string; origem: "sistema" | "manual"; tipo: string; titulo: string; descricao: string | null; link: string | null;
+  situacao: string; classe: string; classe_rotulo: string; pontuacao: number; justificativa: string[]; critica: boolean;
+  referencia_em: string | null; responsavel_id: string | null; responsavel: string | null; prazo_em: string | null;
+  adiada_ate: string | null; observacao: string | null; resolvida_em: string | null; resolucao: string | null; criado_em: string;
+};
+export type ItemAprovacao = {
+  id: string; origem: string; tipo: string; tipo_rotulo: string; titulo: string; descricao: string | null;
+  dados?: Record<string, unknown>; solicitante: string | null; solicitada_em: string | null; link: string | null;
+  pode_decidir: boolean; proprio: boolean; vencimento?: string | null;
+};
+export type Relatorio = {
+  id: string; tipo: "diario" | "encerramento"; referencia: string; gerado_em: string; titulo: string; resumo: string;
+  alerta: boolean; entregas: { canal: string; situacao: string; destinatarios?: number; observacao?: string }[];
+  conteudo?: Record<string, unknown> & { secoes: Record<string, unknown>; avisos: string[]; atrasado?: boolean };
+};
+export type Notificacao = { id: string; titulo: string; texto: string | null; link: string | null; nivel: string; criado_em: string; lida_em: string | null };

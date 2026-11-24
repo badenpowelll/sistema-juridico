@@ -62,3 +62,31 @@ export function diasRestantes(n: number | null | undefined): string {
   if (n === 1) return "vence amanhã";
   return `em ${n} dias`;
 }
+
+export const TIPO_COMPROMISSO: Record<string, [string, string]> = {
+  audiencia: ["Audiência", "perigo"], reuniao: ["Reunião", "info"], atendimento: ["Atendimento", "dourado"],
+  compromisso: ["Compromisso", "neutro"], lembrete: ["Lembrete", "neutro"], bloqueio: ["Bloqueio", "neutro"],
+  trabalho_concentrado: ["Trabalho concentrado", "info"], pessoal: ["Pessoal", "neutro"], externo: ["Google", "neutro"],
+  prazo: ["Prazo", "alerta"],
+};
+
+const FZ = "America/Fortaleza";
+/** Data (AAAA-MM-DD) no fuso do escritório. */
+export function diaLocal(iso: string | Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: FZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
+}
+export function horaLocal(iso: string): string {
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: FZ, hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+}
+/** "2026-11-24" + "09:30" no fuso do escritório (UTC−3, sem horário de verão) → ISO com fuso. */
+export function isoLocal(dia: string, hora: string): string {
+  return `${dia}T${hora}:00-03:00`;
+}
+export function somarDias(dia: string, n: number): string {
+  const d = new Date(`${dia}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+export function diaSemana(dia: string, formato: "short" | "long" = "short"): string {
+  return new Intl.DateTimeFormat("pt-BR", { weekday: formato, timeZone: "UTC" }).format(new Date(`${dia}T12:00:00Z`));
+}
