@@ -7,8 +7,8 @@ import { api, dataHora } from "@/lib/api";
 import { ROTULO_PRIORIDADE, TOM_ESTADO } from "@/lib/rotulos";
 
 type Item = { id: string; titulo: string; prioridade: string; justificativa: string; acao: string | null; origem: string };
-type Indicador = { codigo: string; rotulo: string; valor: number | null; disponivel: boolean; fase?: number; link?: string; formato?: "moeda" | "dolar" };
-const formatar = (i: Indicador) => i.formato === "moeda" ? reais(i.valor ?? 0) : i.formato === "dolar" ? dolares(i.valor ?? 0) : (i.valor ?? 0).toLocaleString("pt-BR");
+type Indicador = { codigo: string; rotulo: string; valor: number | null; disponivel: boolean; fase?: number; link?: string; formato?: "moeda" | "dolar"; texto?: string };
+const formatar = (i: Indicador) => i.texto ? i.texto : i.formato === "moeda" ? reais(i.valor ?? 0) : i.formato === "dolar" ? dolares(i.valor ?? 0) : (i.valor ?? 0).toLocaleString("pt-BR");
 type IntegracaoResumo = { codigo: string; nome: string; estado: string; estado_rotulo: string; simulado: boolean; critica: boolean; ultimo_sucesso_em: string | null; ultimo_erro: string | null };
 type Painel = { gerado_em: string; saudacao: string; atencao_agora: Item[]; indicadores: Indicador[]; integracoes: IntegracaoResumo[] };
 
@@ -52,7 +52,7 @@ export default function CentralDeComando() {
           <div key={i.codigo} className="rounded-xl border border-borda bg-superficie p-4" data-indicador={i.codigo}>
             <div className="text-xs text-suave">{i.rotulo}</div>
             {i.disponivel ? (
-              i.link ? <Link href={i.link} className={`mt-1 block font-serif font-semibold tabular-nums hover:text-dourado ${i.formato ? "text-2xl" : "text-3xl"}`}>{formatar(i)}</Link>
+              i.link ? <Link href={i.link} className={`mt-1 block font-serif font-semibold tabular-nums hover:text-dourado ${i.texto ? "text-lg" : i.formato ? "text-2xl" : "text-3xl"}`}>{formatar(i)}</Link>
                 : <div className={`mt-1 font-serif font-semibold tabular-nums ${i.formato ? "text-2xl" : "text-3xl"}`}>{formatar(i)}</div>
             ) : (
               <div className="mt-2 text-xs text-suave">Módulo previsto para a Fase {i.fase}</div>

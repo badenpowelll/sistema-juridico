@@ -28,7 +28,7 @@ from app.modelos import (
     ETAPAS_ATENDIMENTO, Atendimento, CadastroAtendimento, Cliente, Departamento, DocumentoRecebido, LinkCadastro,
     Processo, Usuario,
 )
-from app.servicos import armazenamento, auditoria, catalogo, clientes, notificacoes
+from app.servicos import antivirus, armazenamento, auditoria, catalogo, clientes, notificacoes
 from app.servicos import prazos as svc_prazos
 from app.servicos.identificadores import cpf_valido
 
@@ -489,6 +489,14 @@ def receber_arquivo(db: Session, at: Atendimento | None, *, nome: str, dados: by
     total = db.execute(select(func.count()).select_from(DocumentoRecebido).where(filtro)).scalar_one()
     if total >= maximo:
         raise ErroAtendimento(f"Limite de {maximo} arquivos atingido; fale com o escritório", 409)
+    av = antivirus.varrer(dados)
+    if av.situacao == "infectado":
+        auditoria.registrar(db, ator or auditoria.Ator("anonimo", None, "Cliente", esc_id, ip), "documento_recebido.virus_recusado",
+                            entidade="atendimento" if at else "cliente", entidade_id=at.id if at else cliente_id, origem=origem,
+                            resultado="negado", alteracoes={"sha256": sha, "assinatura": av.detalhe})
+        db.commit()  # a recusa fica registrada mesmo com o erro devolvido
+        raise ErroAtendimento("Arquivo recusado pela verificação de vírus. Confira o arquivo e envie de novo.", 422)
+    # antivírus fora do ar: o arquivo é guardado e só entra no acervo pela quarentena (documentos.enviar varre de novo)
     doc_id = uuid.uuid4()
     rel = armazenamento.gravar(esc_id, doc_id, dados)
     if previsto and at is not None:

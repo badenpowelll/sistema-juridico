@@ -7,9 +7,6 @@
 from __future__ import annotations
 
 import json
-import threading
-import time
-from collections import deque
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
@@ -18,14 +15,12 @@ from sqlalchemy.orm import Session
 from app.core.seguranca import hash_token, novo_token
 from app.modelos import TokenMCP, Usuario
 from app.servicos import auditoria
-from app.servicos.autenticacao import permissoes_do_usuario
+from app.servicos.autenticacao import limitador_login, permissoes_do_usuario
 from app.servicos.ia import ferramentas
 
 VERSOES = ("2025-06-18", "2025-03-26", "2024-11-05")
 PREFIXO = "ejmf_mcp_"
 LIMITE_POR_MINUTO = 60
-_uso: dict[str, deque] = {}
-_trava = threading.Lock()
 
 
 class ErroMCP(ValueError):
@@ -68,13 +63,8 @@ def autenticar(db: Session, cabecalho: str | None) -> tuple[TokenMCP, Usuario, s
     perms = permissoes_do_usuario(u)
     if "ia:mcp" not in perms:
         raise ErroMCP("Usuário sem permissão de acesso por MCP", 403)
-    with _trava:
-        fila = _uso.setdefault(t.hash, deque())
-        while fila and fila[0] < time.monotonic() - 60:
-            fila.popleft()
-        if len(fila) >= LIMITE_POR_MINUTO:
-            raise ErroMCP("Limite de chamadas por minuto atingido", 429)
-        fila.append(time.monotonic())
+    if not limitador_login.permitir(f"mcp:{t.hash}", LIMITE_POR_MINUTO):
+        raise ErroMCP("Limite de chamadas por minuto atingido", 429)
     t.ultimo_uso_em, t.usos = agora, t.usos + 1
     return t, u, perms
 

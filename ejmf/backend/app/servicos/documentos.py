@@ -21,7 +21,7 @@ from app.modelos import (
     CATEGORIAS_DOCUMENTO, Atendimento, Cliente, Documento, DocumentoRecebido, Processo, Tarefa, Usuario,
     VersaoDocumento,
 )
-from app.servicos import armazenamento, auditoria, conhecimento, extracao, fila
+from app.servicos import antivirus, armazenamento, auditoria, conhecimento, extracao, fila
 from app.servicos import prazos as svc_prazos
 from app.servicos.identificadores import normalizar_texto
 
@@ -131,7 +131,13 @@ def enviar(db: Session, ator: auditoria.Ator, esc_id: uuid.UUID, *, nome: str, d
     if existente is not None:
         return existente, True
     nome_ok = armazenamento.nome_seguro(nome)
-    suspeito = armazenamento.conteudo_suspeito(dados, tipo.mime)
+    av = antivirus.varrer(dados)
+    if av.situacao == "infectado":
+        auditoria.registrar(db, ator, "documento.virus_recusado", entidade="documento", resultado="negado", origem=origem,
+                            alteracoes={"sha256": sha, "assinatura": av.detalhe})
+        db.commit()  # a recusa fica registrada mesmo com o erro devolvido
+        raise ErroDocumento(f"Arquivo recusado: o antivírus encontrou {av.detalhe}", 422)
+    suspeito = armazenamento.conteudo_suspeito(dados, tipo.mime) or antivirus.motivo_quarentena(av)
     doc = Documento(escritorio_id=esc_id, titulo=(titulo or Path(nome_ok).stem)[:300], origem=origem,
                     categoria=categoria or classificar(nome_ok, None, tipo.mime), categoria_por="pessoa" if categoria else "regra",
                     cliente_id=cliente_id, processo_id=processo_id, atendimento_id=atendimento_id, sigiloso=sigiloso,
@@ -165,6 +171,11 @@ def nova_versao(db: Session, ator: auditoria.Ator, doc: Documento, *, nome: str,
         raise ErroDocumento(f"Arquivo maior que {limite_mb} MB", 413)
     if armazenamento.conteudo_suspeito(dados, tipo.mime):
         raise ErroDocumento("A nova versão tem conteúdo ativo (macro ou script) e foi recusada", 422)
+    av = antivirus.varrer(dados)
+    if av.situacao == "infectado":
+        raise ErroDocumento(f"Nova versão recusada: o antivírus encontrou {av.detalhe}", 422)
+    if av.situacao == "indisponivel":
+        raise ErroDocumento("Antivírus fora do ar: envie a nova versão mais tarde", 503)
     sha = hashlib.sha256(dados).hexdigest()
     if db.execute(select(VersaoDocumento.id).where(VersaoDocumento.documento_id == doc.id, VersaoDocumento.sha256 == sha)).first():
         raise ErroDocumento("Esta versão já existe neste documento", 409)

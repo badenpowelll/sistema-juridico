@@ -84,6 +84,8 @@ PERMISSOES: dict[str, tuple[str, int]] = {
     "financeiro:recibos": ("Emitir e cancelar recibos", 3),
     "financeiro:cobrar": ("Autorizar lembrete de pagamento ao cliente no portal (o EJMF não envia cobrança para fora)", 4),
     "financeiro:exportar": ("Exportar lançamentos e relatórios financeiros", 2),
+    "backups:ler": ("Ver o estado das cópias de segurança e dos testes de restauração", 0),
+    "backups:executar": ("Pedir cópia de segurança e teste de restauração agora", 3),
 }
 
 PERFIS: dict[str, dict] = {
@@ -187,6 +189,11 @@ OBSERVACOES_ANTIGAS_IA = ("Chaves e aprovação de tratamento de dados pendentes
 ATUALIZACOES_INTEGRACOES = {"djen": ("ambiente_testes", OBS_DJEN), "datajud": ("aguardando_credenciais", OBS_DATAJUD),
                             "assinatura": ("aguardando_credenciais", OBS_ASSINATURA)}
 
+OBS_BACKUP = ("As cópias cifradas diárias com teste de restauração já rodam no servidor (Cópias de segurança, ADR-0015), mas "
+              "ficam no mesmo lugar do sistema. Falta a cópia em outro provedor: conta S3 compatível escolhida pelo escritório.")
+OBS_ANTIVIRUS = ("Cliente do clamd pronto (protocolo INSTREAM). Falta instalar o ClamAV no servidor, manter as assinaturas "
+                 "atualizadas (freshclam) e definir EJMF_CLAMAV_ENDERECO. Até lá, só a checagem de conteúdo ativo da Fase 6.")
+
 # (codigo, nome, categoria, estado, crítica, observação)
 INTEGRACOES = [
     ("djen", "DJEN — Comunicações processuais (CNJ)", "judicial", "ambiente_testes", True, OBS_DJEN),
@@ -217,9 +224,10 @@ INTEGRACOES = [
     ("web_push", "Notificações no celular (Web Push)", "comunicacao", "aguardando_credenciais", False,
      "Chaves VAPID geradas localmente (python -m app.cli gerar-vapid) em EJMF_VAPID_CHAVE_PUBLICA e "
      "EJMF_VAPID_CHAVE_PRIVADA. O aparelho recebe só um aviso genérico; o conteúdo fica no EJMF. ADR-0014."),
-    ("backup", "Backup externo (S3 compatível)", "infraestrutura", "aguardando_credenciais", True,
-     "Sem backup externo configurado. Fase 11."),
+    ("backup", "Backup externo (S3 compatível)", "infraestrutura", "aguardando_credenciais", True, OBS_BACKUP),
+    ("antivirus", "Antivírus dos arquivos recebidos (ClamAV)", "infraestrutura", "aguardando_credenciais", False, OBS_ANTIVIRUS),
 ]
+OBSERVACOES_ANTIGAS["backup"] = ("Sem backup externo configurado. Fase 11.", OBS_BACKUP)
 
 # Configurações institucionais: começam vazias quando o dado não foi fornecido.
 CONFIGURACOES: dict[str, tuple[object, bool, str]] = {

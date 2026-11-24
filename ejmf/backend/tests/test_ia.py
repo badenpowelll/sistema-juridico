@@ -16,6 +16,7 @@ from app.modelos import (
 from app.servicos import automacoes, catalogo as cat_geral, fila
 from app.servicos.ia import assistente, catalogo, ferramentas, funcoes, mcp, orquestrador, provedores  # noqa: F401 (registram executores)
 from app.servicos.semente import obter_escritorio
+from app.servicos.autenticacao import limitador_login
 from tests import sinteticos as s
 
 
@@ -570,7 +571,7 @@ def test_automacao_testa_antes_de_ativar_nao_repete_e_nova_versao_volta_ao_rascu
     c, _ = admin
     assert c.post("/api/v1/automacoes", json={"nome": "Mandar e-mail", "gatilho": "cliente_novo",
                                               "acoes": [{"tipo": "enviar_email"}]}).status_code == 422
-    assert c.post("/api/v1/automacoes", json={"nome": "Backup", "gatilho": "backup_nao_realizado",
+    assert c.post("/api/v1/automacoes", json={"nome": "Inexistente", "gatilho": "gatilho_que_nao_existe",
                                               "acoes": [{"tipo": "criar_pendencia", "titulo": "x"}]}).status_code == 422
     a = _automacao(c, condicoes=[{"campo": "tipo", "operador": "igual", "valor": "PF"}])
     assert a["situacao"] == "rascunho"
@@ -697,7 +698,7 @@ def test_servidor_mcp_so_leitura_com_token_pessoal(db, admin, app_cliente, monke
     assert db.get(TokenMCP, uuid.UUID(tid)).usos >= 5
     # limite por minuto
     monkeypatch.setattr(mcp, "LIMITE_POR_MINUTO", 1)
-    mcp._uso.clear()
+    limitador_login.limpar()
     assert rpc("ping", id_=7).status_code == 200
     assert rpc("ping", id_=8).status_code == 429
     monkeypatch.setattr(mcp, "LIMITE_POR_MINUTO", 60)

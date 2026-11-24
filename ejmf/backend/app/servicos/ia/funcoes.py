@@ -443,6 +443,16 @@ def monitor(rd: Rodada) -> dict:
             if comprometidas else None, "link": "/painel/contingencia"}
 
 
+@executor("gestor_backups")
+def gestor_backups(rd: Rodada) -> dict:
+    from app.servicos import copias
+    e = copias.estado(rd.db, rd.esc_id)
+    rd.passo("regra", "copias.estado", None, {"comprometido": e["comprometido"]})
+    return {"configurada": e["configurada"], "comprometido": e["comprometido"], "motivos": e["motivos"],
+            "ultima_concluida_em": e["ultima_concluida_em"].isoformat() if e["ultima_concluida_em"] else None,
+            "ultimo_teste": e["ultimo_teste"], "link": "/painel/backups"}
+
+
 @executor("analista_produtividade")
 def produtividade(rd: Rodada) -> dict:
     dias = int(rd.ex.entrada.get("dias") or 30)

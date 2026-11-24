@@ -1,12 +1,10 @@
 """Regras de autenticação: login, MFA, sessões (ADR-0004)."""
-import threading
-import time
+import random
 import uuid
-from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import and_, select, update
+from sqlalchemy import and_, delete, select, update
 from sqlalchemy.orm import Session
 
 from app.core import seguranca
@@ -28,26 +26,42 @@ def agora() -> datetime:
 
 
 class LimitadorTaxa:
-    """Janela deslizante em memória por chave (por processo). Suficiente para um único servidor."""
+    """Limite por chave compartilhado por todos os processos da API, guardado no PostgreSQL (`contadores_taxa`).
 
-    def __init__(self) -> None:
-        self._eventos: dict[str, deque[float]] = defaultdict(deque)
-        self._trava = threading.Lock()
+    Janela deslizante aproximada: conta o minuto atual mais a fração ainda válida do minuto anterior. A contagem roda
+    numa conexão própria, já confirmada, para valer mesmo quando a requisição que a pediu falha e é desfeita.
+    """
 
     def permitir(self, chave: str, limite: int, janela_s: float = 60.0) -> bool:
-        t = time.monotonic()
-        with self._trava:
-            fila = self._eventos[chave]
-            while fila and t - fila[0] > janela_s:
-                fila.popleft()
-            if len(fila) >= limite:
+        from app.core.banco import motor
+        from app.modelos import ContadorTaxa
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        agora_ = agora()
+        passo = int(janela_s)
+        base = int(agora_.timestamp()) // passo * passo
+        atual = datetime.fromtimestamp(base, timezone.utc)
+        anterior = datetime.fromtimestamp(base - passo, timezone.utc)
+        fracao = 1 - (agora_.timestamp() - base) / passo
+        chave = chave[:300]
+        with motor().begin() as c:
+            prev = c.execute(select(ContadorTaxa.contagem).where(ContadorTaxa.chave == chave,
+                                                                 ContadorTaxa.janela == anterior)).scalar() or 0
+            cur = c.execute(select(ContadorTaxa.contagem).where(ContadorTaxa.chave == chave,
+                                                                ContadorTaxa.janela == atual)).scalar() or 0
+            if prev * fracao + cur >= limite:
                 return False
-            fila.append(t)
-            return True
+            c.execute(pg_insert(ContadorTaxa).values(chave=chave, janela=atual, contagem=1).on_conflict_do_update(
+                index_elements=["chave", "janela"], set_={"contagem": ContadorTaxa.contagem + 1}))
+            if random.random() < 0.01:  # limpeza ocasional das janelas antigas
+                c.execute(delete(ContadorTaxa).where(ContadorTaxa.janela < anterior - timedelta(hours=1)))
+        return True
 
     def limpar(self) -> None:
-        with self._trava:
-            self._eventos.clear()
+        from app.core.banco import motor
+        from app.modelos import ContadorTaxa
+        with motor().begin() as c:
+            c.execute(delete(ContadorTaxa))
 
 
 limitador_login = LimitadorTaxa()

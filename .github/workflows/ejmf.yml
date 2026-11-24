@@ -35,16 +35,21 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: ejmf/frontend/package-lock.json
-      - name: Backend — ferramentas de OCR e conversão (Tesseract, Poppler, LibreOffice)
+      - name: Backend — ferramentas de OCR, conversão e cópias (Tesseract, Poppler, LibreOffice, cliente do PostgreSQL)
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-por poppler-utils libreoffice-writer-nogui
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-por poppler-utils libreoffice-writer-nogui postgresql-client
       - name: Backend — dependências
         working-directory: ejmf/backend
         run: pip install -e ".[dev]"
       - name: Backend — testes
         working-directory: ejmf/backend
         run: pytest -q
+      - name: Dependências — vulnerabilidades conhecidas (pip-audit e npm audit)
+        run: |
+          pip install pip-audit
+          pip-audit --skip-editable --progress-spinner off
+          cd ejmf/frontend && npm audit --audit-level=high
       - name: Frontend — dependências, lint e tipos
         working-directory: ejmf/frontend
         run: |

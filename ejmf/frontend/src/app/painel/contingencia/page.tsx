@@ -98,6 +98,14 @@ export default function CentralContingencia() {
           {c.worker.parado && <p className="mt-1 text-sm text-perigo">O worker parece parado: sincronizações agendadas e alertas de prazo não estão rodando.</p>}
           <p className="mt-2 text-xs text-suave">Fontes sem sucesso há mais de {c.limite_horas_sem_sucesso} h são tratadas como comprometidas.</p>
         </Cartao>
+        <Cartao titulo="Cópias de segurança">
+          <div data-backups={c.backups.comprometido ? "atencao" : "ok"} className="text-sm">
+            <Selo tom={!c.backups.configurada ? "alerta" : c.backups.comprometido ? "perigo" : "ok"}>
+              {!c.backups.configurada ? "Aguardando configuração" : c.backups.comprometido ? "Precisam de atenção" : "Em dia"}</Selo>
+            <p className="mt-2">Última cópia: {c.backups.ultima_concluida_em ? dataHora(c.backups.ultima_concluida_em) : "nenhuma"}. Último teste de restauração: {c.backups.ultimo_teste_em ? `${dataHora(c.backups.ultimo_teste_em)} (${c.backups.ultimo_teste})` : "nunca"}.</p>
+            {c.backups.motivos.length > 0 && <ul className="mt-1 list-disc pl-5 text-xs">{c.backups.motivos.map((m) => <li key={m}>{m}</li>)}</ul>}
+          </div>
+        </Cartao>
       </div>
     </div>
   );

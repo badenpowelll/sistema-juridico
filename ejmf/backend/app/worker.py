@@ -17,7 +17,7 @@ from app.core.config import obter_config
 from app.core.logs import configurar_logs
 from app.modelos import Configuracao
 from app.servicos import (  # noqa: F401  (registram executores da fila)
-    assinaturas, biblioteca, conversas, documentos, fila, push, relatorios, sincronizacao,
+    assinaturas, biblioteca, conversas, copias, documentos, fila, push, relatorios, sincronizacao,
 )
 from app.servicos import automacoes
 from app.servicos.ia import assistente, funcoes, orquestrador  # noqa: F401  (registram executores)
@@ -48,7 +48,7 @@ def ciclo(agora_local: datetime | None = None) -> dict:
     with fabrica_sessao()() as db:
         esc = obter_escritorio(db)
         agendadas = (sincronizacao.agendar(db, esc.id, agora_local) + relatorios.agendar(db, esc.id, agora_local)
-                     + biblioteca.agendar(db, esc.id, agora_local))
+                     + biblioteca.agendar(db, esc.id, agora_local) + copias.agendar(db, esc.id, agora_local))
         retomadas = fila.recuperar_travadas(db)
         retomadas += orquestrador.recuperar(db)
         db.commit()
@@ -56,6 +56,7 @@ def ciclo(agora_local: datetime | None = None) -> dict:
         db.commit()
         from app.servicos import financeiro
         financeiro.notificar_vencidos(db, esc.id)  # uma vez por dia (chave por data)
+        copias.avisar_atraso(db, esc.id, agora_local)  # uma vez por dia, se atrasada ou sem teste de restauração
         db.commit()
         processadas = fila.processar(db)
     return {"agendadas": agendadas, "retomadas": retomadas, "processadas": processadas}

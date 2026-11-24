@@ -123,4 +123,11 @@ def central(db: Session, esc_id: uuid.UUID) -> dict:
                              "concluida_em": t.concluida_em} for t in falhas]},
         "worker": {"ultimo_batimento": bat_dt, "parado": worker_parado},
         "limite_horas_sem_sucesso": limite_h,
+        "backups": _backups(db, esc_id),
     }
+
+
+def _backups(db: Session, esc_id: uuid.UUID) -> dict:
+    from app.servicos import copias
+    e = copias.estado(db, esc_id)
+    return {k: e[k] for k in ("configurada", "comprometido", "motivos", "ultima_concluida_em", "ultimo_teste_em", "ultimo_teste")}

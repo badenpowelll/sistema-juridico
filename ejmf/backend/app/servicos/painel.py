@@ -33,7 +33,7 @@ ROTULOS_ESTADO = {
 }
 
 # Indicadores dos módulos ainda não construídos: aparecem como "disponível na fase X", nunca como zero.
-INDICADORES_FUTUROS: list[tuple[str, str, int]] = [("backups", "Estado dos backups", 11)]
+INDICADORES_FUTUROS: list[tuple[str, str, int]] = []
 AGUARDANDO_ESCRITORIO = ("primeiro_contato", "cadastro_preenchido", "documentos_recebidos", "conferencia_profissional")
 
 
@@ -67,6 +67,12 @@ def _indicadores_modulos(db: Session, usuario: Usuario) -> list[dict]:
         out.append({"codigo": "receitas_vencidas", "rotulo": "Receitas vencidas", "disponivel": True,
                     "valor": float(pos["a_receber_vencido"]), "formato": "moeda",
                     "link": "/painel/financeiro/lancamentos?tipo=receita&situacao=vencido"})
+    if "backups:ler" in perms:
+        from app.servicos import copias
+        e = copias.estado(db, esc_id)
+        out.append({"codigo": "backups", "rotulo": "Cópias de segurança", "disponivel": True, "valor": None,
+                    "texto": "Aguardando configuração" if not e["configurada"] else "Precisam de atenção" if e["comprometido"] else "Em dia",
+                    "link": "/painel/backups"})
     return out
 
 
@@ -114,6 +120,19 @@ def atencao_agora(db: Session, usuario: Usuario) -> list[dict]:
                 itens.append(_item(f"integracao-{i.codigo}", f"{i.nome}: {ROTULOS_ESTADO[i.estado].lower()}",
                                    "aguardando_informacoes" if i.estado.startswith("aguardando") else "normal",
                                    i.observacao or ROTULOS_ESTADO[i.estado], "/painel/integracoes", "integracoes"))
+
+    # 1b. Cópias de segurança (só para quem acompanha)
+    from app.servicos.autenticacao import permissoes_do_usuario
+    if "backups:ler" in permissoes_do_usuario(usuario):
+        from app.servicos import copias
+        e = copias.estado(db, esc_id)
+        if not e["configurada"]:
+            itens.append(_item("backups-configurar", "Cópias de segurança aguardando configuração", "aguardando_informacoes",
+                               "Sem a chave de cifra nenhuma cópia é feita. Veja BACKUP.md para gerar a chave e guardá-la fora do servidor.",
+                               "/painel/backups", "backups"))
+        elif e["comprometido"]:
+            itens.append(_item("backups-atencao", "Cópias de segurança precisam de atenção", "alta", "; ".join(e["motivos"]),
+                               "/painel/backups", "backups"))
 
     # 2. Segurança do próprio usuário
     if not usuario.mfa_ativo:

@@ -17,11 +17,14 @@ def test_painel_atencao_agora_reflete_dados_reais(admin, db):
         assert item["justificativa"] and item["prioridade"]
 
 
-def test_indicadores_futuros_nao_aparecem_como_zero(admin):
+def test_indicadores_sem_dado_nao_aparecem_como_zero(admin):
     c, _ = admin
     inds = c.get("/api/v1/painel").json()["indicadores"]
     futuros = [i for i in inds if not i["disponivel"]]
-    assert futuros and all(i["valor"] is None and i["fase"] >= 2 for i in futuros)
+    assert all(i["valor"] is None and i["fase"] >= 2 for i in futuros)
+    # cópias de segurança: estado em texto, nunca um número inventado
+    b = next(i for i in inds if i["codigo"] == "backups")
+    assert b["valor"] is None and b["texto"] in ("Aguardando configuração", "Precisam de atenção", "Em dia")
     assert next(i for i in inds if i["codigo"] == "departamentos_ativos")["valor"] >= 19
 
 

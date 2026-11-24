@@ -129,6 +129,15 @@ def _integracao(db, esc, desde, agora, p):
                    "motivos": "; ".join(f["motivos"]), "link": "/painel/contingencia"}
 
 
+def _backup(db, esc, desde, agora, p):
+    from app.servicos import copias
+    e = copias.estado(db, esc)
+    if e["configurada"] and e["comprometido"]:
+        dia = agora.astimezone(agenda.fuso()).date()
+        yield {"chave": f"backup:{dia.isoformat()}", "id": dia.isoformat(), "data": dia.strftime("%d/%m/%Y"),
+               "motivos": "; ".join(e["motivos"]), "link": "/painel/backups"}
+
+
 def _honorario(db, esc, desde, agora, p):
     from app.modelos import Lancamento
     from app.servicos import financeiro as fin
@@ -168,8 +177,8 @@ GATILHOS: dict[str, Gatilho] = {
     "honorario_pendente": Gatilho("Honorário pendente", "Receita em aberto vencida há N dias (repete a cada M dias)",
                                   ("cliente", "descricao", "valor", "vencimento", "dias_atraso", "processo"),
                                   {"dias": (1, 0, 365), "repetir_dias": (7, 1, 90)}, varrer=_honorario),
-    "backup_nao_realizado": Gatilho("Backup não realizado", "Backup do dia não concluído", ("data",),
-                                    indisponivel="Depende do backup externo (Fase 11)"),
+    "backup_nao_realizado": Gatilho("Cópia de segurança atrasada", "Cópia atrasada, falha ou sem teste de restauração (uma vez por dia)",
+                                    ("data", "motivos"), varrer=_backup),
 }
 
 OPERADORES = {"igual": lambda a, b: str(a).lower() == str(b).lower(), "diferente": lambda a, b: str(a).lower() != str(b).lower(),
@@ -182,6 +191,7 @@ FUNCOES_POR_GATILHO: dict[str, dict[str, Callable[[dict], dict]]] = {
     "processo_sem_atualizacao": {"classificador_processual": lambda ev: {"entrada": {}, "processo_id": uuid.UUID(ev["id"])}},
     "integracao_falhou": {"monitor_integracoes": lambda ev: {"entrada": {}}},
     "honorario_pendente": {"gestor_cobrancas": lambda ev: {"entrada": {"lancamento_id": ev["id"]}}},
+    "backup_nao_realizado": {"gestor_backups": lambda ev: {"entrada": {}}},
 }
 ACOES = {"notificar": "Notificar quem tem uma permissão", "criar_pendencia": "Criar pendência na central de prioridades",
          "executar_funcao": "Pedir uma função virtual (segue o nível de autonomia dela)"}

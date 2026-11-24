@@ -1720,3 +1720,38 @@ class AssinaturaPush(Base):
     revogada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     motivo_revogacao: Mapped[str | None] = mapped_column(String(200))
     criado_em: Mapped[datetime] = _criado()
+
+
+class ContadorTaxa(Base):
+    """Contagem por janela de um minuto, compartilhada por todos os processos da API (login, portal, rotas públicas, MCP)."""
+    __tablename__ = "contadores_taxa"
+    chave: Mapped[str] = mapped_column(String(300), primary_key=True)
+    janela: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    contagem: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+
+
+class CopiaSeguranca(Base):
+    """Cópia de segurança cifrada (banco + arquivos). O arquivo fica fora do banco; aqui ficam o resumo e os testes."""
+    __tablename__ = "copias_seguranca"
+    __table_args__ = (
+        CheckConstraint("situacao in ('executando','concluida','falhou','expirada')", name="ck_copias_situacao"),
+        CheckConstraint("teste_situacao is null or teste_situacao in ('aprovado','reprovado')", name="ck_copias_teste"),
+        Index("ix_copias_seguranca_iniciada", "escritorio_id", "iniciada_em"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'executando'"))
+    origem: Mapped[str] = mapped_column(String(20), nullable=False)  # agendador, pessoa, funcao
+    solicitada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    iniciada_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    concluida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    arquivo: Mapped[str | None] = mapped_column(String(200))
+    tamanho: Mapped[int | None] = mapped_column(BigInteger)
+    sha256: Mapped[str | None] = mapped_column(String(64))
+    chave_id: Mapped[str | None] = mapped_column(String(16))  # identifica a chave usada, sem revelá-la
+    manifesto: Mapped[Any] = mapped_column(JSONB, nullable=True)  # revisão do banco, contagens por tabela, arquivos, último hash da auditoria
+    erro: Mapped[str | None] = mapped_column(Text)
+    teste_situacao: Mapped[str | None] = mapped_column(String(20))
+    testada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    teste_detalhes: Mapped[Any] = mapped_column(JSONB, nullable=True)
+    expirada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

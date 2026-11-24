@@ -67,6 +67,13 @@ class Config(BaseSettings):
     vapid_chave_publica: str | None = None
     vapid_chave_privada: str | None = None
     vapid_contato: str | None = None  # "mailto:..." ou "https://..."; vazio = usa url_publica
+    # Cópias de segurança (Fase 11): chave AES-256 em base64url (gerada com `python -m app.cli gerar-chave-backup`),
+    # guardada fora do servidor. Sem a chave, nenhuma cópia é feita: cópia sem cifra não é permitida.
+    backup_chave: str | None = None
+    backup_dir: str = "dados/backups"  # de preferência outro disco; a cópia externa (S3) fica para quando houver conta
+    pg_bin_dir: str | None = None  # pasta de pg_dump/pg_restore, se não estiverem no PATH
+    # Antivírus (Fase 11): clamd por socket Unix ("/run/clamav/clamd.ctl") ou TCP ("tcp://host:3310"). Vazio = sem varredura.
+    clamav_endereco: str | None = None
 
     @property
     def producao(self) -> bool:

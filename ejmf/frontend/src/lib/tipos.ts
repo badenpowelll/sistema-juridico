@@ -91,6 +91,8 @@ export type Contingencia = {
   gerado_em: string; aviso: string; monitoramento_comprometido: boolean; resumo: string; fontes: Fonte[];
   fila: { por_estado: Record<string, number>; atrasadas: number; falhas: { id: string; tipo: string; chave: string; erro: string | null; tentativas: number; concluida_em: string | null }[] };
   worker: { ultimo_batimento: string | null; parado: boolean }; limite_horas_sem_sucesso: number;
+  backups: { configurada: boolean; comprometido: boolean; motivos: string[]; ultima_concluida_em: string | null;
+    ultimo_teste_em: string | null; ultimo_teste: string | null };
 };
 
 // ---------------------------------------------------------------- Fase 4 — agenda e secretaria
