@@ -62,7 +62,7 @@ Monólito modular + worker, um único PostgreSQL. Decisões em `docs/adr/`.
 | Biblioteca, jurisprudência, verificação de referências, RAG | 7 |
 | Orquestrador e 40 funções, MCP, assistente, custos de IA | 8 |
 | Financeiro: lançamentos, honorários, recibos, conciliação por extrato importado, fluxo e rentabilidade (ADR-0013) | 9 |
-| PWA, voz, notificações | 10 |
+| PWA instalável sem dados guardados no aparelho, notificações Web Push genéricas, voz opcional no assistente (ADR-0014) | 10 |
 
 ## Estrutura de pastas
 

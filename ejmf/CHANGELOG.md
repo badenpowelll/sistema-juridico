@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [Fase 10] — 2026-11-24
+- Migração `0010_pwa`: assinaturas de notificação no celular (`assinaturas_push`), ligadas à sessão que as ativou.
+- PWA instalável: manifesto (início no painel, tela cheia, cores da marca, atalhos para prazos, agenda, aprovações e assistente), ícones gerados do SVG da marca (192, 512, maskable e Apple) e metadados para iPhone.
+- Service worker que só guarda arquivos públicos (página "Sem conexão", ícones e arquivos estáticos versionados), nunca a API nem páginas do painel (ADR-0014). Sem conexão: aviso na página aberta e página "Sem conexão" ao navegar. Sair apaga as caches, cancela a assinatura e desliga o service worker.
+- Notificações no celular por Web Push com VAPID e cifragem aes128gcm implementados no EJMF, conteúdo genérico, opção "só alertas urgentes", teste por aparelho, até 10 aparelhos por pessoa, revogação ao sair, ao encerrar a sessão, em 404/410 e após cinco falhas; comando `gerar-vapid`. Sem as chaves, a tela mostra "Aguardando configuração".
+- Segurança: cartão "Notificações no celular" com os aparelhos da pessoa e sessões com o nome do aparelho e do navegador.
+- Voz no assistente pelo reconhecimento do navegador, desligada por padrão e ligada só pelo advogado com o aviso de que o áudio vai ao fabricante do navegador; o comando falado passa pelas mesmas regras do texto e fica marcado como voz. Leitura das respostas em voz alta no próprio aparelho, por escolha de cada pessoa.
+- Celular: atalhos no rodapé (início, agenda, prazos, aprovações e assistente, conforme as permissões).
+
 ## [Fase 9] — 2026-11-24
 - Migração `0009_financeiro`: contas, categorias, contratos de honorários, lançamentos, recibos, extratos importados e suas linhas, lembretes de cobrança.
 - Financeiro sem acesso a banco e sem cobrança externa (ADR-0013): contas só com nome e saldo; recebido e pago registrados por pessoa com `financeiro:liquidar`, data nunca futura, conta e forma.

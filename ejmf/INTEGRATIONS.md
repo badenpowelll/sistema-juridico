@@ -22,6 +22,8 @@ Estados oficiais: **Implementada e validada · Implementada em ambiente de teste
 | IA compatível com a API da OpenAI (OpenAI, Gemini, servidor local) | Aguardando credenciais | `EJMF_IA_OPENAI_COMPATIVEL_URL` e `EJMF_IA_OPENAI_COMPATIVEL_CHAVE` (HTTPS em produção); mesmas exigências de aprovação e tetos | 8 |
 | Simulado — IA | Implementada em ambiente de testes | Só com `EJMF_IA_SIMULADO=true`; respostas determinísticas, custo zero, toda saída começa com "[SIMULADO]" | 8 |
 | Servidor MCP do EJMF (somente leitura) | Implementada em ambiente de testes | `POST /api/v1/mcp` (JSON-RPC, versões 2025-06-18, 2025-03-26 e 2024-11-05) com token pessoal `Authorization: Bearer ejmf_mcp_…` criado em Inteligência artificial; permissão `ia:mcp` | 8 |
+| Notificações no celular (Web Push) | Aguardando credenciais | Chaves VAPID geradas no próprio servidor (`python -m app.cli gerar-vapid`) em `EJMF_VAPID_CHAVE_PUBLICA` e `EJMF_VAPID_CHAVE_PRIVADA`, mais `EJMF_VAPID_CONTATO` (mailto: ou endereço público) e o EJMF em HTTPS. Sem custo; o conteúdo é genérico (ADR-0014) | 10 |
+| Reconhecimento de voz do navegador | Implementada em ambiente de testes | Web Speech API do Chrome/Edge/Safari; o áudio vai ao fabricante do navegador, por isso fica desligado até o advogado ligar (ADR-0014) | 10 |
 | Armazenamento S3 (backups) | Aguardando credenciais | Conta em provedor escolhido | 11 |
 
 Regra: um conector só sobe para "Implementada e validada" depois de teste contra a fonte real, registrado em TESTING.md com data e resultado.

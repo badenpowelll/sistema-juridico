@@ -154,4 +154,12 @@ Valores em `Numeric(14,2)` (reais); a API devolve texto decimal. Nada é apagado
 | `linhas_extrato` | Conta, extrato, data, valor (≠ 0; negativo é saída), descrição, `chave` única por conta (FITID do OFX ou hash da linha com contador de repetição), `situacao` (pendente, conciliada, ignorada), lançamento ligado, motivo, quem conciliou e quando. |
 | `lembretes_cobranca` | Lançamento, cliente, texto, `situacao` (aguardando_aprovacao, publicado, rejeitado, retirado), `origem` (pessoa, funcao), aprovação ligada, quem autorizou, publicado em. Só aparece no portal quando publicado. |
 
+## Fase 10 (`0010_pwa`)
+
+| Tabela | Observações |
+|---|---|
+| `assinaturas_push` | Escritório, usuário, sessão que ativou (some com `SET NULL`, e a assinatura é revogada quando a sessão termina), `endpoint` único (só serviços de push conhecidos), chaves `p256dh` e `auth` do navegador, nome do aparelho, `so_urgentes`, falhas seguidas, último envio, revogada em e motivo. Índice parcial das assinaturas ativas por usuário. Nenhum conteúdo de notificação é guardado aqui. |
+
+A voz é a configuração `voz.reconhecimento_navegador` (tabela `configuracoes`), e cada comando do assistente guarda o canal (`texto` ou `voz`) na resposta.
+
 As tabelas das fases seguintes são documentadas aqui quando a migração correspondente é criada.

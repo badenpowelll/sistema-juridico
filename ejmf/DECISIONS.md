@@ -34,4 +34,7 @@ Decisões estruturais ficam em ADRs (`docs/adr/`). Decisões menores e reversív
 | 2026-11-24 | Pedido de aprovação feito por função virtual fica em nome da função | Permite que quem pediu a execução decida a proposta, sem autoaprovação de pedido próprio | 0012 |
 | 2026-11-24 | Financeiro só registra: sem acesso a banco, boleto, Pix ou cobrança externa; extrato importado por pessoa | Especificação (§26) e IA não movimenta dinheiro | 0013 |
 | 2026-11-24 | Lembrete de pagamento só no portal, publicado com `financeiro:cobrar` ou pela central de aprovações | Cobrança é comunicação com o cliente e exige autorização | 0013 |
+| 2026-11-24 | Service worker só guarda arquivos públicos; sem conexão, página "Sem conexão" e nenhum dado | §33: não guardar documentos confidenciais offline | 0014 |
+| 2026-11-24 | Web Push com VAPID e cifragem próprios e conteúdo genérico; revogado com a sessão | Tela bloqueada e serviço do fabricante não devem ver dados | 0014 |
+| 2026-11-24 | Voz pelo navegador desligada por padrão e ligada só pelo advogado | O áudio vai aos servidores do fabricante do navegador | 0014 |
 | 2026-11-24 | Calculadora de rescisão não reaproveitada no financeiro; rentabilidade sem rateio de custos operacionais | Domínios diferentes; critério de rateio ainda não decidido pelo escritório | 0013 |

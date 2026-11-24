@@ -23,8 +23,10 @@
 
 - **Fase 9** — financeiro: contas (só nome e saldo), categorias, lançamentos de receita e despesa com previsto, faturado, recebido/pago e cancelado, pagamento parcial com saldo, estorno com motivo; contratos de honorários fixo, parcelado, mensal, êxito e misto; recibos numerados com valor por extenso; lembretes de pagamento só no portal e só autorizados; conciliação por extrato OFX/CSV importado; fluxo de caixa realizado e projetado, rentabilidade sem rateio, exportação CSV; financeiro no painel, no processo, no portal, no relatório diário, nas funções 26–30 e no gatilho "honorário pendente" (ADR-0013). Testes em TESTING.md (196 backend, 51 E2E).
 
+- **Fase 10** — PWA e experiência: aplicativo instalável com manifesto e ícones, service worker que não guarda dados (só a página "Sem conexão" e arquivos públicos), limpeza ao sair; notificações no celular por Web Push próprio (VAPID e aes128gcm), com conteúdo genérico, só urgentes e revogação junto com a sessão; voz no assistente pelo navegador, desligada até o advogado ligar; atalhos no rodapé do celular (ADR-0014). Testes em TESTING.md (202 backend, 53 E2E).
+
 ## Em desenvolvimento
-- Nada. Próxima: Fase 10 (PWA e experiência).
+- Nada. Próxima: Fase 11 (homologação).
 
 ## Pendências que dependem do responsável
 - Dados institucionais: CNPJ, endereço, telefone, e-mail institucional, WhatsApp, domínio.
@@ -42,6 +44,8 @@
 - Rodar o EJMF num servidor com acesso a planalto.gov.br, lexml.gov.br e aos sites dos tribunais para validar o monitor e o verificador contra as fontes reais.
 - IA: colocar a chave em `EJMF_ANTHROPIC_API_KEY` (ou o endereço e a chave de um serviço compatível), cadastrar o modelo na central de IA, conferir o preço e a política de retenção do fornecedor, aprovar o modelo, definir os tetos diário e mensal e ligar as funções desejadas com o nível escolhido. Até lá, só regras e o modelo simulado (em testes) funcionam.
 - Revisar as instruções iniciais das seis funções com IA (Inteligência artificial > Funções virtuais > ficha > Instruções).
+- Notificações no celular: gerar as chaves com `python -m app.cli gerar-vapid`, colocar em `EJMF_VAPID_CHAVE_PUBLICA`, `EJMF_VAPID_CHAVE_PRIVADA` e `EJMF_VAPID_CONTATO`, publicar o EJMF em HTTPS e testar em Android, iPhone (com o EJMF na tela inicial) e computador.
+- Decidir se a voz fica ligada (Assistente > "Permitir comandos por voz no escritório"), sabendo que no Chrome e no Edge o áudio vai aos servidores do Google ou da Microsoft.
 - Decidir o destino dos PRs antigos #1 e #2 do `sistema-juridico` (ADR-0003).
 
 ## Testes executados
@@ -53,6 +57,9 @@ Ver TESTING.md.
 - A importação aceita até 20 MB ou 50 mil linhas por arquivo; carteiras maiores precisam ser divididas.
 - A saudação do painel usa o fuso America/Fortaleza; de madrugada mostra "Bom dia".
 - O DJEN não foi validado contra a fonte real (403 fora do Brasil); a certidão é guardada só pelo hash, sem baixar o PDF.
+- Web Push não foi enviado a um serviço real (sem chaves VAPID nem serviço de push alcançável aqui); a cifragem e a assinatura são conferidas nos testes decifrando como o navegador.
+- Sem conexão, o EJMF não mostra nenhum dado (por decisão, ADR-0014).
+- Voz depende do navegador: Firefox não tem reconhecimento de voz e o botão não aparece.
 - Os relatórios ainda não saem por e-mail nem WhatsApp: aparecem no painel e nas notificações até as integrações serem validadas.
 - Os arquivos recebidos ficam no disco do servidor (`EJMF_ARQUIVOS_DIR`), ainda sem cópia de segurança nem varredura de vírus (Fase 11). A quarentena da Fase 6 pega conteúdo ativo (script, macro), não vírus em geral.
 - O PDF assinado ainda não é baixado sozinho do Documenso: ao concluir, o sistema avisa e alguém guarda o arquivo como nova versão.
@@ -69,4 +76,4 @@ Ver TESTING.md.
 Ver INTEGRATIONS.md.
 
 ## Próxima atividade recomendada
-Implementar a Fase 9 (financeiro), começando por detalhar os itens F9 no BACKLOG a partir da especificação e reaproveitando o motor da `calculadora/` onde couber.
+Fase 11 (homologação): segurança, carga, restauração de backup e homologação profissional pelo Dr. Márcio. Boa parte depende do responsável (servidor, credenciais, conferência das regras e modelos); começar pelo que dá para fazer aqui: varredura de dependências (SEC-010), cópia de segurança e restauração testadas, varredura de vírus dos arquivos recebidos e limite de tentativas compartilhado entre processos.

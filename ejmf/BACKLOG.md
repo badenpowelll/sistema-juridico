@@ -128,7 +128,7 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 | F8-12 ✓ | Botões de IA nas telas de processo, publicação, atendimento, minuta e pesquisa | P1 |
 | F8-13 | Redação de minuta por IA (função 22) | P2 — exige revisão de risco própria |
 | F8-14 | Embeddings de um provedor aprovado para a pesquisa (era F7-09) | P2 |
-| F8-15 | Transcrição de áudio (era F6-11) | Fase 10 |
+| F8-15 | Transcrição de arquivos de áudio no servidor (era F6-11; a voz pelo navegador entrou na Fase 10) | P2 |
 | F8-16 | Funções 5, 24 e 38 (Gmail, evidências, backup) | Fases 9 a 11 |
 | F8-17 | Agendamento periódico de funções por regras pelo worker (hoje: sob demanda e por automação) | P2 |
 
@@ -147,6 +147,19 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 | F9-09 | Critério de rateio de custos operacionais entre processos | P2 — decisão do escritório |
 | F9-10 | Integração bancária (open finance) ou emissão de boleto/Pix | Fora do escopo sem autorização e contrato (ADR-0013) |
 | F9-11 | Edição de lançamento em aberto pela tela (a API já aceita PATCH) | P2 |
+
+## Fase 10 — PWA e experiência
+
+| ID | Item | Prioridade |
+|---|---|---|
+| F10-01 ✓ | Manifesto, ícones (inclusive maskable e Apple), atalhos e instalação | P0 |
+| F10-02 ✓ | Service worker que só guarda arquivos públicos, página "Sem conexão", aviso de conexão e limpeza ao sair | P0 |
+| F10-03 ✓ | Web Push com VAPID e aes128gcm próprios, conteúdo genérico, só urgentes, revogação com a sessão, lista de aparelhos | P0 |
+| F10-04 ✓ | Voz no assistente pelo navegador, desligada por padrão, ligada pelo advogado com aviso; leitura da resposta no aparelho | P0 |
+| F10-05 ✓ | Atalhos no rodapé do celular (início, agenda, prazos, aprovações, assistente) | P1 |
+| F10-06 | Validar Web Push real com chaves VAPID e aparelhos Android, iPhone (instalado) e computador | Depende do responsável |
+| F10-07 | Transcrição de arquivos de áudio no servidor (F8-15) | P2 — exige provedor aprovado ou modelo local |
+| F10-08 | Modo offline com dados, cifrado e opcional | Fora do padrão (ADR-0014) |
 
 ## Demais fases
 Itens detalhados ao abrir cada fase (ver ROADMAP). Itens registrados desde já:

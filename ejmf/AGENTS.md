@@ -67,7 +67,7 @@ Campos completos por função (entradas, saídas, ferramentas, permissões, limi
 | 1 | Diretor-geral de operações | Serviço do sistema | É o orquestrador do EJMF: fila persistente, deduplicação por chave, limites e retomada de tarefas interrompidas. |
 | 2 | Secretária executiva | Com IA (orquestrador) | Relatórios da Fase 4; o resumo por IA só usa o próprio relatório como fonte. |
 | 3 | Recepcionista virtual | Serviço do sistema | Recepcionista por regras da Fase 5 (ADR-0009). Agendamentos vão para a central de aprovações. |
-| 4 | Assistente de voz e texto | Com IA (orquestrador) | Assistente por texto (Fase 8). Comandos conhecidos são resolvidos por regras; IA só para o que as regras não entendem. Voz entra na Fase 10. |
+| 4 | Assistente de voz e texto | Com IA (orquestrador) | Assistente por texto (Fase 8) e por voz (Fase 10, reconhecimento do navegador, desligado até o advogado ligar; ADR-0014). Comandos conhecidos são resolvidos por regras; IA só para o que as regras não entendem. O comando falado passa pelas mesmas regras do texto. Transcrição de arquivos de áudio no servidor ainda pendente (F8-15). |
 | 5 | Gestor de e-mails | Fase futura | Depende da integração com o Gmail (aguardando credenciais). |
 | 6 | Monitor de intimações | Serviço do sistema | Sincronização da Fase 3 (6h, 12h e 18h). |
 | 7 | Controlador de prazos | Serviço do sistema | Motor de prazos da Fase 3. IA nunca calcula datas. |
