@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [Fase 5] — 2026-11-24
+- Migração `0005_atendimento_crm`: atendimentos, links de cadastro, cadastros (cifrados), documentos recebidos, acesso e sessões do portal, pedidos do portal, conversas e mensagens; processos ganham "visível no portal"; a auditoria aceita o cliente como autor.
+- Funil de atendimento em 14 etapas, do primeiro contato ao arquivamento, com motivo obrigatório para encerrar ou reabrir e com avanço depois da conferência profissional reservado ao advogado.
+- Link seguro de cadastro: token mostrado uma única vez (o banco guarda só o hash), validade de 72 h configurável, revogação, registro de cada uso e um link só para documentos.
+- Formulários por departamento (geral, trabalhista, previdenciário, consumidor e família), ajustáveis nas configurações. Só os campos do formulário são guardados.
+- Cadastro pelo cliente em etapas: dados, endereço, dados do caso, relato com as próprias palavras, entrevista, linha do tempo e documentos, com revisão antes de confirmar. O relato é guardado como escrito e com hash; a cronologia separa o que é declarado do que é documentado.
+- Documentos recebidos: tipo checado pelo conteúdo, limite de tamanho e de quantidade, duplicados reconhecidos, arquivos fora do Git, download só como anexo; conferência com aceite ou recusa com motivo que o cliente vê.
+- Portal do cliente, separado do painel: convite de uso único, senha de 12+ caracteres, bloqueio após 5 erros, sessão própria. Mostra só processos liberados, andamentos oficiais, audiências futuras e documentos pendentes; aceita mensagens, pedidos de atendimento, atualização de dados e envio de documentos.
+- Recepcionista virtual por regras (ADR-0009): menu, horário, abertura de atendimento com link, agendamento que passa pela central de aprovações e transferência para a equipe. Nunca informa dado de processo pelo chat.
+- WhatsApp Business (Cloud API): envio pela fila, webhook com assinatura verificada, idempotência, status de entrega e a janela de 24 h. Sem credenciais fica "Aguardando credenciais"; o simulador identificado permite testar com dados fictícios.
+- Telas: Atendimentos (funil e detalhe), Conversas, cadastro público, portal do cliente, seção do portal na ficha do cliente e "Mostrar no portal" no processo.
+
 ## [Fase 4] — 2026-11-24
 - Migração `0004_agenda_secretaria`: compromissos, credenciais de integração cifradas, pendências, aprovações, relatórios e notificações; prazos ganham o vínculo com o evento do Google.
 - Agenda com visões dia, semana e mês: audiências (sempre ligadas a processo), reuniões, atendimentos, lembretes, bloqueios, trabalho concentrado e compromissos pessoais (visíveis só para o dono). Avisa conflito de horário e sobrecarga do dia (limites configuráveis), mostra disponibilidade e guarda o histórico de reagendamentos.

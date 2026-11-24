@@ -60,6 +60,22 @@ Prioridade: **P0** (bloqueia a fase) · **P1** (necessário na fase) · **P2** (
 | F4-09 | Envio dos relatórios por e-mail e WhatsApp | P1 — depende de Gmail (Fase 4, credenciais) e WhatsApp (Fase 5) |
 | F4-10 | Delegação a funções virtuais | Fase 8 |
 
+## Fase 5 — Atendimento e CRM
+| ID | Item | Prioridade |
+|---|---|---|
+| F5-01 ✓ | Funil de 14 etapas com regras de avanço, encerramento e reabertura | P0 |
+| F5-02 ✓ | Link seguro de cadastro: token em hash, validade, revogação, registro de uso, link só de documentos | P0 |
+| F5-03 ✓ | Formulários por departamento, ajustáveis na configuração | P0 |
+| F5-04 ✓ | Cadastro em etapas com relato original preservado, entrevista e cronologia declarada/documentada | P0 |
+| F5-05 ✓ | Recebimento de documentos com checagem de conteúdo, deduplicação e conferência | P0 |
+| F5-06 ✓ | Portal do cliente isolado (convite, senha, bloqueio, processos liberados, pendências, mensagens) | P0 |
+| F5-07 ✓ | Recepcionista virtual por regras (ADR-0009) | P0 |
+| F5-08 ✓ | WhatsApp Business: envio pela fila, webhook assinado, status, janela de 24 h, simulador | P0 — validação real pendente das credenciais |
+| F5-09 | Modelos de mensagem aprovados pela Meta (fora da janela de 24 h) | P1 — depende da conta Meta |
+| F5-10 | Redefinição de senha do portal por e-mail | P1 — depende do Gmail |
+| F5-11 | Varredura de vírus nos arquivos recebidos | P1 — Fase 11 |
+| F5-12 | Contrato e assinatura no funil (etapas "contrato preparado" e "assinatura pendente" hoje são manuais) | Fase 6 |
+
 ## Demais fases
 Itens detalhados ao abrir cada fase (ver ROADMAP). Itens registrados desde já:
 

@@ -81,4 +81,20 @@ Também nesta migração: `integracoes.falhas_consecutivas` e `circuito_aberto_a
 
 Também nesta migração: `prazos.google_event_id` e `prazos.google_vencimento`.
 
+## Fase 5 (`0005_atendimento_crm`)
+
+| Tabela | Observações |
+|---|---|
+| `atendimentos` | `protocolo` único (AT + ano/mês + 5 caracteres), contato (nome, telefone, e-mail), `assunto`, `canal`, `etapa` (14 valores) e `etapa_em`, `cliente_id`, `processo_id`, `departamento_id`, `responsavel_id`, observações internas, motivo de encerramento, quem conferiu e quando, `simulado`. |
+| `links_cadastro` | `token_hash` único (o token nunca é guardado), `finalidade` (cadastro, documentos), `formulario` (cópia do formulário no momento da geração), `expira_em`, revogação, `concluido_em`, `usos`, primeiro e último uso, último IP e canal de envio. |
+| `cadastros_atendimento` | Um por atendimento: `conteudo_cifrado` (Fernet: dados, relato, cronologia e entrevista), campos preenchidos, passo, `relato_hash` (SHA-256 do relato no momento da confirmação), confirmação e IP. |
+| `documentos_recebidos` | Nome original, tipo detectado pelo conteúdo, tamanho, `sha256` (deduplicação por atendimento), `caminho` relativo em `EJMF_ARQUIVOS_DIR`, documento previsto, `origem` (link, portal, whatsapp, painel), `situacao` (recebido, aceito, recusado) e motivo. |
+| `acessos_portal` | Um por cliente: e-mail (único), `senha_hash` (Argon2id), convite (hash e validade), falhas e bloqueio, ativação e último login. |
+| `sessoes_portal` | Sessões do cliente, separadas das da equipe: hash do token, IP, último uso e expiração. |
+| `solicitacoes_portal` | Pedidos do cliente (mensagem, atendimento, atualizar dados), situação e resposta da equipe. |
+| `conversas` | Uma por canal e contato (único): `estado` (recepcionista, humano, encerrada), `contexto` JSON da recepcionista, última mensagem do contato (janela de 24 h), não lidas, vínculos com cliente e atendimento, `simulado`. |
+| `mensagens` | Entrada e saída, `autor` (contato, recepcionista, equipe), `intencao` reconhecida, `id_externo` único quando preenchido, `situacao` (recebida, pendente, enviada, entregue, lida, falha, simulada) e erro. |
+
+Também nesta migração: `processos.portal_visivel` e o tipo de autor `cliente` na auditoria.
+
 As tabelas das fases seguintes são documentadas aqui quando a migração correspondente é criada.
