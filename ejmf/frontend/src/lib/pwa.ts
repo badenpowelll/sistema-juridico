@@ -21,6 +21,9 @@ export async function limparAparelho() {
     reg?.active?.postMessage("limpar");
     const sub = await reg?.pushManager?.getSubscription();
     await sub?.unsubscribe();
+    // apaga os arquivos guardados e desliga o service worker; ele volta a ser registrado no próximo acesso ao painel
+    if ("caches" in window) await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+    await reg?.unregister();
   } catch { /* navegador sem suporte: nada a limpar */ }
 }
 

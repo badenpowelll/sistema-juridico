@@ -80,7 +80,8 @@ export function CascoPainel({ children }: { children: ReactNode }) {
   async function sair() {
     await limparAparelho();
     await enviar("/auth/sair", "POST").catch(() => {});
-    router.replace("/entrar");
+    // navegação completa: a página de entrada já abre sem o service worker, que foi desligado
+    window.location.replace("/entrar");
   }
 
   const itens = MENU.filter((m) => m.perm === null || eu.permissoes.includes(m.perm));
