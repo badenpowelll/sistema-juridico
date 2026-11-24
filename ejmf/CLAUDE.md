@@ -30,7 +30,7 @@ pip install -e ".[dev]"
 export EJMF_DATABASE_URL=postgresql+psycopg://ejmf:ejmf@localhost:5433/ejmf_db
 alembic upgrade head
 python -m app.cli semear            # perfis, permissões, departamentos, integrações
-python -m app.cli criar-admin --email admin@ejmf.local --nome "Administrador"
+python -m app.cli criar-admin --email admin@example.com --nome "Administrador"
 uvicorn app.main:app --reload       # http://localhost:8000/api/v1/docs
 pytest -q                           # usa EJMF_TEST_DATABASE_URL (padrão: ejmf_test na mesma instância)
 
