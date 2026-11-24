@@ -1,18 +1,21 @@
 """Processos, partes, movimentações e linha do tempo (prontuário digital)."""
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.modelos import (
-    POLOS, STATUS_PROCESSO, Auditoria, Cliente, Departamento, Movimentacao, Parte, Processo, Tribunal,
+    POLOS, STATUS_PROCESSO, Auditoria, Cliente, Departamento, Movimentacao, Parte, Processo, Publicacao, Tribunal,
 )
 from app.servicos import auditoria
-from app.servicos.tribunais import catalogo as catalogo_tribunais
 from app.servicos.identificadores import NumeroInvalido, analisar_cnj, normalizar_texto
+from app.servicos.tribunais import catalogo as catalogo_tribunais
+
+_FORTALEZA = ZoneInfo("America/Fortaleza")
 
 ROTULO_STATUS = {"ativo": "Ativo", "suspenso": "Suspenso", "arquivado": "Arquivado", "encerrado": "Encerrado"}
 
@@ -169,6 +172,17 @@ def linha_do_tempo(db: Session, p: Processo, limite: int = 100, antes_de: dateti
               "codigo_tpu": m.codigo_tpu, "id": str(m.id)} for m in movs]
     itens += [{"tipo": "historico", "ocorrido_em": a.ocorrido_em, "descricao": _descrever(a), "origem": a.origem or "sistema",
                "autor": a.ator_nome, "id": f"a{a.id}"} for a in auds]
+    qp = select(Publicacao).where(Publicacao.processo_id == p.id, Publicacao.situacao != "duplicada")
+    pubs = db.execute(qp.order_by(Publicacao.capturado_em.desc()).limit(limite)).scalars().all()
+    for pub in pubs:
+        quando = (datetime.combine(pub.disponibilizado_em, time(12, 0), tzinfo=_FORTALEZA)
+                  if pub.disponibilizado_em else pub.capturado_em)
+        if antes_de and quando >= antes_de:
+            continue
+        resumo = (pub.classificacao or {}).get("resumo") or pub.texto[:200]
+        itens.append({"tipo": "publicacao", "ocorrido_em": quando, "id": f"p{pub.id}", "origem": pub.fonte,
+                      "descricao": f"{'[SIMULADO] ' if pub.simulado else ''}{resumo} — disponibilizada no "
+                                   f"{pub.tribunal_sigla or 'diário'}", "publicacao_id": str(pub.id)})
     itens.sort(key=lambda x: x["ocorrido_em"], reverse=True)
     return itens[:limite]
 

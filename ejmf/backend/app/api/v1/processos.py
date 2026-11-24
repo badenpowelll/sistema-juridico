@@ -10,8 +10,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import Contexto, contexto, exigir
-from app.modelos import Cliente, Departamento, Parte, Processo, Tribunal
-from app.servicos import auditoria, clientes as svc_clientes, processos as svc_processos
+from app.modelos import Cliente, Departamento, Parte, Prazo, Processo, Publicacao, RegraPrazo, Tribunal
+from app.servicos import auditoria, clientes as svc_clientes, prazos as svc_prazos, processos as svc_processos
+from app.servicos import publicacoes as svc_publicacoes
 from app.servicos.identificadores import DocumentoInvalido, NumeroInvalido, normalizar_documento, normalizar_texto
 
 rotas = APIRouter(tags=["gestão processual"])
@@ -135,9 +136,18 @@ def prontuario(processo_id: uuid.UUID, ctx: Contexto = Depends(exigir("processos
     p = _processo(ctx, processo_id)
     dados = svc_processos.como_json(p, svc_processos.tribunais_por_codigo(ctx.db), _deps(ctx.db, p.escritorio_id), completo=True)
     dados["linha_do_tempo"] = svc_processos.linha_do_tempo(ctx.db, p, limite=50)
+    if "prazos:ler" in ctx.permissoes:
+        pzs = ctx.db.execute(select(Prazo).where(Prazo.processo_id == p.id)
+                             .order_by(Prazo.vencimento.asc().nulls_first())).scalars().all()
+        regras = {r.id: r for r in ctx.db.execute(select(RegraPrazo).where(
+            RegraPrazo.id.in_({z.regra_id for z in pzs if z.regra_id}))).scalars()} if pzs else {}
+        dados["prazos"] = [svc_prazos.como_json(z, regra=regras.get(z.regra_id)) for z in pzs]
+    if "publicacoes:ler" in ctx.permissoes:
+        pubs = ctx.db.execute(select(Publicacao).where(Publicacao.processo_id == p.id)
+                              .order_by(Publicacao.disponibilizado_em.desc().nulls_last()).limit(50)).scalars().all()
+        dados["publicacoes"] = [svc_publicacoes.como_json(x) for x in pubs]
     # módulos ainda não implementados aparecem como tal, nunca como "zero"
     dados["modulos_futuros"] = [
-        {"rotulo": "Publicações e intimações", "fase": 3}, {"rotulo": "Prazos homologados", "fase": 3},
         {"rotulo": "Audiências e compromissos", "fase": 4}, {"rotulo": "Documentos", "fase": 6},
         {"rotulo": "Financeiro", "fase": 9},
     ]

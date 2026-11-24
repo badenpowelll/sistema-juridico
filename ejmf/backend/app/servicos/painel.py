@@ -9,8 +9,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import obter_config
-from app.modelos import Auditoria, Configuracao, Departamento, Importacao, ImportacaoLinha, Integracao, Sessao, Usuario
-from app.servicos import catalogo, processos as svc_processos
+from app.modelos import (
+    AlertaPrazo, Auditoria, Configuracao, Departamento, Importacao, ImportacaoLinha, Integracao, Prazo, Publicacao, Sessao,
+    Usuario,
+)
+from app.servicos import catalogo, prazos as svc_prazos, processos as svc_processos
 
 PRIORIDADES = [
     "atencao_imediata", "alta", "normal", "aguardando_informacoes", "aguardando_cliente",
@@ -31,8 +34,7 @@ ROTULOS_ESTADO = {
 
 # Indicadores dos módulos ainda não construídos: aparecem como "disponível na fase X", nunca como zero.
 INDICADORES_FUTUROS = [
-    ("publicacoes_pendentes", "Publicações pendentes de conferência", 3),
-    ("prazos_hoje", "Prazos homologados para hoje", 3), ("audiencias_semana", "Audiências da semana", 4),
+    ("audiencias_semana", "Audiências da semana", 4),
     ("clientes_aguardando", "Clientes aguardando atendimento", 5), ("documentos_revisao", "Documentos aguardando revisão", 6),
     ("honorarios_receber", "Honorários a receber", 9), ("custos_ia_mes", "Custos de IA no mês", 8),
 ]
@@ -48,9 +50,21 @@ def atencao_agora(db: Session, usuario: Usuario) -> list[dict]:
     itens: list[dict] = []
     agora = datetime.now(timezone.utc)
 
-    # 1. Integrações críticas sem operação validada
+    hoje = svc_prazos.hoje_local()
+    itens += _atencao_prazos(db, esc_id, hoje, agora)
+
+    # 1. Integrações críticas sem operação validada (simuladas não contam como monitoramento)
+    limite_h = int(svc_prazos.config(db, esc_id, "controladoria.horas_sem_sucesso_alerta", 26))
     for i in db.execute(select(Integracao).where(Integracao.escritorio_id == esc_id)).scalars():
-        if i.ultimo_erro:
+        if i.simulado:
+            continue
+        if i.critica and i.estado == "implementada_validada" and (
+                i.ultimo_sucesso_em is None or agora - i.ultimo_sucesso_em > timedelta(hours=limite_h)):
+            itens.append(_item(f"integracao-atraso-{i.codigo}", f"{i.nome}: monitoramento comprometido", "atencao_imediata",
+                               f"Sem sincronização bem-sucedida há mais de {limite_h} h. Ausência de informação não é "
+                               "ausência de acontecimentos: siga o procedimento manual da central de contingência.",
+                               "/painel/contingencia", "integracoes"))
+        elif i.ultimo_erro:
             itens.append(_item(f"integracao-falha-{i.codigo}", f"Falha na integração {i.nome}", "com_falha",
                                f"Último erro registrado: {i.ultimo_erro}", "/painel/integracoes", "integracoes"))
         elif i.critica and i.estado != "implementada_validada":
@@ -59,7 +73,7 @@ def atencao_agora(db: Session, usuario: Usuario) -> list[dict]:
                     f"integracao-{i.codigo}", f"{i.nome}: monitoramento automático inativo", "alta",
                     f"Estado: {ROTULOS_ESTADO[i.estado]}. Sem esta fonte, publicações e intimações não estão sendo "
                     "capturadas automaticamente; a ausência de alertas não significa ausência de intimações. "
-                    "Faça a conferência manual no portal oficial.", "/painel/integracoes", "integracoes"))
+                    "Faça a conferência manual no portal oficial.", "/painel/contingencia", "integracoes"))
             else:
                 itens.append(_item(f"integracao-{i.codigo}", f"{i.nome}: {ROTULOS_ESTADO[i.estado].lower()}",
                                    "aguardando_informacoes" if i.estado.startswith("aguardando") else "normal",
@@ -107,6 +121,76 @@ def atencao_agora(db: Session, usuario: Usuario) -> list[dict]:
     return itens
 
 
+def _atencao_prazos(db: Session, esc_id, hoje, agora) -> list[dict]:
+    itens = []
+    abertos = ("sugerido", "aguardando_conferencia", "homologado", "alterado")
+    for dias, rotulo, prio in ((0, "hoje", "atencao_imediata"), (1, "amanhã", "atencao_imediata")):
+        pzs = db.execute(select(Prazo.situacao).where(Prazo.escritorio_id == esc_id, Prazo.situacao.in_(abertos),
+                                                      Prazo.vencimento == hoje + timedelta(days=dias))).scalars().all()
+        if pzs:
+            nao_conf = sum(1 for s in pzs if s != "homologado")
+            itens.append(_item(f"prazos-{dias}", f"{len(pzs)} prazo(s) vencendo {rotulo}", prio,
+                               "Vencimento calculado pelo motor determinístico." + (
+                                   f" {nao_conf} ainda não homologado(s): confira o cálculo antes de confiar na data."
+                                   if nao_conf else " Todos homologados."), "/painel/prazos", "prazos"))
+    vencidos = db.execute(select(func.count()).select_from(Prazo).where(
+        Prazo.escritorio_id == esc_id, Prazo.situacao == "vencido")).scalar_one()
+    if vencidos:
+        itens.append(_item("prazos-vencidos", f"{vencidos} prazo(s) vencido(s) sem conclusão registrada", "atencao_imediata",
+                           "O vencimento passou e ninguém registrou o cumprimento. Verifique se foi cumprido e registre, "
+                           "ou trate a perda com o advogado responsável.", "/painel/prazos?situacao=vencido", "prazos"))
+    conferir = db.execute(select(func.count()).select_from(Prazo).where(
+        Prazo.escritorio_id == esc_id, Prazo.situacao.in_(("sugerido", "alterado", "informacao_insuficiente")))).scalar_one()
+    homologar = db.execute(select(func.count()).select_from(Prazo).where(
+        Prazo.escritorio_id == esc_id, Prazo.situacao == "aguardando_conferencia")).scalar_one()
+    if conferir:
+        itens.append(_item("prazos-conferir", f"{conferir} prazo(s) sugerido(s) ou alterado(s) aguardando conferência", "alta",
+                           "Prazos sugeridos a partir de publicações não são confirmados até a dupla conferência.",
+                           "/painel/prazos", "prazos"))
+    if homologar:
+        itens.append(_item("prazos-homologar", f"{homologar} prazo(s) conferido(s) aguardando homologação",
+                           "aguardando_aprovacao", "A homologação é a segunda conferência, feita por outra pessoa.",
+                           "/painel/prazos?situacao=aguardando_conferencia", "prazos"))
+    pubs = db.execute(select(func.count(), func.min(Publicacao.capturado_em)).where(
+        Publicacao.escritorio_id == esc_id, Publicacao.situacao == "nao_conferida")).one()
+    if pubs[0]:
+        antiga = pubs[1] and agora - pubs[1] > timedelta(hours=24)
+        itens.append(_item("publicacoes-conferir", f"{pubs[0]} publicação(ões) não conferida(s)", "alta" if antiga else "normal",
+                           ("Há publicação capturada há mais de 24 h sem conferência. " if antiga else "")
+                           + "Cada publicação precisa ser lida, vinculada ao processo e conferida.",
+                           "/painel/publicacoes", "publicacoes"))
+    alertas = db.execute(select(func.count()).select_from(AlertaPrazo).where(
+        AlertaPrazo.escritorio_id == esc_id, AlertaPrazo.ciente_em.is_(None))).scalar_one()
+    if alertas:
+        itens.append(_item("alertas-prazo", f"{alertas} alerta(s) de prazo sem ciência", "alta",
+                           "Alertas gerados nos limiares configurados (15, 7, 5, 3, 2, 1 dia e no dia).",
+                           "/painel/prazos", "prazos"))
+    return itens
+
+
+def _indicadores_controladoria(db: Session, esc_id, hoje) -> list[dict]:
+    nao_conf = db.execute(select(func.count()).select_from(Publicacao).where(
+        Publicacao.escritorio_id == esc_id, Publicacao.situacao == "nao_conferida")).scalar_one()
+    novas = db.execute(select(func.count()).select_from(Publicacao).where(
+        Publicacao.escritorio_id == esc_id, Publicacao.tipo == "intimacao",
+        Publicacao.capturado_em > datetime.now(timezone.utc) - timedelta(hours=24))).scalar_one()
+    hoje_h = db.execute(select(func.count()).select_from(Prazo).where(
+        Prazo.escritorio_id == esc_id, Prazo.situacao == "homologado", Prazo.vencimento == hoje)).scalar_one()
+    futuros = db.execute(select(func.count()).select_from(Prazo).where(
+        Prazo.escritorio_id == esc_id, Prazo.situacao.in_(("sugerido", "aguardando_conferencia", "homologado", "alterado")),
+        Prazo.vencimento > hoje)).scalar_one()
+    return [
+        {"codigo": "publicacoes_pendentes", "rotulo": "Publicações pendentes de conferência", "valor": nao_conf,
+         "disponivel": True, "link": "/painel/publicacoes"},
+        {"codigo": "intimacoes_24h", "rotulo": "Intimações novas (24 h)", "valor": novas, "disponivel": True,
+         "link": "/painel/publicacoes"},
+        {"codigo": "prazos_hoje", "rotulo": "Prazos homologados para hoje", "valor": hoje_h, "disponivel": True,
+         "link": "/painel/prazos"},
+        {"codigo": "prazos_futuros", "rotulo": "Prazos futuros em aberto", "valor": futuros, "disponivel": True,
+         "link": "/painel/prazos"},
+    ]
+
+
 def resumo(db: Session, usuario: Usuario) -> dict:
     cfg = obter_config()
     esc_id = usuario.escritorio_id
@@ -138,6 +222,7 @@ def resumo(db: Session, usuario: Usuario) -> dict:
              "link": "/painel/processos"},
             {"codigo": "clientes_total", "rotulo": "Clientes cadastrados", "valor": proc["clientes"], "disponivel": True,
              "link": "/painel/clientes"},
+        ] + _indicadores_controladoria(db, esc_id, svc_prazos.hoje_local()) + [
             {"codigo": "sessoes_ativas", "rotulo": "Sessões ativas", "valor": sessoes_ativas, "disponivel": True},
             {"codigo": "eventos_auditoria_24h", "rotulo": "Eventos auditados (24 h)", "valor": eventos_24h, "disponivel": True},
         ] + [{"codigo": c, "rotulo": r, "valor": None, "disponivel": False, "fase": f} for c, r, f in INDICADORES_FUTUROS],

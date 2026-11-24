@@ -26,6 +26,14 @@ class Config(BaseSettings):
 
     cors_origens: list[str] = Field(default_factory=list)
 
+    # Conectores (Fase 3). URLs oficiais documentadas pelo CNJ; a chave do DataJud vem só do ambiente.
+    djen_url: str = "https://comunicaapi.pje.jus.br/api/v1"
+    datajud_url: str = "https://api-publica.datajud.cnj.jus.br"
+    datajud_api_key: str | None = Field(default=None, validation_alias="DATAJUD_API_KEY")
+    conectores_timeout_segundos: float = 30.0
+    # Adaptadores simulados (dados sintéticos, sempre marcados). Desligados por padrão.
+    conectores_simulados: bool = False
+
     @property
     def producao(self) -> bool:
         return self.ambiente == "producao"

@@ -1,4 +1,11 @@
-def test_painel_atencao_agora_reflete_dados_reais(admin):
+def test_painel_atencao_agora_reflete_dados_reais(admin, db):
+    from sqlalchemy import update
+
+    from app.modelos import Integracao
+    # independe da ordem: outros testes validam o DJEN; aqui as fontes estão como na instalação
+    db.execute(update(Integracao).where(Integracao.codigo.in_(("djen", "datajud"))).values(
+        estado="ambiente_testes", ultimo_erro=None, falhas_consecutivas=0, circuito_aberto_ate=None))
+    db.commit()
     c, _ = admin
     p = c.get("/api/v1/painel").json()
     ids = {i["id"] for i in p["atencao_agora"]}

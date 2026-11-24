@@ -16,10 +16,11 @@ dependencies = [
   "cryptography>=46",
   "openpyxl==3.1.5",
   "python-multipart==0.0.34",
+  "httpx==0.28.1",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==9.2.0", "httpx==0.28.1"]
+dev = ["pytest==9.2.0"]
 
 [build-system]
 requires = ["setuptools>=75"]

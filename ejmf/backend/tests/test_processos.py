@@ -28,7 +28,7 @@ def test_cria_processo_com_tribunal_e_cliente(admin):
     assert [x["id"] for x in p["clientes"]] == [cli["id"]]
     pr = c.get(f"/api/v1/processos/{p['id']}").json()
     assert len(pr["partes"]) == 2 and pr["linha_do_tempo"][0]["descricao"] == "Processo cadastrado"
-    assert {m["fase"] for m in pr["modulos_futuros"]} >= {3, 4}
+    assert {m["fase"] for m in pr["modulos_futuros"]} >= {4} and "prazos" in pr and "publicacoes" in pr
 
 
 def test_numero_invalido_e_duplicado(admin):

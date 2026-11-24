@@ -140,6 +140,8 @@ class Integracao(Base):
     ultima_execucao_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ultimo_sucesso_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ultimo_erro: Mapped[str | None] = mapped_column(Text)
+    falhas_consecutivas: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    circuito_aberto_ate: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
@@ -272,6 +274,8 @@ class Movimentacao(Base):
     __table_args__ = (
         CheckConstraint("tipo in ('movimentacao','anotacao','sistema')"),
         Index("ix_movimentacoes_processo_data", "processo_id", text("ocorrido_em DESC")),
+        Index("uq_movimentacoes_chave_externa", "processo_id", "chave_externa", unique=True,
+              postgresql_where=text("chave_externa IS NOT NULL")),
     )
     id: Mapped[uuid.UUID] = _uuid()
     escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
@@ -281,6 +285,7 @@ class Movimentacao(Base):
     descricao: Mapped[str] = mapped_column(Text, nullable=False)
     codigo_tpu: Mapped[int | None] = mapped_column(Integer)
     origem: Mapped[str] = mapped_column(String(40), nullable=False, server_default=text("'manual'"))
+    chave_externa: Mapped[str | None] = mapped_column(String(120))  # deduplicação de fontes externas (DataJud)
     autor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
     importacao_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("importacoes.id", ondelete="SET NULL"))
     criado_em: Mapped[datetime] = _criado()
@@ -330,3 +335,219 @@ class ImportacaoLinha(Base):
     cliente_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clientes.id", ondelete="SET NULL"))
     resolvido_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
     resolvido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ============================================================ Fase 3 — controladoria
+
+class DiaCalendario(Base):
+    """Feriados, suspensões e possíveis suspensões. Abrangência: nacional | segmento:J | tribunal:J.TR | uf:XX."""
+    __tablename__ = "calendario"
+    __table_args__ = (
+        CheckConstraint("tipo in ('feriado','suspensao','possivel_suspensao')"),
+        UniqueConstraint("escritorio_id", "data", "abrangencia", "nome"),
+        Index("ix_calendario_data", "escritorio_id", "data"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    data: Mapped[date] = mapped_column(Date, nullable=False)
+    nome: Mapped[str] = mapped_column(String(200), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False)
+    abrangencia: Mapped[str] = mapped_column(String(30), nullable=False)
+    fundamento: Mapped[str] = mapped_column(String(300), nullable=False)
+    confirmado: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    confirmado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    confirmado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    origem: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'semente'"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class RegraPrazo(Base):
+    """Regra de contagem versionada. Só regra homologada permite homologar prazo."""
+    __tablename__ = "regras_prazo"
+    __table_args__ = (
+        UniqueConstraint("escritorio_id", "codigo", "versao"),
+        CheckConstraint("contagem in ('uteis','corridos')"),
+        CheckConstraint("termo_inicial in ('disponibilizacao_djen','intimacao')"),
+        CheckConstraint("situacao in ('nao_homologada','homologada','substituida')"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    codigo: Mapped[str] = mapped_column(String(60), nullable=False)
+    versao: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
+    nome: Mapped[str] = mapped_column(String(200), nullable=False)
+    fundamento: Mapped[str] = mapped_column(Text, nullable=False)
+    contagem: Mapped[str] = mapped_column(String(10), nullable=False)
+    termo_inicial: Mapped[str] = mapped_column(String(30), nullable=False)
+    suspensao_recesso: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    segmentos: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))  # sugestão automática
+    observacao: Mapped[str | None] = mapped_column(Text)
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'nao_homologada'"))
+    homologada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    homologada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    criado_em: Mapped[datetime] = _criado()
+
+
+SITUACOES_PUBLICACAO = ("nao_conferida", "conferida", "descartada", "duplicada")
+
+
+class Publicacao(Base):
+    """Publicação/intimação capturada. O original fica preservado; as quatro datas ficam separadas."""
+    __tablename__ = "publicacoes"
+    __table_args__ = (
+        CheckConstraint("situacao in ('nao_conferida','conferida','descartada','duplicada')"),
+        Index("uq_publicacoes_fonte_externo", "escritorio_id", "fonte", "id_externo", unique=True,
+              postgresql_where=text("id_externo IS NOT NULL")),
+        Index("ix_publicacoes_conteudo", "escritorio_id", "numero_processo", "disponibilizado_em", "texto_hash"),
+        Index("ix_publicacoes_fila", "escritorio_id", "situacao", text("disponibilizado_em DESC")),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    fonte: Mapped[str] = mapped_column(String(40), nullable=False)  # djen | djen_simulado | manual | arquivo
+    simulado: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    id_externo: Mapped[str | None] = mapped_column(String(80))
+    hash_certidao: Mapped[str | None] = mapped_column(String(80))
+    tipo: Mapped[str] = mapped_column(String(30), nullable=False, server_default=text("'publicacao'"))
+    tipo_original: Mapped[str | None] = mapped_column(String(80))
+    numero_processo: Mapped[str | None] = mapped_column(String(20), index=True)
+    numero_formatado: Mapped[str | None] = mapped_column(String(25))
+    processo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("processos.id", ondelete="SET NULL"), index=True)
+    tribunal_sigla: Mapped[str | None] = mapped_column(String(20))
+    orgao: Mapped[str | None] = mapped_column(String(300))
+    classe: Mapped[str | None] = mapped_column(String(200))
+    tipo_documento: Mapped[str | None] = mapped_column(String(120))
+    texto: Mapped[str] = mapped_column(Text, nullable=False)
+    texto_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    destinatarios: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    advogados: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    link: Mapped[str | None] = mapped_column(Text)
+    original: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    disponibilizado_em: Mapped[date | None] = mapped_column(Date)
+    publicado_em: Mapped[date | None] = mapped_column(Date)  # calculada: 1º dia útil após a disponibilização
+    ciencia_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # só por ato explícito
+    ciencia_registrada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    capturado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    classificacao: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    pendencias: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'nao_conferida'"))
+    duplicada_de_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("publicacoes.id", ondelete="SET NULL"))
+    conferida_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    conferida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    observacao: Mapped[str | None] = mapped_column(Text)
+    execucao_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("execucoes_integracao.id", ondelete="SET NULL"))
+    criado_em: Mapped[datetime] = _criado()
+
+
+class LeituraPublicacao(Base):
+    """Histórico interno de leitura (quem abriu e quando). Não é ciência oficial."""
+    __tablename__ = "publicacao_leituras"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    publicacao_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("publicacoes.id", ondelete="CASCADE"), nullable=False, index=True)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    lida_em: Mapped[datetime] = _criado()
+
+
+SITUACOES_PRAZO = ("sugerido", "aguardando_conferencia", "homologado", "alterado", "concluido", "vencido",
+                   "informacao_insuficiente")
+
+
+class Prazo(Base):
+    __tablename__ = "prazos"
+    __table_args__ = (
+        CheckConstraint("situacao in ('sugerido','aguardando_conferencia','homologado','alterado','concluido',"
+                        "'vencido','informacao_insuficiente')"),
+        Index("ix_prazos_agenda", "escritorio_id", "situacao", "vencimento"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    processo_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("processos.id", ondelete="CASCADE"), nullable=False, index=True)
+    publicacao_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("publicacoes.id", ondelete="SET NULL"), index=True)
+    regra_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("regras_prazo.id"))
+    descricao: Mapped[str] = mapped_column(Text, nullable=False)
+    dias: Mapped[int | None] = mapped_column(Integer)
+    dobro: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    dobro_motivo: Mapped[str | None] = mapped_column(String(300))
+    data_base: Mapped[date | None] = mapped_column(Date)
+    inicio_contagem: Mapped[date | None] = mapped_column(Date)
+    vencimento: Mapped[date | None] = mapped_column(Date)
+    vencimento_alternativo: Mapped[date | None] = mapped_column(Date)
+    calculo: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    situacao: Mapped[str] = mapped_column(String(30), nullable=False, server_default=text("'sugerido'"))
+    origem: Mapped[str] = mapped_column(String(30), nullable=False, server_default=text("'manual'"))
+    simulado: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    conferido_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    conferido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    homologado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    homologado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    concluido_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    concluido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    conclusao: Mapped[str | None] = mapped_column(Text)
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class AlertaPrazo(Base):
+    """Alerta gerado N dias antes do vencimento. Idempotente por (prazo, dias, vencimento)."""
+    __tablename__ = "alertas_prazo"
+    __table_args__ = (UniqueConstraint("prazo_id", "dias_antes", "vencimento"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False, index=True)
+    prazo_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("prazos.id", ondelete="CASCADE"), nullable=False, index=True)
+    dias_antes: Mapped[int] = mapped_column(Integer, nullable=False)
+    vencimento: Mapped[date] = mapped_column(Date, nullable=False)
+    confirmado_prazo: Mapped[bool] = mapped_column(Boolean, nullable=False)  # prazo estava homologado?
+    canais: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[\"painel\"]'::jsonb"))
+    gerado_em: Mapped[datetime] = _criado()
+    ciente_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    ciente_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ExecucaoIntegracao(Base):
+    """Cada sincronização com uma fonte externa (inclusive as que falharam ou foram puladas)."""
+    __tablename__ = "execucoes_integracao"
+    __table_args__ = (
+        CheckConstraint("resultado in ('executando','sucesso','parcial','falha','ignorada')"),
+        Index("ix_execucoes_integracao", "escritorio_id", "integracao", text("iniciada_em DESC")),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    integracao: Mapped[str] = mapped_column(String(60), nullable=False)
+    simulado: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    iniciada_em: Mapped[datetime] = _criado()
+    concluida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resultado: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'executando'"))
+    parametros: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    itens_recebidos: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    itens_novos: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    itens_duplicados: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    erro: Mapped[str | None] = mapped_column(Text)
+    tarefa_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tarefas.id", ondelete="SET NULL"))
+
+
+ESTADOS_TAREFA = ("pendente", "executando", "concluida", "falhou", "cancelada")
+
+
+class Tarefa(Base):
+    """Fila de tarefas em segundo plano com idempotência (chave única), tentativas e espera exponencial."""
+    __tablename__ = "tarefas"
+    __table_args__ = (
+        UniqueConstraint("escritorio_id", "chave"),
+        CheckConstraint("estado in ('pendente','executando','concluida','falhou','cancelada')"),
+        Index("ix_tarefas_fila", "estado", "agendada_para"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(60), nullable=False)
+    chave: Mapped[str] = mapped_column(String(200), nullable=False)
+    parametros: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    estado: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'pendente'"))
+    tentativas: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    max_tentativas: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("5"))
+    agendada_para: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    iniciada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    concluida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    erro: Mapped[str | None] = mapped_column(Text)
+    resultado: Mapped[Any | None] = mapped_column(JSONB)
+    criada_por: Mapped[str | None] = mapped_column(String(120))
+    criado_em: Mapped[datetime] = _criado()
