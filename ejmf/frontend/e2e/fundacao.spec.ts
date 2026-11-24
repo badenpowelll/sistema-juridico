@@ -46,7 +46,8 @@ test("advogado entra e vê o que exige atenção agora", async ({ page }) => {
   await expect(djen).toContainText("monitoramento automático inativo");
   await expect(djen).toContainText("não significa ausência de intimações");
   await expect(page.locator('[data-item="config-institucional"]')).toBeVisible();
-  await expect(page.locator('[data-indicador="publicacoes_pendentes"]')).toContainText("Fase 3");
+  await expect(page.locator('[data-indicador="publicacoes_pendentes"]')).not.toContainText("Fase 3");
+  await expect(page.locator('[data-indicador="prazos_hoje"]')).toBeVisible();
 });
 
 test("completar os dados institucionais tira a pendência do painel", async ({ page }) => {

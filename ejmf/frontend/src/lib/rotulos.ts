@@ -39,3 +39,26 @@ export function moeda(v: string | null | undefined): string {
   if (v == null) return "—";
   return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
+
+export const SITUACAO_PRAZO: Record<string, [string, string]> = {
+  sugerido: ["Sugerido — não confirmado", "alerta"], aguardando_conferencia: ["Aguardando homologação", "info"],
+  homologado: ["Homologado", "ok"], alterado: ["Alterado — rever", "alerta"], concluido: ["Concluído", "neutro"],
+  vencido: ["Vencido", "perigo"], informacao_insuficiente: ["Informação insuficiente", "perigo"],
+};
+
+export const SITUACAO_PUBLICACAO: Record<string, [string, string]> = {
+  nao_conferida: ["Não conferida", "alerta"], conferida: ["Conferida", "ok"], descartada: ["Descartada", "neutro"],
+  duplicada: ["Duplicada", "neutro"],
+};
+
+export const FONTE: Record<string, string> = {
+  djen: "DJEN", djen_simulado: "DJEN simulado", manual: "Cadastro manual", arquivo: "Arquivo", datajud: "DataJud",
+};
+
+export function diasRestantes(n: number | null | undefined): string {
+  if (n == null) return "—";
+  if (n < 0) return `venceu há ${-n} dia(s)`;
+  if (n === 0) return "vence hoje";
+  if (n === 1) return "vence amanhã";
+  return `em ${n} dias`;
+}

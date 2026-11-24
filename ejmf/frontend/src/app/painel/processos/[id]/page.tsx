@@ -4,19 +4,23 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { BuscaCliente } from "@/componentes/BuscaCliente";
 import { useEu } from "@/componentes/CascoPainel";
+import { NovoPrazo } from "@/componentes/NovoPrazo";
+import { PrazoResumo } from "@/componentes/PrazoResumo";
 import { Aviso, AreaTexto, Botao, Campo, Cartao, Selecao, Selo, Vazio } from "@/componentes/ui";
 import { api, dataHora, enviar } from "@/lib/api";
-import { dataCurta, moeda, POLO, STATUS_PROCESSO } from "@/lib/rotulos";
+import { dataCurta, moeda, POLO, SITUACAO_PUBLICACAO, STATUS_PROCESSO } from "@/lib/rotulos";
 import type { Cliente, Departamento, EventoTempo, Prontuario } from "@/lib/tipos";
 
 const TIPO_EVENTO: Record<string, [string, string]> = {
-  movimentacao: ["Movimentação", "info"], anotacao: ["Anotação", "dourado"], sistema: ["Sistema", "neutro"], historico: ["Histórico", "neutro"],
+  movimentacao: ["Movimentação", "info"], anotacao: ["Anotação", "dourado"], sistema: ["Sistema", "neutro"], historico: ["Histórico", "neutro"], publicacao: ["Publicação", "alerta"],
 };
 
 export default function ProntuarioProcesso() {
   const { id } = useParams<{ id: string }>();
   const { eu } = useEu();
   const pode = eu.permissoes.includes("processos:gerenciar");
+  const podePrazo = eu.permissoes.includes("prazos:gerenciar");
+  const [novoPrazo, setNovoPrazo] = useState(false);
   const [p, setP] = useState<Prontuario | null>(null);
   const [deps, setDeps] = useState<Departamento[]>([]);
   const [mais, setMais] = useState<EventoTempo[]>([]);
@@ -92,6 +96,29 @@ export default function ProntuarioProcesso() {
             )}
           </Cartao>
 
+          {p.prazos && (
+            <Cartao titulo="Prazos" acao={podePrazo && p.status === "ativo" ? <Botao variante="secundario" onClick={() => setNovoPrazo((v) => !v)}>{novoPrazo ? "Fechar" : "Novo prazo"}</Botao> : undefined}>
+              {novoPrazo && <div className="mb-4"><NovoPrazo processoId={id} aoCriar={() => { setNovoPrazo(false); carregar(); }} /></div>}
+              {p.prazos.length === 0 ? <Vazio>Nenhum prazo cadastrado para este processo.</Vazio> : (
+                <ul className="flex flex-col divide-y divide-borda">{p.prazos.map((z) => <li key={z.id} className="py-2"><PrazoResumo pz={z} mostrarProcesso={false} /></li>)}</ul>
+              )}
+            </Cartao>
+          )}
+          {p.publicacoes && (
+            <Cartao titulo="Publicações">
+              {p.publicacoes.length === 0 ? <Vazio>Nenhuma publicação vinculada.</Vazio> : (
+                <ul className="flex flex-col divide-y divide-borda text-sm">{p.publicacoes.map((x) => {
+                  const [r, t] = SITUACAO_PUBLICACAO[x.situacao] ?? [x.situacao, "neutro"];
+                  return (
+                    <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                      <Link href={`/painel/publicacoes/${x.id}`} className="min-w-0 flex-1 hover:underline">{x.tipo_rotulo}{x.tipo_documento && ` — ${x.tipo_documento}`}</Link>
+                      <span className="flex items-center gap-2"><Selo tom={t}>{r}</Selo>{x.simulado && <Selo tom="alerta">Simulado</Selo>}<span className="font-mono text-xs">{dataCurta(x.disponibilizado_em)}</span></span>
+                    </li>
+                  );
+                })}</ul>
+              )}
+            </Cartao>
+          )}
           <Cartao titulo="Linha do tempo">
             {pode && (
               <form key={`m${chaveForm}`} className="mb-5 flex flex-col gap-3 rounded-md border border-borda p-3"
@@ -110,7 +137,7 @@ export default function ProntuarioProcesso() {
                   <Campo id="mov-data" name="ocorrido_em" type="datetime-local" rotulo="Data e hora (Fortaleza)" ajuda="Vazio = agora." />
                 </div>
                 <AreaTexto id="mov-desc" name="descricao" rotulo="Descrição" required minLength={2} />
-                <p className="text-xs text-suave">Movimentação não é intimação formal. Intimações e prazos chegam na Fase 3, com conferência humana.</p>
+                <p className="text-xs text-suave">Movimentação não é intimação formal. Intimações chegam pelas publicações; prazos são cadastrados no cartão Prazos, com conferência humana.</p>
                 <div><Botao type="submit">Registrar</Botao></div>
               </form>
             )}
@@ -127,6 +154,7 @@ export default function ProntuarioProcesso() {
                         {ev.origem !== "manual" && ev.origem !== "api" && <span>origem: {ev.origem}</span>}
                       </div>
                       <p className="mt-0.5 whitespace-pre-wrap text-sm">{ev.descricao}</p>
+                      {ev.publicacao_id && <Link href={`/painel/publicacoes/${ev.publicacao_id}`} className="text-xs text-dourado hover:underline">abrir publicação</Link>}
                     </li>
                   );
                 })}
