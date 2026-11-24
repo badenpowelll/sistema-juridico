@@ -177,6 +177,17 @@ export default function ProntuarioProcesso() {
         </div>
 
         <div className="flex flex-col gap-5">
+          <Cartao titulo="Portal do cliente">
+            <p className="text-sm" data-portal-visivel={p.portal_visivel ? "sim" : "nao"}>
+              {p.portal_visivel ? <Selo tom="ok">Visível no portal</Selo> : <Selo>Oculto do portal</Selo>}
+            </p>
+            <p className="mt-2 text-xs text-suave">Quando visível, os clientes vinculados a este processo veem número, andamentos oficiais e audiências futuras. Notas internas, prazos e publicações nunca aparecem.</p>
+            {eu.permissoes.includes("portal:gerenciar") && (
+              <Botao variante="secundario" className="mt-3" onClick={() => acao(() => enviar(`/processos/${id}/portal`, "POST", { visivel: !p.portal_visivel }))}>
+                {p.portal_visivel ? "Ocultar do portal" : "Mostrar no portal"}
+              </Botao>
+            )}
+          </Cartao>
           <Cartao titulo="Partes e clientes">
             {p.partes.length === 0 ? <Vazio>Nenhuma parte cadastrada.</Vazio> : (
               <ul className="flex flex-col divide-y divide-borda">

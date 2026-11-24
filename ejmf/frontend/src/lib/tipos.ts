@@ -9,6 +9,7 @@ export type ProcessoResumo = {
 export type Parte = { id: string; nome: string; polo: string; papel: string | null; cliente_id: string | null; representado: boolean };
 export type EventoTempo = { id: string; tipo: string; ocorrido_em: string; descricao: string; origem: string; autor?: string | null; publicacao_id?: string };
 export type Prontuario = ProcessoResumo & {
+  portal_visivel?: boolean;
   assuntos: string[]; valor_causa: string | null; data_distribuicao: string | null; observacoes: string | null;
   criado_em: string; importacao_id: string | null; partes: Parte[]; linha_do_tempo: EventoTempo[];
   modulos_futuros: { rotulo: string; fase: number }[]; prazos?: Prazo[]; publicacoes?: Publicacao[]; compromissos?: Compromisso[];

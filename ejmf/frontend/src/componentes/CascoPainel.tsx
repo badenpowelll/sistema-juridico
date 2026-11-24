@@ -18,6 +18,8 @@ export const useEu = () => {
 const MENU = [
   { href: "/painel", rotulo: "Central de comando", perm: "painel:ler" },
   { href: "/painel/prioridades", rotulo: "Prioridades", perm: "prioridades:ler" },
+  { href: "/painel/atendimentos", rotulo: "Atendimentos", perm: "atendimentos:ler" },
+  { href: "/painel/conversas", rotulo: "Conversas", perm: "conversas:ler" },
   { href: "/painel/agenda", rotulo: "Agenda", perm: "agenda:ler" },
   { href: "/painel/aprovacoes", rotulo: "Aprovações", perm: "aprovacoes:ler" },
   { href: "/painel/processos", rotulo: "Processos", perm: "processos:ler" },

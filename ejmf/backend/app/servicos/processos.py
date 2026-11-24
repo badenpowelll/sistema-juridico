@@ -218,7 +218,7 @@ def como_json(p: Processo, tribunais: dict[str, Tribunal] | None = None, departa
     }
     if completo:
         base.update({
-            "assuntos": p.assuntos, "valor_causa": str(p.valor_causa) if p.valor_causa is not None else None,
+            "assuntos": p.assuntos, "portal_visivel": p.portal_visivel, "valor_causa": str(p.valor_causa) if p.valor_causa is not None else None,
             "data_distribuicao": p.data_distribuicao, "observacoes": p.observacoes, "criado_em": p.criado_em,
             "importacao_id": str(p.importacao_id) if p.importacao_id else None,
             "partes": [{"id": str(pt.id), "nome": pt.nome, "polo": pt.polo, "papel": pt.papel,
