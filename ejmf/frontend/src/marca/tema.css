@@ -1,0 +1,60 @@
+/* Tokens visuais da marca EJMF. Único lugar onde as cores são definidas. */
+:root {
+  --ejmf-fundo: #f6f7f9;
+  --ejmf-superficie: #ffffff;
+  --ejmf-superficie-2: #eef0f3;
+  --ejmf-texto: #0b1f3a;
+  --ejmf-texto-suave: #4a5464;
+  --ejmf-borda: #dde1e7;
+  --ejmf-marinho: #0b1f3a;
+  --ejmf-marinho-profundo: #071428;
+  --ejmf-dourado: #a8844a;      /* contraste AA sobre branco para texto grande e ícones */
+  --ejmf-dourado-claro: #d6bc8a;
+  --ejmf-sobre-marinho: #ffffff;
+  --ejmf-foco: #b8955a;
+  --ejmf-perigo: #a4262c;
+  --ejmf-alerta: #8a5a00;
+  --ejmf-ok: #1e6b3a;
+  --ejmf-info: #24527a;
+  color-scheme: light;
+}
+
+:root[data-tema="escuro"] {
+  --ejmf-fundo: #071428;
+  --ejmf-superficie: #0d1d35;
+  --ejmf-superficie-2: #13284a;
+  --ejmf-texto: #eef0f3;
+  --ejmf-texto-suave: #b4bccb;
+  --ejmf-borda: #233a5e;
+  --ejmf-marinho: #0b1f3a;
+  --ejmf-marinho-profundo: #040c19;
+  --ejmf-dourado: #d6bc8a;
+  --ejmf-dourado-claro: #e6d3ae;
+  --ejmf-sobre-marinho: #ffffff;
+  --ejmf-foco: #d6bc8a;
+  --ejmf-perigo: #f08a8f;
+  --ejmf-alerta: #f2c46d;
+  --ejmf-ok: #7fd3a0;
+  --ejmf-info: #8ec1ee;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --ejmf-fundo: #071428;
+    --ejmf-superficie: #0d1d35;
+    --ejmf-superficie-2: #13284a;
+    --ejmf-texto: #eef0f3;
+    --ejmf-texto-suave: #b4bccb;
+    --ejmf-borda: #233a5e;
+    --ejmf-marinho-profundo: #040c19;
+    --ejmf-dourado: #d6bc8a;
+    --ejmf-dourado-claro: #e6d3ae;
+    --ejmf-foco: #d6bc8a;
+    --ejmf-perigo: #f08a8f;
+    --ejmf-alerta: #f2c46d;
+    --ejmf-ok: #7fd3a0;
+    --ejmf-info: #8ec1ee;
+    color-scheme: dark;
+  }
+}

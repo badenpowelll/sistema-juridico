@@ -1,0 +1,78 @@
+# CI do EJMF: testes do backend contra PostgreSQL real e E2E da interface.
+# Só dados sintéticos; nenhum segredo é usado.
+name: EJMF
+
+on:
+  pull_request:
+    paths: ["ejmf/**", ".github/workflows/ejmf.yml"]
+  push:
+    branches: [main]
+    paths: ["ejmf/**", ".github/workflows/ejmf.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: ejmf
+          POSTGRES_PASSWORD: ejmf
+          POSTGRES_DB: ejmf_db
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ejmf" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ejmf/frontend/package-lock.json
+      - name: Backend — ferramentas de OCR, conversão e cópias (Tesseract, Poppler, LibreOffice, cliente do PostgreSQL)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-por poppler-utils libreoffice-writer-nogui
+          # pg_dump/pg_restore da mesma versão do servidor (16): o cliente da distribuição pode ser mais novo e gravar
+          # comandos que o servidor 16 não conhece. Vem do repositório oficial do PostgreSQL (PGDG).
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-16
+          echo "EJMF_PG_BIN_DIR=/usr/lib/postgresql/16/bin" >> "$GITHUB_ENV"
+      - name: Backend — dependências
+        working-directory: ejmf/backend
+        run: pip install -e ".[dev]"
+      - name: Backend — testes
+        working-directory: ejmf/backend
+        run: pytest -q
+      - name: Dependências — vulnerabilidades conhecidas (pip-audit e npm audit)
+        run: |
+          pip install pip-audit
+          pip-audit --skip-editable --progress-spinner off
+          cd ejmf/frontend && npm audit --audit-level=high
+      - name: Frontend — dependências, lint e tipos
+        working-directory: ejmf/frontend
+        run: |
+          npm ci
+          npm run lint
+          npx tsc --noEmit
+      - name: Frontend — navegador
+        working-directory: ejmf/frontend
+        run: npx playwright install --with-deps chromium
+      - name: E2E
+        working-directory: ejmf/frontend
+        run: npm run test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-playwright
+          path: ejmf/frontend/playwright-report
+          retention-days: 7

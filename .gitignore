@@ -8,3 +8,13 @@ node_modules/
 .env
 .env.*
 !.env.example
+!.env.producao.example
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.next/
+ejmf/frontend/test-results/
+ejmf/frontend/playwright-report/
+# arquivos enviados por clientes (dados pessoais): nunca versionar
+ejmf/backend/dados/

@@ -1,0 +1,39 @@
+# EJMF em produção (Fase 12): HTTPS automático (Let's Encrypt) para o domínio do escritório.
+# EJMF_DOMINIO e EJMF_ACME_EMAIL vêm do .env de produção: nada aqui é inventado.
+{
+	email {$EJMF_ACME_EMAIL}
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+{$EJMF_DOMINIO} {
+	encode zstd gzip
+
+	# API direto no FastAPI; uploads até 60 MB (o limite fino é da própria API)
+	handle /api/* {
+		request_body {
+			max_size 60MB
+		}
+		reverse_proxy api:8000 {
+			health_uri /api/v1/saude
+			health_interval 30s
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
