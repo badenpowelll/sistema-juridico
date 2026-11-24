@@ -222,7 +222,7 @@ def audiencias(rd: Rodada) -> dict:
         for m in re.finditer(r"audi[êe]ncia[^.]{0,200}?" + _RX_DATA.pattern + r"[^.]{0,40}", texto, re.I):
             tre = m.group(0)
             dts = sorted(_datas_no_trecho(tre))
-            hs = sorted(_horas_no_trecho(tre[tre.find(m.group(4)) + 4:] if m.group(4) else tre))
+            hs = sorted(_horas_no_trecho(tre[m.end(3) - m.start():]))  # hora depois da data
             if dts:
                 achadas.append({"data": dts[0].isoformat(), "hora": hs[0] if hs else None,
                                 "tipo": f"{provedores.MARCA_SIMULADO} Audiência", "modalidade": "nao_informada",
@@ -425,8 +425,10 @@ def revisor(rd: Rodada) -> dict:
 
 @executor("auditor_operacoes")
 def auditor(rd: Rodada) -> dict:
+    from app.core.banco import fabrica_sessao
     from app.servicos.auditoria import verificar_cadeia
-    r = verificar_cadeia(rd.db)
+    with fabrica_sessao()() as s:  # sessão própria: a verificação desanexa os objetos que lê
+        r = verificar_cadeia(s)
     r = {k: str(v) if isinstance(v, uuid.UUID) else v for k, v in r.items()}
     rd.passo("regra", "auditoria.verificar_cadeia", None, r)
     return r

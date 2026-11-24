@@ -398,6 +398,12 @@ def rodar(db: Session, ex: ExecucaoIA, *, ultima_tentativa: bool = True) -> dict
         db.rollback()
         ex = db.get(ExecucaoIA, ex.id)
         ex.estado, ex.erro, ex.concluida_em = "falhou", str(e), agora()
+    except Exception as e:  # noqa: BLE001 — defeito inesperado não deixa a execução presa em "executando"
+        db.rollback()
+        ex = db.get(ExecucaoIA, ex.id)
+        ex.estado, ex.erro, ex.concluida_em = "falhou", f"Erro interno ({type(e).__name__}); veja os registros do servidor", agora()
+        import logging
+        logging.getLogger("ejmf.ia").exception("falha inesperada na execução %s", ex.id)
     auditoria.registrar(db, ator, "ia.execucao.encerrar", entidade="ia_execucao", entidade_id=ex.id,
                         alteracoes={"funcao": ex.funcao, "estado": ex.estado, "custo": str(ex.custo), "modelo": ex.modelo,
                                     "prompt_versao": ex.prompt_versao, "erro": ex.erro},

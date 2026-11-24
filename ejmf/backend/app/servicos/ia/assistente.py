@@ -29,8 +29,8 @@ EXEMPLOS = ["Agenda de amanhã", "Publicações pendentes", "Prazos dos próximo
             "Relatório diário", "Honorários a receber", "Última movimentação do processo 0000000-00.0000.0.00.0000",
             "Documentos aguardando revisão", "Criar pendência: ligar para o perito"]
 
-_PROIBIDO = re.compile(r"\b(cancel\w*|exclu\w*|apag\w*|remov\w*|delet\w*|envi\w*|mand\w*|assin[ae]\w*|protocol\w*|pag[auo]\w*|"
-                       r"transfer\w*|cobr\w*|homolog\w*|aprov\w*|desmarc\w*|agend\w*|marc[ae]r?\b|reagend\w*|responda\w*|respond[ae]r)\b")
+_PROIBIDO = re.compile(r"\b(cancel\w*|exclu\w*|apag\w*|remov\w*|delet\w*|envi\w*|mand\w*|assin(?!atura)[ae]\w*|protocol\w*|pag[auo]\w*|"
+                       r"transfer\w*|cobr\w*|homolog\w*|aprov\w*|desmarc\w*|agend(?:ar|e|em|ou|amento)\b|marc[ae]r?\b|marqu\w*|reagend\w*|responda\w*|respond[ae]r)\b")
 _CRIAR = re.compile(r"^\s*(?:cri[ae]r?|anot[ae]r?|registr[ae]r?)\s+(?:uma\s+)?(?:pendencia|lembrete|tarefa)\s*[:\-]?\s*(.{3,300})$")
 _DIAS = re.compile(r"(\d{1,4})\s*dias?")
 _DATA = re.compile(r"\b(\d{1,2})/(\d{1,2})(?:/(\d{4}))?\b")
