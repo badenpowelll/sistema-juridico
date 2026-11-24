@@ -43,6 +43,12 @@ def _procedimento(codigo: str, oab: tuple[str, str] | None, desde: datetime | No
         return {"passos": ["Confira os andamentos diretamente nos sistemas dos tribunais (PJe, eproc, e-SAJ).",
                            "Lembre que o DataJud não é canal de intimação: prazos vêm do DJEN ou do Domicílio Judicial."],
                 "link_consulta": None}
+    if codigo == "google_calendar":
+        return {"passos": ["Enquanto a agenda Google não sincroniza, a agenda do EJMF continua valendo: consulte-a pelo painel "
+                           "ou pelo celular.",
+                           "Compromissos marcados direto no Google não aparecem no EJMF nem entram na checagem de conflitos "
+                           "até a sincronização voltar."],
+                "link_consulta": None}
     if codigo == "domicilio_judicial":
         return {"passos": ["Acesse o Domicílio Judicial Eletrônico com gov.br ou certificado do titular todos os dias úteis."],
                 "link_consulta": None}
@@ -90,7 +96,7 @@ def central(db: Session, esc_id: uuid.UUID) -> dict:
             "comprometido": comprometido, "motivos": motivos,
             "processos_afetados": afetados if comprometido else 0,
             "procedimento": _procedimento(i.codigo, oab, i.ultimo_sucesso_em, cfg.djen_url) if comprometido else None,
-            "sincronizavel": i.codigo in ("djen", "datajud", "djen_simulado"),
+            "sincronizavel": i.codigo in ("djen", "datajud", "djen_simulado", "google_calendar", "google_calendar_simulado"),
             "execucoes": [{"id": str(e.id), "iniciada_em": e.iniciada_em, "resultado": e.resultado, "novos": e.itens_novos,
                            "recebidos": e.itens_recebidos, "duplicados": e.itens_duplicados, "erro": e.erro,
                            "parametros": e.parametros} for e in execs],

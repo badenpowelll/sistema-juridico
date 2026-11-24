@@ -1,7 +1,7 @@
 """Worker de tarefas em segundo plano.
 
-A cada ciclo (15 s): registra o batimento, agenda as sincronizações do horário e a rotina de prazos
-(idempotente), devolve à fila tarefas travadas e processa as pendentes. Vários workers podem rodar juntos
+A cada ciclo (15 s): registra o batimento, agenda as sincronizações do horário, a rotina de prazos, os relatórios
+diário e de encerramento e a atualização da central de prioridades (tudo idempotente), devolve à fila tarefas travadas e processa as pendentes. Vários workers podem rodar juntos
 (a fila usa FOR UPDATE SKIP LOCKED).
 """
 import logging
@@ -16,7 +16,7 @@ from app.core.banco import fabrica_sessao
 from app.core.config import obter_config
 from app.core.logs import configurar_logs
 from app.modelos import Configuracao
-from app.servicos import fila, sincronizacao
+from app.servicos import fila, relatorios, sincronizacao
 from app.servicos.semente import obter_escritorio
 
 log = logging.getLogger("ejmf.worker")
@@ -43,7 +43,7 @@ def ciclo(agora_local: datetime | None = None) -> dict:
     agora_local = agora_local or datetime.now(ZoneInfo(obter_config().fuso_horario))
     with fabrica_sessao()() as db:
         esc = obter_escritorio(db)
-        agendadas = sincronizacao.agendar(db, esc.id, agora_local)
+        agendadas = sincronizacao.agendar(db, esc.id, agora_local) + relatorios.agendar(db, esc.id, agora_local)
         retomadas = fila.recuperar_travadas(db)
         db.commit()
         processadas = fila.processar(db)

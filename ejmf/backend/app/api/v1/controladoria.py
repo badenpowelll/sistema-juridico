@@ -532,7 +532,7 @@ def sincronizar_agora(codigo: str, ctx: Contexto = Depends(exigir("integracoes:s
     integ = ctx.db.execute(select(Integracao).where(Integracao.escritorio_id == esc, Integracao.codigo == codigo)).scalar()
     if integ is None:
         raise HTTPException(404, "Integração não encontrada")
-    if codigo not in ("djen", "datajud", "djen_simulado"):
+    if codigo not in ("djen", "datajud", "djen_simulado", "google_calendar", "google_calendar_simulado"):
         raise HTTPException(409, f"{integ.nome}: não há conector automático")
     em_curso = ctx.db.execute(select(Tarefa).where(
         Tarefa.escritorio_id == esc, Tarefa.tipo == "sincronizar", Tarefa.estado.in_(("pendente", "executando")),

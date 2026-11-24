@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import Contexto, contexto, exigir
-from app.modelos import Cliente, Departamento, Parte, Prazo, Processo, Publicacao, RegraPrazo, Tribunal
+from app.modelos import Cliente, Compromisso, Departamento, Parte, Prazo, Processo, Publicacao, RegraPrazo, Tribunal
 from app.servicos import auditoria, clientes as svc_clientes, prazos as svc_prazos, processos as svc_processos
 from app.servicos import publicacoes as svc_publicacoes
 from app.servicos.identificadores import DocumentoInvalido, NumeroInvalido, normalizar_documento, normalizar_texto
@@ -146,9 +146,14 @@ def prontuario(processo_id: uuid.UUID, ctx: Contexto = Depends(exigir("processos
         pubs = ctx.db.execute(select(Publicacao).where(Publicacao.processo_id == p.id)
                               .order_by(Publicacao.disponibilizado_em.desc().nulls_last()).limit(50)).scalars().all()
         dados["publicacoes"] = [svc_publicacoes.como_json(x) for x in pubs]
+    if "agenda:ler" in ctx.permissoes:
+        from app.servicos import agenda
+        cs = ctx.db.execute(select(Compromisso).where(Compromisso.processo_id == p.id)
+                            .order_by(Compromisso.inicio.desc()).limit(50)).scalars().all()
+        dados["compromissos"] = [agenda.como_json(c, visualizador=ctx.usuario.id, processo=p) for c in cs]
     # módulos ainda não implementados aparecem como tal, nunca como "zero"
     dados["modulos_futuros"] = [
-        {"rotulo": "Audiências e compromissos", "fase": 4}, {"rotulo": "Documentos", "fase": 6},
+        {"rotulo": "Documentos", "fase": 6},
         {"rotulo": "Financeiro", "fase": 9},
     ]
     return dados

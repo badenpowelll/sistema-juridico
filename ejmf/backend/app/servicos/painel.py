@@ -34,7 +34,6 @@ ROTULOS_ESTADO = {
 
 # Indicadores dos módulos ainda não construídos: aparecem como "disponível na fase X", nunca como zero.
 INDICADORES_FUTUROS = [
-    ("audiencias_semana", "Audiências da semana", 4),
     ("clientes_aguardando", "Clientes aguardando atendimento", 5), ("documentos_revisao", "Documentos aguardando revisão", 6),
     ("honorarios_receber", "Honorários a receber", 9), ("custos_ia_mes", "Custos de IA no mês", 8),
 ]
@@ -52,6 +51,7 @@ def atencao_agora(db: Session, usuario: Usuario) -> list[dict]:
 
     hoje = svc_prazos.hoje_local()
     itens += _atencao_prazos(db, esc_id, hoje, agora)
+    itens += _atencao_agenda(db, usuario, hoje, agora)
 
     # 1. Integrações críticas sem operação validada (simuladas não contam como monitoramento)
     limite_h = int(svc_prazos.config(db, esc_id, "controladoria.horas_sem_sucesso_alerta", 26))
@@ -168,6 +168,47 @@ def _atencao_prazos(db: Session, esc_id, hoje, agora) -> list[dict]:
     return itens
 
 
+def _atencao_agenda(db: Session, usuario: Usuario, hoje, agora) -> list[dict]:
+    from app.servicos import agenda
+    from app.servicos.autenticacao import permissoes_do_usuario
+    esc_id, itens = usuario.escritorio_id, []
+    prox = agenda.no_periodo(db, esc_id, agora, agora + timedelta(days=7))
+    for dias, rotulo in ((0, "hoje"), (1, "amanhã")):
+        dia = hoje + timedelta(days=dias)
+        auds = [c for c in prox if c.tipo == "audiencia" and agenda.dia_local(c.inicio) == dia]
+        if auds:
+            horas = ", ".join(c.inicio.astimezone(agenda.fuso()).strftime("%H:%M") for c in auds[:5])
+            itens.append(_item(f"audiencias-{dias}", f"{len(auds)} audiência(s) {rotulo}", "atencao_imediata" if dias == 0 else "alta",
+                               f"Horário(s): {horas}. Confira local ou link, pauta e documentos.",
+                               f"/painel/agenda?data={dia.isoformat()}", "agenda"))
+    conf = agenda.conflitos(prox)
+    if conf:
+        itens.append(_item("agenda-conflitos", f"{len(conf)} conflito(s) de agenda nos próximos 7 dias", "alta",
+                           "Dois compromissos ocupam a mesma pessoa no mesmo horário.", "/painel/agenda", "agenda"))
+    perms = permissoes_do_usuario(usuario)
+    if "aprovacoes:ler" in perms:
+        from app.servicos import aprovacoes
+        n = aprovacoes.central(db, esc_id, usuario, perms)["para_mim"]
+        if n:
+            itens.append(_item("aprovacoes", f"{n} aprovação(ões) aguardando sua decisão", "aguardando_aprovacao",
+                               "Pedidos de cancelamento, reagendamentos vindos do Google, prazos e regras a homologar.",
+                               "/painel/aprovacoes", "aprovacoes"))
+    return itens
+
+
+def _indicadores_agenda(db: Session, esc_id, hoje) -> list[dict]:
+    from app.servicos import agenda
+    seg = hoje - timedelta(days=hoje.weekday())
+    sem = agenda.no_periodo(db, esc_id, agenda.inicio_do_dia(seg), agenda.inicio_do_dia(seg + timedelta(days=7)))
+    hoje_c = [c for c in sem if agenda.dia_local(c.inicio) == hoje]
+    return [
+        {"codigo": "audiencias_semana", "rotulo": "Audiências da semana", "valor": sum(c.tipo == "audiencia" for c in sem),
+         "disponivel": True, "link": "/painel/agenda?visao=semana"},
+        {"codigo": "reunioes_hoje", "rotulo": "Reuniões e atendimentos hoje",
+         "valor": sum(c.tipo in ("reuniao", "atendimento") for c in hoje_c), "disponivel": True, "link": "/painel/agenda"},
+    ]
+
+
 def _indicadores_controladoria(db: Session, esc_id, hoje) -> list[dict]:
     nao_conf = db.execute(select(func.count()).select_from(Publicacao).where(
         Publicacao.escritorio_id == esc_id, Publicacao.situacao == "nao_conferida")).scalar_one()
@@ -222,7 +263,7 @@ def resumo(db: Session, usuario: Usuario) -> dict:
              "link": "/painel/processos"},
             {"codigo": "clientes_total", "rotulo": "Clientes cadastrados", "valor": proc["clientes"], "disponivel": True,
              "link": "/painel/clientes"},
-        ] + _indicadores_controladoria(db, esc_id, svc_prazos.hoje_local()) + [
+        ] + _indicadores_controladoria(db, esc_id, svc_prazos.hoje_local()) + _indicadores_agenda(db, esc_id, svc_prazos.hoje_local()) + [
             {"codigo": "sessoes_ativas", "rotulo": "Sessões ativas", "valor": sessoes_ativas, "disponivel": True},
             {"codigo": "eventos_auditoria_24h", "rotulo": "Eventos auditados (24 h)", "valor": eventos_24h, "disponivel": True},
         ] + [{"codigo": c, "rotulo": r, "valor": None, "disponivel": False, "fase": f} for c, r, f in INDICADORES_FUTUROS],

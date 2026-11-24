@@ -483,6 +483,8 @@ class Prazo(Base):
     concluido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     conclusao: Mapped[str | None] = mapped_column(Text)
     criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    google_event_id: Mapped[str | None] = mapped_column(String(1024))  # evento do prazo homologado na agenda Google
+    google_vencimento: Mapped[date | None] = mapped_column(Date)  # vencimento que está no Google
     criado_em: Mapped[datetime] = _criado()
     atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -551,3 +553,156 @@ class Tarefa(Base):
     resultado: Mapped[Any | None] = mapped_column(JSONB)
     criada_por: Mapped[str | None] = mapped_column(String(120))
     criado_em: Mapped[datetime] = _criado()
+
+
+# ================================================================ Fase 4 — agenda e secretaria
+
+class Compromisso(Base):
+    """Compromisso da agenda institucional. Eventos externos do Google entram como tipo 'externo' (só leitura)."""
+    __tablename__ = "compromissos"
+    __table_args__ = (
+        CheckConstraint("tipo in ('audiencia','reuniao','atendimento','compromisso','lembrete','bloqueio',"
+                        "'trabalho_concentrado','pessoal','externo')"),
+        CheckConstraint("situacao in ('agendado','realizado','cancelado')"),
+        CheckConstraint("fim >= inicio"),
+        Index("ix_compromissos_periodo", "escritorio_id", "inicio", "fim"),
+        Index("ix_compromissos_google", "escritorio_id", "google_event_id", unique=True,
+              postgresql_where=text("google_event_id is not null")),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(30), nullable=False)
+    titulo: Mapped[str] = mapped_column(String(300), nullable=False)
+    descricao: Mapped[str | None] = mapped_column(Text)
+    local: Mapped[str | None] = mapped_column(String(300))
+    link_virtual: Mapped[str | None] = mapped_column(String(500))
+    modalidade: Mapped[str | None] = mapped_column(String(20))  # presencial | virtual | hibrida
+    inicio: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    fim: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    dia_inteiro: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    processo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("processos.id", ondelete="SET NULL"), index=True)
+    cliente_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clientes.id", ondelete="SET NULL"))
+    responsavel_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    participantes: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'agendado'"))
+    resultado: Mapped[str | None] = mapped_column(Text)
+    cancelado_motivo: Mapped[str | None] = mapped_column(Text)
+    origem: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'manual'"))
+    simulado: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    sincronizar_google: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    sync_pendente: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    google_event_id: Mapped[str | None] = mapped_column(String(1024))
+    google_etag: Mapped[str | None] = mapped_column(String(200))
+    google_atualizado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    removido_no_google: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class CredencialIntegracao(Base):
+    """Tokens OAuth cifrados (Fernet) e estado de sincronização de uma integração. Nunca devolvidos pela API."""
+    __tablename__ = "credenciais_integracao"
+    __table_args__ = (UniqueConstraint("escritorio_id", "codigo"),)
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    codigo: Mapped[str] = mapped_column(String(50), nullable=False)
+    dados_cifrados: Mapped[str | None] = mapped_column(Text)
+    escopos: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    estado: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    conectada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    conectada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class Pendencia(Base):
+    """Item da central de prioridades. Os automáticos têm chave única e fecham quando a origem se resolve."""
+    __tablename__ = "pendencias"
+    __table_args__ = (
+        CheckConstraint("situacao in ('aberta','aguardando_informacoes','aguardando_cliente','aguardando_terceiros',"
+                        "'aguardando_aprovacao','automatizada','concluida','falha')"),
+        Index("ix_pendencias_chave", "escritorio_id", "chave", unique=True, postgresql_where=text("chave is not null")),
+        Index("ix_pendencias_fila", "escritorio_id", "situacao", "pontuacao"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    chave: Mapped[str | None] = mapped_column(String(200))
+    origem: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'manual'"))  # sistema | manual
+    tipo: Mapped[str] = mapped_column(String(30), nullable=False)
+    entidade: Mapped[str | None] = mapped_column(String(50))
+    entidade_id: Mapped[str | None] = mapped_column(String(100))
+    titulo: Mapped[str] = mapped_column(String(300), nullable=False)
+    descricao: Mapped[str | None] = mapped_column(Text)
+    link: Mapped[str | None] = mapped_column(String(300))
+    situacao: Mapped[str] = mapped_column(String(30), nullable=False, server_default=text("'aberta'"))
+    classe: Mapped[str] = mapped_column(String(30), nullable=False, server_default=text("'normal'"))
+    pontuacao: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    justificativa: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    critica: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    referencia_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # vencimento, início, captura…
+    responsavel_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    prazo_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    adiada_ate: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    observacao: Mapped[str | None] = mapped_column(Text)
+    resolvida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolvida_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    resolucao: Mapped[str | None] = mapped_column(Text)
+    criado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    criado_em: Mapped[datetime] = _criado()
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class Aprovacao(Base):
+    """Pedido de aprovação humana (central única). Ações de agentes de IA também passarão por aqui (Fase 8)."""
+    __tablename__ = "aprovacoes"
+    __table_args__ = (
+        CheckConstraint("situacao in ('pendente','aprovada','rejeitada','devolvida','cancelada')"),
+        Index("ix_aprovacoes_pendentes", "escritorio_id", "situacao"),
+    )
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(50), nullable=False)
+    entidade: Mapped[str | None] = mapped_column(String(50))
+    entidade_id: Mapped[str | None] = mapped_column(String(100))
+    titulo: Mapped[str] = mapped_column(String(300), nullable=False)
+    descricao: Mapped[str | None] = mapped_column(Text)
+    dados: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    permissao: Mapped[str] = mapped_column(String(100), nullable=False)  # permissão exigida de quem decide
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'pendente'"))
+    solicitada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    solicitante_nome: Mapped[str | None] = mapped_column(String(200))
+    solicitada_em: Mapped[datetime] = _criado()
+    decidida_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
+    decidida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    motivo: Mapped[str | None] = mapped_column(Text)
+
+
+class Relatorio(Base):
+    """Relatório diário (6h30) e de encerramento. Um por tipo e data (idempotente)."""
+    __tablename__ = "relatorios"
+    __table_args__ = (UniqueConstraint("escritorio_id", "tipo", "referencia"),
+                      CheckConstraint("tipo in ('diario','encerramento')"))
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False)
+    referencia: Mapped[date] = mapped_column(Date, nullable=False)
+    conteudo: Mapped[Any] = mapped_column(JSONB, nullable=False)
+    entregas: Mapped[Any] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    gerado_em: Mapped[datetime] = _criado()
+
+
+class Notificacao(Base):
+    """Notificação no aplicativo, uma por usuário."""
+    __tablename__ = "notificacoes"
+    __table_args__ = (Index("ix_notificacoes_usuario", "usuario_id", "lida_em"),
+                      Index("ix_notificacoes_chave", "usuario_id", "chave", unique=True, postgresql_where=text("chave is not null")))
+    id: Mapped[uuid.UUID] = _uuid()
+    escritorio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("escritorios.id"), nullable=False)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    chave: Mapped[str | None] = mapped_column(String(200))
+    titulo: Mapped[str] = mapped_column(String(300), nullable=False)
+    texto: Mapped[str | None] = mapped_column(Text)
+    link: Mapped[str | None] = mapped_column(String(300))
+    nivel: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'info'"))
+    criado_em: Mapped[datetime] = _criado()
+    lida_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

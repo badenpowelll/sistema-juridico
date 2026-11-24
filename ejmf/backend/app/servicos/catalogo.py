@@ -35,6 +35,15 @@ PERMISSOES: dict[str, tuple[str, int]] = {
     "calendario:gerenciar": ("Cadastrar feriados e suspensões", 3),
     "integracoes:sincronizar": ("Disparar sincronização de uma fonte", 2),
     "contingencia:ler": ("Ver a central de contingência", 0),
+    "agenda:ler": ("Consultar a agenda institucional", 0),
+    "agenda:gerenciar": ("Criar, alterar, reagendar e concluir compromissos", 2),
+    "agenda:cancelar_audiencia": ("Cancelar audiência ou aprovar reagendamento de audiência vindo do Google", 4),
+    "agenda:conectar_google": ("Conectar ou desconectar a conta Google da agenda", 3),
+    "prioridades:ler": ("Ver a central de prioridades", 0),
+    "prioridades:gerenciar": ("Criar, encaminhar, reagendar e concluir pendências", 2),
+    "aprovacoes:ler": ("Ver a central de aprovações", 0),
+    "relatorios:ler": ("Ler os relatórios diário e de encerramento", 0),
+    "relatorios:gerar": ("Gerar um relatório fora do horário", 2),
 }
 
 PERFIS: dict[str, dict] = {
@@ -50,7 +59,9 @@ PERFIS: dict[str, dict] = {
                        "processos:ler", "processos:gerenciar", "clientes:ler", "clientes:gerenciar",
                        "importacoes:executar", "importacoes:conferir",
                        "publicacoes:ler", "publicacoes:cadastrar", "publicacoes:conferir",
-                       "prazos:ler", "prazos:gerenciar", "contingencia:ler", "integracoes:sincronizar"],
+                       "prazos:ler", "prazos:gerenciar", "contingencia:ler", "integracoes:sincronizar",
+                       "agenda:ler", "agenda:gerenciar", "prioridades:ler", "prioridades:gerenciar",
+                       "aprovacoes:ler", "relatorios:ler", "relatorios:gerar"],
     },
     "cliente": {
         "nome": "Cliente (portal)",
@@ -99,7 +110,10 @@ INTEGRACOES = [
     ("gmail", "Gmail institucional", "comunicacao", "aguardando_credenciais", True,
      "OAuth do escritório pendente. Fase 4."),
     ("google_calendar", "Google Calendar", "agenda", "aguardando_credenciais", True,
-     "OAuth do escritório pendente. Fase 4."),
+     "OAuth do escritório pendente: precisa de projeto no Google Cloud com a Calendar API e as variáveis "
+     "EJMF_GOOGLE_CLIENT_ID, EJMF_GOOGLE_CLIENT_SECRET e EJMF_GOOGLE_REDIRECT_URI. Escopo mínimo: calendar.events.owned."),
+    ("google_calendar_simulado", "Simulado — Google Agenda (dados sintéticos)", "agenda", "ambiente_testes", False,
+     "Servidor simulado da API do Google Calendar para testes e demonstração. Nunca substitui a agenda real."),
     ("whatsapp", "WhatsApp Business (Cloud API)", "comunicacao", "aguardando_credenciais", False,
      "Conta Meta Business verificada pendente. Fase 5."),
     ("assinatura", "Assinatura eletrônica (Documenso)", "documentos", "nao_implementada", False, "Fase 6."),
@@ -132,6 +146,15 @@ CONFIGURACOES: dict[str, tuple[object, bool, str]] = {
     "controladoria.djen_oab_variacoes": ([], False, "Outras grafias da OAB a consultar no DJEN"),
     "controladoria.sincronizacao_horas": ([6, 12, 18], False, "Horários de sincronização das fontes"),
     "controladoria.horas_sem_sucesso_alerta": (26, False, "Horas sem sincronização bem-sucedida até alertar"),
+    "agenda.expediente_inicio": ("08:00", False, "Início do expediente"),
+    "agenda.expediente_fim": ("18:00", False, "Fim do expediente"),
+    "agenda.limite_horas_dia": (8, False, "Horas de compromissos por dia acima das quais há sobrecarga"),
+    "agenda.limite_audiencias_dia": (4, False, "Audiências por dia acima das quais há sobrecarga"),
+    "agenda.google_calendario_id": ("primary", False, "Agenda do Google usada na sincronização"),
+    "agenda.sincronizar_prazos_homologados": (True, False, "Levar prazos homologados para a agenda Google"),
+    "prioridades.criterios": ({"prazo_imediato_dias_uteis": 1, "prazo_alta_dias_uteis": 5, "audiencia_alta_horas": 48,
+                               "publicacao_alta_horas": 24, "aprovacao_alta_horas": 24}, False,
+                              "Critérios objetivos da central de prioridades"),
 }
 
 # Regras de contagem semeadas como NÃO homologadas: o advogado responsável confere e homologa.

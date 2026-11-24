@@ -31,6 +31,11 @@ class Config(BaseSettings):
     datajud_url: str = "https://api-publica.datajud.cnj.jus.br"
     datajud_api_key: str | None = Field(default=None, validation_alias="DATAJUD_API_KEY")
     conectores_timeout_segundos: float = 30.0
+    # Google (Fase 4): OAuth do escritório. Sem as três variáveis, a integração fica "aguardando credenciais".
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    google_redirect_uri: str | None = None
+    google_api_url: str = "https://www.googleapis.com/calendar/v3"
     # Adaptadores simulados (dados sintéticos, sempre marcados). Desligados por padrão.
     conectores_simulados: bool = False
 

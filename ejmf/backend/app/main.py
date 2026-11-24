@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from app.api.v1 import administracao, autenticacao, controladoria, importacoes, painel, processos
+from app.api.v1 import administracao, autenticacao, controladoria, importacoes, painel, processos, secretaria
 from app.core.banco import fabrica_sessao
 from app.core.config import obter_config
 from app.core.logs import configurar_logs, trace_id_atual
@@ -66,6 +66,7 @@ def criar_app() -> FastAPI:
     app.include_router(processos.rotas, prefix="/api/v1")
     app.include_router(importacoes.rotas, prefix="/api/v1")
     app.include_router(controladoria.rotas, prefix="/api/v1")
+    app.include_router(secretaria.rotas, prefix="/api/v1")
     return app
 
 

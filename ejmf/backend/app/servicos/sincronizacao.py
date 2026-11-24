@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import obter_config
 from app.modelos import Configuracao, ExecucaoIntegracao, Integracao, Movimentacao, Processo, Tarefa, Tribunal
-from app.servicos import auditoria, fila, prazos as svc_prazos, publicacoes as svc_publicacoes
+from app.servicos import agenda_google, auditoria, fila, prazos as svc_prazos, publicacoes as svc_publicacoes
 from app.servicos.conectores.base import Conector, CredencialAusente, CredencialRecusada, ErroConector
 from app.servicos.conectores.datajud import ConectorDataJud
 from app.servicos.conectores.djen import ConectorDJEN
@@ -85,8 +85,16 @@ def sincronizar(db: Session, esc_id: uuid.UUID, codigo: str, *, desde: date | No
         return ex
     observacoes: list[str] = []
     try:
-        con = conector_para(db, esc_id, codigo)
-        if codigo in ("djen", "djen_simulado"):
+        if codigo in agenda_google.CODIGOS:
+            con, cred = agenda_google.conector(db, esc_id, codigo)
+            cont = agenda_google.sincronizar(db, esc_id, con, cred, ator)
+            ex.itens_recebidos, ex.itens_novos = cont["recebidos"], cont["externos_novos"] + cont["enviados"]
+            ex.parametros = {**ex.parametros, "resumo": {k: v for k, v in cont.items() if k != "observacoes"}}
+            observacoes = cont["observacoes"]
+            # observação de token expirado não é falha
+            observacoes = [o for o in observacoes if not o.startswith("token de sincronização expirado")]
+        elif codigo in ("djen", "djen_simulado"):
+            con = conector_para(db, esc_id, codigo)
             lista = oabs(db, esc_id)
             if not lista:
                 raise CredencialAusente("Informe número e UF da OAB em Configurações para monitorar o DJEN")
@@ -98,6 +106,7 @@ def sincronizar(db: Session, esc_id: uuid.UUID, codigo: str, *, desde: date | No
             ex.itens_recebidos, ex.itens_novos = cont["recebidos"], cont["novos"]
             ex.itens_duplicados = cont["ja_capturados"] + cont["duplicados"]
         elif codigo == "datajud":
+            con = conector_para(db, esc_id, codigo)
             cont = _sincronizar_datajud(db, esc_id, con, ini, fim)
             ex.itens_recebidos, ex.itens_novos = cont["processos"], cont["movimentos_novos"]
             observacoes = cont["observacoes"]
@@ -215,6 +224,11 @@ def ativas(db: Session, esc_id: uuid.UUID) -> list[str]:
     return codigos
 
 
+def agendas_ativas(db: Session, esc_id: uuid.UUID) -> list[str]:
+    st = agenda_google.situacao(db, esc_id)
+    return (["google_calendar"] if st["conectado"] else []) + (["google_calendar_simulado"] if st["simulado_ativo"] else [])
+
+
 def agendar(db: Session, esc_id: uuid.UUID, agora_local: datetime) -> list[str]:
     """Enfileira (idempotente) a sincronização do horário corrente e a rotina horária de prazos."""
     horas = sorted(int(h) for h in svc_prazos.config(db, esc_id, "controladoria.sincronizacao_horas", [6, 12, 18]))
@@ -226,6 +240,12 @@ def agendar(db: Session, esc_id: uuid.UUID, agora_local: datetime) -> list[str]:
             chave = f"sincronizar:{codigo}:{agora_local.date().isoformat()}:{h:02d}"
             fila.enfileirar(db, esc_id, "sincronizar", chave, {"integracao": codigo}, criada_por="agendador")
             criadas.append(chave)
+    # agenda Google: a cada 15 minutos
+    quarto = f"{agora_local.hour:02d}{(agora_local.minute // 15) * 15:02d}"
+    for codigo in agendas_ativas(db, esc_id):
+        chave = f"sincronizar:{codigo}:{agora_local.date().isoformat()}:{quarto}"
+        fila.enfileirar(db, esc_id, "sincronizar", chave, {"integracao": codigo}, max_tentativas=3, criada_por="agendador")
+        criadas.append(chave)
     chave = f"prazos.rotina:{agora_local.date().isoformat()}:{agora_local.hour:02d}"
     fila.enfileirar(db, esc_id, "prazos.rotina", chave, {}, criada_por="agendador")
     criadas.append(chave)
